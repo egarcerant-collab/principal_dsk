@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
 import {
   Card,
@@ -12,9 +12,331 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import FileUpload from "@/components/json-analyzer/FileUpload";
 import JsonViewer from "@/components/json-analyzer/JsonViewer";
 
+const defaultJson = {
+    "numDocumentoIdObligado": "901226064",
+    "numFactura": "7366",
+    "tipoNota": null,
+    "numNota": null,
+    "usuarios": [
+        {
+            "tipoDocumentoIdentificacion": "CC",
+            "numDocumentoIdentificacion": "1122410110",
+            "tipoUsuario": "01",
+            "fechaNacimiento": "1994-07-11",
+            "codSexo": "F",
+            "codPaisResidencia": "170",
+            "codMunicipioResidencia": "44001",
+            "codZonaTerritorialResidencia": "02",
+            "incapacidad": "NO",
+            "consecutivo": 1,
+            "codPaisOrigen": "170",
+            "servicios": {
+                "consultas": [
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-25 00:00",
+                        "numAutorizacion": "null",
+                        "codConsulta": "890308",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "01",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "causaMotivoAtencion": "38",
+                        "codDiagnosticoPrincipal": "X830",
+                        "codDiagnosticoRelacionado1": null,
+                        "codDiagnosticoRelacionado2": null,
+                        "codDiagnosticoRelacionado3": null,
+                        "tipoDiagnosticoPrincipal": "01",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 1
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-01 00:00",
+                        "numAutorizacion": "null",
+                        "codConsulta": "890201",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "01",
+                        "codServicio": 328,
+                        "finalidadTecnologiaSalud": "44",
+                        "causaMotivoAtencion": "38",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado1": null,
+                        "codDiagnosticoRelacionado2": null,
+                        "codDiagnosticoRelacionado3": null,
+                        "tipoDiagnosticoPrincipal": "01",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1120741156",
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 2
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-01 00:00",
+                        "numAutorizacion": "null",
+                        "codConsulta": "890206",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "01",
+                        "codServicio": 333,
+                        "finalidadTecnologiaSalud": "44",
+                        "causaMotivoAtencion": "38",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado1": null,
+                        "codDiagnosticoRelacionado2": null,
+                        "codDiagnosticoRelacionado3": null,
+                        "tipoDiagnosticoPrincipal": "01",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122809770",
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 3
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-01 00:00",
+                        "numAutorizacion": "null",
+                        "codConsulta": "890209",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "01",
+                        "codServicio": 356,
+                        "finalidadTecnologiaSalud": "44",
+                        "causaMotivoAtencion": "38",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado1": null,
+                        "codDiagnosticoRelacionado2": null,
+                        "codDiagnosticoRelacionado3": null,
+                        "tipoDiagnosticoPrincipal": "01",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1192813878",
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 4
+                    }
+                ],
+                "procedimientos": [
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-01 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 1
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-04 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 2
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-05 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 3
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-06 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 4
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-10 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 5
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-11 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 6
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-12 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 7
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-13 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 8
+                    },
+                    {
+                        "codPrestador": "440010113601",
+                        "fechaInicioAtencion": "2025-06-17 00:00",
+                        "idMIPRES": null,
+                        "numAutorizacion": null,
+                        "codProcedimiento": "943102",
+                        "viaIngresoServicioSalud": "04",
+                        "modalidadGrupoServicioTecSal": "01",
+                        "grupoServicios": "02",
+                        "codServicio": 344,
+                        "finalidadTecnologiaSalud": "44",
+                        "tipoDocumentoIdentificacion": "CC",
+                        "numDocumentoIdentificacion": "1122414387",
+                        "codDiagnosticoPrincipal": "F322",
+                        "codDiagnosticoRelacionado": null,
+                        "codComplicacion": null,
+                        "vrServicio": 0,
+                        "conceptoRecaudo": "05",
+                        "valorPagoModerador": 0,
+                        "numFEVPagoModerador": "null",
+                        "consecutivo": 9
+                    }
+                ]
+            }
+        }
+    ]
+};
+
 export default function Home() {
   const [parsedJson, setParsedJson] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    setParsedJson(defaultJson);
+  }, []);
 
   const handleFileLoad = (content: string) => {
     setError(null);
@@ -27,7 +349,7 @@ export default function Home() {
         setParsedJson(null);
       }
     } else {
-      setParsedJson(null);
+      setParsedJson(defaultJson);
     }
   };
 

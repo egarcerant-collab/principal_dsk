@@ -71,13 +71,21 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
     inputRef.current?.click();
   };
   
+  const handleReset = () => {
+    setFileName(null);
+    onFileLoad(''); // Pass empty string to reset to default JSON
+    if (inputRef.current) {
+      inputRef.current.value = ''; // Reset file input
+    }
+  };
+
   if (fileName) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 text-center p-6 border-2 border-dashed rounded-lg border-green-500 bg-green-50">
         <FileJson className="h-12 w-12 text-green-600" />
         <p className="font-medium text-green-800">Archivo cargado:</p>
         <p className="text-sm text-green-700">{fileName}</p>
-        <Button variant="outline" onClick={() => { setFileName(null); onFileLoad(''); }} disabled={disabled}>Subir otro archivo</Button>
+        <Button variant="outline" onClick={handleReset} disabled={disabled}>Subir otro archivo</Button>
       </div>
     );
   }
