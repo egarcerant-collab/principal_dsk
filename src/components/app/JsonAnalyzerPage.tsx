@@ -52,13 +52,12 @@ export default function JsonAnalyzerPage() {
   const [jsonData, setJsonData] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
   const [prestadorInfo, setPrestadorInfo] = useState<PrestadorInfo | null>(null);
   const [isLoadingProvider, setIsLoadingProvider] = useState<boolean>(true);
+  const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
     const loadProviders = async () => {
         try {
             const providersMap = await fetchProvidersData();
@@ -67,6 +66,7 @@ export default function JsonAnalyzerPage() {
             setError('Error al cargar la base de datos de prestadores: ' + e.message);
         } finally {
             setIsLoadingProvider(false);
+            setIsClientReady(true);
         }
     };
     loadProviders();
@@ -106,7 +106,7 @@ export default function JsonAnalyzerPage() {
     setPrestadorInfo(null);
   };
 
-  if (!isClient || isLoadingProvider) {
+  if (!isClientReady) {
     return (
         <div className="flex flex-col items-center justify-center p-8 space-y-2">
             <Loader2 className="animate-spin h-12 w-12 text-primary" />
