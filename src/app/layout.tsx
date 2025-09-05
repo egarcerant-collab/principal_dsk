@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${sourceCodePro.variable}`}>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Toaster />
       </body>
