@@ -27,7 +27,7 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
       reader.readAsText(file);
     } else {
       // Basic validation feedback
-      alert('Por favor, sube un archivo JSON válido.');
+      alert('Please upload a valid JSON file.');
     }
   };
 
@@ -73,7 +73,7 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
   
   const handleReset = () => {
     setFileName(null);
-    onFileLoad(''); // Pass empty string to reset to default JSON
+    onFileLoad(''); // Pass empty string to reset
     if (inputRef.current) {
       inputRef.current.value = ''; // Reset file input
     }
@@ -83,9 +83,9 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 text-center p-6 border-2 border-dashed rounded-lg border-green-500 bg-green-50">
         <FileJson className="h-12 w-12 text-green-600" />
-        <p className="font-medium text-green-800">Archivo cargado:</p>
+        <p className="font-medium text-green-800">File loaded:</p>
         <p className="text-sm text-green-700">{fileName}</p>
-        <Button variant="outline" onClick={handleReset} disabled={disabled}>Subir otro archivo</Button>
+        <Button variant="outline" onClick={handleReset} disabled={disabled}>Upload another file</Button>
       </div>
     );
   }
@@ -114,11 +114,11 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
       <div className="flex flex-col items-center gap-2 text-muted-foreground">
         <UploadCloud className="h-12 w-12" />
         <p className="font-semibold text-foreground">
-          Arrastra y suelta tu archivo JSON aquí
+          Drag and drop your JSON file here
         </p>
-        <p className="text-sm">o</p>
+        <p className="text-sm">or</p>
         <Button type="button" variant="secondary" size="sm" disabled={disabled}>
-          Busca en tus Archivos
+          Browse Files
         </Button>
       </div>
     </div>
