@@ -7,6 +7,8 @@ import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [jsonData, setJsonData] = useState<any | null>(null);
@@ -19,8 +21,12 @@ export default function Home() {
       setJsonData(parsedJson);
       setFileName(name);
       setError(null);
-    } catch (e: any) {
-      setError(`Error al parsear el archivo JSON: ${e.message}`);
+    } catch (e: any)      {
+        if (e instanceof Error) {
+            setError(`Error al parsear el archivo JSON: ${e.message}`);
+        } else {
+            setError('Ocurrió un error inesperado al parsear el archivo JSON.');
+        }
       setJsonData(null);
       setFileName(null);
     }
@@ -35,13 +41,16 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-background">
       <div className="w-full max-w-6xl space-y-8">
-        <header className="text-center space-y-2">
+        <header className="text-center space-y-4">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-foreground sm:text-5xl">
             Visor y Analizador de Datos
           </h1>
           <p className="text-lg text-muted-foreground">
             Carga un archivo JSON o importa desde Google Sheets para visualizar y analizar tus datos.
           </p>
+          <Button asChild variant="outline">
+            <Link href="/pgp-search">Ir al Buscador PGP (Prueba)</Link>
+          </Button>
         </header>
 
         {!jsonData ? (

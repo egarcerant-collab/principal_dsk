@@ -174,40 +174,46 @@ const PgPsearchForm: React.FC = () => {
     );
 
     return (
-        <div className="space-y-6">
-            <Button onClick={handleLoadData} disabled={loading || isDataLoaded} className={cn("w-full md:w-auto", isDataLoaded && "bg-green-600 hover:bg-green-700")}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
-                {loading ? "Cargando..." : isDataLoaded ? "Base de Datos Cargada" : "Cargar Base de Datos PGP"}
-            </Button>
-            
-            {isDataLoaded && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUP/CUM o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
-                    <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
-                        <Search className="mr-2 h-4 w-4" /> Buscar
-                    </Button>
-                </div>
-            )}
+        <Card>
+            <CardHeader>
+                <CardTitle>Buscador PGP</CardTitle>
+                <CardDescription>Carga la base de datos desde Google Sheets y realiza búsquedas.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Button onClick={handleLoadData} disabled={loading || isDataLoaded} className={cn("w-full md:w-auto", isDataLoaded && "bg-green-600 hover:bg-green-700")}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
+                    {loading ? "Cargando..." : isDataLoaded ? "Base de Datos Cargada" : "Cargar Base de Datos PGP"}
+                </Button>
+                
+                {isDataLoaded && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUP/CUM o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
+                        <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
+                            <Search className="mr-2 h-4 w-4" /> Buscar
+                        </Button>
+                    </div>
+                )}
 
-            {searchPerformed && !loading && (
-                <div className="mt-6">
-                    <Badge variant="secondary" className="text-sm mb-4">
-                        Se encontraron {results.length} resultados para "{searchValue}".
-                    </Badge>
-                    
-                    {results.length > 0 ? (
-                        <ScrollArea className="h-[600px] w-full rounded-md border p-4">
-                           {results.map((item, index) => <div key={`${item['CUP/CUM']}-${index}`}>{renderDetailCard(item)}</div>)}
-                        </ScrollArea>
-                    ) : (
-                        <div className="text-center py-10 text-muted-foreground">
-                            <Info className="mx-auto h-12 w-12 mb-2"/>
-                            No se encontraron resultados para los criterios de búsqueda.
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+                {searchPerformed && !loading && (
+                    <div className="mt-6">
+                        <Badge variant="secondary" className="text-sm mb-4">
+                            Se encontraron {results.length} resultados para "{searchValue}".
+                        </Badge>
+                        
+                        {results.length > 0 ? (
+                            <ScrollArea className="h-[600px] w-full rounded-md border p-4">
+                               {results.map((item, index) => <div key={`${item['CUP/CUM']}-${index}`}>{renderDetailCard(item)}</div>)}
+                            </ScrollArea>
+                        ) : (
+                            <div className="text-center py-10 text-muted-foreground">
+                                <Info className="mx-auto h-12 w-12 mb-2"/>
+                                No se encontraron resultados para los criterios de búsqueda.
+                            </div>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 };
 
