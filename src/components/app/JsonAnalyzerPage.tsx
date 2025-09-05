@@ -6,8 +6,11 @@ import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Terminal, Building, Loader2, DatabaseZap, CheckCircle } from 'lucide-react';
 import Papa from 'papaparse';
+import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
 
 interface PrestadorInfo {
   NIT: string;
@@ -54,30 +57,26 @@ export default function JsonAnalyzerPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
   const [prestadorInfo, setPrestadorInfo] = useState<PrestadorInfo | null>(null);
-  const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(true);
-  const [isClient, setIsClient] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(false);
+  const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    // This ensures the component is mounted on the client before doing anything else.
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    // Fetch providers only on the client side
-    if (isClient) {
-      const loadProviders = async () => {
-          try {
-              const providersMap = await fetchProvidersData();
-              setProviders(providersMap);
-          } catch (e: any) {
-              setError('Error al cargar la base de datos de prestadores: ' + e.message);
-          } finally {
-              setIsLoadingProviders(false);
-          }
-      };
-      loadProviders();
+  const handleLoadProviders = async () => {
+    setIsLoadingProviders(true);
+    toast({ title: "Accediendo a la Base de Datos de Prestadores...", description: "Espere un momento, por favor." });
+    try {
+        const providersMap = await fetchProvidersData();
+        setProviders(providersMap);
+        setIsProvidersDataLoaded(true);
+        toast({ title: "Datos de Prestadores Cargados", description: `Se cargaron ${providersMap.size} registros.` });
+    } catch (e: any) {
+        setError('Error al cargar la base de datos de prestadores: ' + e.message);
+        toast({ title: "Error al Cargar Datos", description: e.message, variant: "destructive" });
+    } finally {
+        setIsLoadingProviders(false);
     }
-  }, [isClient]);
+  };
+
 
   const handleFileLoad = (content: string, name: string) => {
     try {
@@ -113,24 +112,22 @@ export default function JsonAnalyzerPage() {
     setPrestadorInfo(null);
   };
 
-  if (!isClient || isLoadingProviders) {
-    return (
-        <div className="flex flex-col items-center justify-center p-8 space-y-2">
-            <Loader2 className="animate-spin h-12 w-12 text-primary" />
-            <p className="text-muted-foreground">Cargando datos de prestadores...</p>
-        </div>
-    );
-  }
-
   return (
     <div className="w-full space-y-8 mt-4">
       {!jsonData ? (
         <Card className="w-full shadow-lg">
           <CardHeader>
             <CardTitle>Carga tus datos</CardTitle>
+            <CardDescription>
+                Primero, carga la base de datos de prestadores para enriquecer los datos. Luego, sube tu archivo JSON.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <FileUpload onFileLoad={handleFileLoad} onReset={handleReset} />
+          <CardContent className="space-y-6">
+             <Button onClick={handleLoadProviders} disabled={isLoadingProviders || isProvidersDataLoaded} className={cn("w-full md:w-auto", isProvidersDataLoaded && "bg-green-600 hover:bg-green-700")}>
+                {isLoadingProviders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isProvidersDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
+                {isLoadingProviders ? "Cargando..." : isProvidersDataLoaded ? "Base de Prestadores Cargada" : "Cargar Base de Datos de Prestadores"}
+            </Button>
+            <FileUpload onFileLoad={handleFileLoad} onReset={handleReset} disabled={!isProvidersDataLoaded} />
           </CardContent>
         </Card>
       ) : (
@@ -148,7 +145,7 @@ export default function JsonAnalyzerPage() {
                             <h3 className="text-xl font-bold text-foreground">{prestadorInfo.PRESTADOR}</h3>
                             <p className="text-md text-muted-foreground">NIT: {prestadorInfo.NIT}</p>
                         </div>
-                        <div className="aspect-video w-full rounded-lg border">
+                         <div className="aspect-video w-full rounded-lg border">
                            <iframe
                                 src={prestadorInfo.WEB}
                                 title={`Web de ${prestadorInfo.PRESTADOR}`}
