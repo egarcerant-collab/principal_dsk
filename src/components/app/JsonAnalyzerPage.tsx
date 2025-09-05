@@ -54,23 +54,30 @@ export default function JsonAnalyzerPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
   const [prestadorInfo, setPrestadorInfo] = useState<PrestadorInfo | null>(null);
-  const [isLoadingProvider, setIsLoadingProvider] = useState<boolean>(true);
-  const [isClientReady, setIsClientReady] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    const loadProviders = async () => {
-        try {
-            const providersMap = await fetchProvidersData();
-            setProviders(providersMap);
-        } catch (e: any) {
-            setError('Error al cargar la base de datos de prestadores: ' + e.message);
-        } finally {
-            setIsLoadingProvider(false);
-            setIsClientReady(true);
-        }
-    };
-    loadProviders();
+    // This ensures the component is mounted on the client before doing anything else.
+    setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    // Fetch providers only on the client side
+    if (isClient) {
+      const loadProviders = async () => {
+          try {
+              const providersMap = await fetchProvidersData();
+              setProviders(providersMap);
+          } catch (e: any) {
+              setError('Error al cargar la base de datos de prestadores: ' + e.message);
+          } finally {
+              setIsLoadingProviders(false);
+          }
+      };
+      loadProviders();
+    }
+  }, [isClient]);
 
   const handleFileLoad = (content: string, name: string) => {
     try {
@@ -106,7 +113,7 @@ export default function JsonAnalyzerPage() {
     setPrestadorInfo(null);
   };
 
-  if (!isClientReady) {
+  if (!isClient || isLoadingProviders) {
     return (
         <div className="flex flex-col items-center justify-center p-8 space-y-2">
             <Loader2 className="animate-spin h-12 w-12 text-primary" />
@@ -182,4 +189,3 @@ export default function JsonAnalyzerPage() {
     </div>
   );
 }
-
