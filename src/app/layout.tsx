@@ -17,7 +17,7 @@ const sourceCodePro = Source_Code_Pro({
 
 export const metadata: Metadata = {
   title: 'JSON Viewer',
-  description: 'Upload and analyze your JSON files.',
+  description: 'Upload your JSON files to visualize them.',
 };
 
 export default function RootLayout({
