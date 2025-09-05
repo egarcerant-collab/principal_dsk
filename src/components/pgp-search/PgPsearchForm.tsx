@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Info, CheckCircle, DatabaseZap, Loader2, TrendingUp, TrendingDown, Target } from "lucide-react";
+import { Search, Info, CheckCircle, DatabaseZap, Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import Papa, { type ParseResult } from 'papaparse';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,9 @@ interface SummaryData {
   totalCostoMes: number;
   upperBound: number;
   lowerBound: number;
+  totalAnual: number;
+  totalMinimoAnual: number;
+  totalMaximoAnual: number;
 }
 
 
@@ -57,25 +60,46 @@ const formatNumber = (value: number | null | undefined): string => {
 const SummaryCard = ({ summary }: { summary: SummaryData }) => (
     <Card className="mb-6 shadow-lg border-primary/20">
         <CardHeader>
-            <CardTitle>Resumen de Costos Mensuales</CardTitle>
+            <CardTitle>Resumen de Costos</CardTitle>
             <CardDescription>Cálculos basados en los resultados de la búsqueda actual.</CardDescription>
         </CardHeader>
-        <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
-                    <TrendingDown className="h-8 w-8 mx-auto text-red-500 mb-2"/>
-                    <p className="text-sm text-muted-foreground">Rango Inferior (90%)</p>
-                    <p className="text-2xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.lowerBound)}</p>
+        <CardContent className="space-y-6">
+            <div>
+                <h3 className="text-lg font-medium mb-2 flex items-center"><Calendar className="mr-2 h-5 w-5 text-muted-foreground" />Proyección Anual del Contrato</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+                        <p className="text-sm text-muted-foreground">Costo Mínimo Anual</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.totalMinimoAnual)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700">
+                        <p className="text-sm text-muted-foreground">Valor Total Anual (Estimado)</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalAnual)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <p className="text-sm text-muted-foreground">Costo Máximo Anual</p>
+                        <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.totalMaximoAnual)}</p>
+                    </div>
                 </div>
-                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                    <Target className="h-8 w-8 mx-auto text-blue-500 mb-2"/>
-                    <p className="text-sm text-muted-foreground">Costo Total por Mes</p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalCostoMes)}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <TrendingUp className="h-8 w-8 mx-auto text-green-500 mb-2"/>
-                    <p className="text-sm text-muted-foreground">Rango Superior (110%)</p>
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.upperBound)}</p>
+            </div>
+             <Separator />
+            <div>
+                <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle Mensual</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+                        <TrendingDown className="h-6 w-6 mx-auto text-red-500 mb-1"/>
+                        <p className="text-sm text-muted-foreground">Rango Inferior (90%)</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.lowerBound)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                        <Target className="h-6 w-6 mx-auto text-blue-500 mb-1"/>
+                        <p className="text-sm text-muted-foreground">Costo Total por Mes</p>
+                        <p className="text-xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalCostoMes)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <TrendingUp className="h-6 w-6 mx-auto text-green-500 mb-1"/>
+                        <p className="text-sm text-muted-foreground">Rango Superior (110%)</p>
+                        <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.upperBound)}</p>
+                    </div>
                 </div>
             </div>
         </CardContent>
@@ -169,11 +193,16 @@ const PgPsearchForm: React.FC = () => {
         if (results.length === 0) return null;
 
         const totalCostoMes = results.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
+        const totalMinimoMes = results.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
+        const totalMaximoMes = results.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
         
         return {
             totalCostoMes,
             lowerBound: totalCostoMes * 0.9,
             upperBound: totalCostoMes * 1.1,
+            totalAnual: totalCostoMes * 12,
+            totalMinimoAnual: totalMinimoMes * 12,
+            totalMaximoAnual: totalMaximoMes * 12,
         };
     }, [results]);
     
