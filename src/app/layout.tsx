@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'JSON Insights Analyzer',
-  description: 'Upload and analyze your JSON files with AI-powered insights.',
+  title: 'JSON Viewer',
+  description: 'Upload and analyze your JSON files.',
 };
 
 export default function RootLayout({
