@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -57,11 +58,11 @@ const formatNumber = (value: number | null | undefined): string => {
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(value);
 };
 
-const SummaryCard = ({ summary }: { summary: SummaryData }) => (
+const SummaryCard = ({ summary, title, description }: { summary: SummaryData, title: string, description: string }) => (
     <Card className="mb-6 shadow-lg border-primary/20">
         <CardHeader>
-            <CardTitle>Resumen de Costos</CardTitle>
-            <CardDescription>Cálculos basados en los resultados de la búsqueda actual.</CardDescription>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
             <div>
@@ -113,7 +114,25 @@ const PgPsearchForm: React.FC = () => {
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [pgpData, setPgpData] = useState<PgpRow[]>([]);
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
+    const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
     const { toast } = useToast();
+    
+    const calculateSummary = (data: PgpRow[]): SummaryData | null => {
+        if (data.length === 0) return null;
+
+        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
+        const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
+        const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
+        
+        return {
+            totalCostoMes,
+            lowerBound: totalCostoMes * 0.9,
+            upperBound: totalCostoMes * 1.1,
+            totalAnual: totalCostoMes * 12,
+            totalMinimoAnual: totalMinimoMes * 12,
+            totalMaximoAnual: totalMaximoMes * 12,
+        };
+    };
 
     const fetchAndParseSheetData = useCallback(async (url: string): Promise<PgpRow[]> => {
         const response = await fetch(url);
@@ -156,6 +175,7 @@ const PgPsearchForm: React.FC = () => {
         try {
             const data = await fetchAndParseSheetData(GOOGLE_SHEET_URL);
             setPgpData(data);
+            setGlobalSummary(calculateSummary(data));
             setIsDataLoaded(true);
             toast({ title: "Datos PGP Cargados", description: `Se cargaron ${data.length} registros.` });
         } catch (error: any) {
@@ -171,7 +191,9 @@ const PgPsearchForm: React.FC = () => {
             return;
         }
         if (!searchValue.trim()) {
-            toast({ title: "Valor Requerido", description: "Ingrese un valor para buscar.", variant: "destructive" });
+            setSearchPerformed(false);
+            setResults([]);
+            toast({ title: "Búsqueda Borrada", description: "Mostrando todos los datos." });
             return;
         }
         setLoading(true);
@@ -190,20 +212,7 @@ const PgPsearchForm: React.FC = () => {
     };
 
     const summaryData: SummaryData | null = useMemo(() => {
-        if (results.length === 0) return null;
-
-        const totalCostoMes = results.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
-        const totalMinimoMes = results.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
-        const totalMaximoMes = results.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
-        
-        return {
-            totalCostoMes,
-            lowerBound: totalCostoMes * 0.9,
-            upperBound: totalCostoMes * 1.1,
-            totalAnual: totalCostoMes * 12,
-            totalMinimoAnual: totalMinimoMes * 12,
-            totalMaximoAnual: totalMaximoMes * 12,
-        };
+        return calculateSummary(results);
     }, [results]);
     
     const renderDetailCard = (row: PgpRow) => (
@@ -249,12 +258,21 @@ const PgPsearchForm: React.FC = () => {
                 </Button>
                 
                 {isDataLoaded && (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUPS o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
-                        <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
-                            <Search className="mr-2 h-4 w-4" /> Buscar
-                        </Button>
-                    </div>
+                    <>
+                        {globalSummary && (
+                           <SummaryCard 
+                                summary={globalSummary} 
+                                title="Resumen Global del Contrato" 
+                                description="Cálculos basados en la totalidad de los datos cargados."
+                           />
+                        )}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUPS o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
+                            <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
+                                <Search className="mr-2 h-4 w-4" /> Buscar
+                            </Button>
+                        </div>
+                    </>
                 )}
 
                 {searchPerformed && !loading && (
@@ -263,7 +281,13 @@ const PgPsearchForm: React.FC = () => {
                             Se encontraron {results.length} resultados para "{searchValue}".
                         </Badge>
                         
-                        {summaryData && <SummaryCard summary={summaryData} />}
+                        {summaryData && (
+                            <SummaryCard 
+                                summary={summaryData} 
+                                title="Resumen de Costos de Búsqueda"
+                                description="Cálculos basados en los resultados de la búsqueda actual."
+                            />
+                        )}
 
                         {results.length > 0 ? (
                             <ScrollArea className="h-[600px] w-full rounded-md border p-4">
