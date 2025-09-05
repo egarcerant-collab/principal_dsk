@@ -27,7 +27,7 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
       reader.readAsText(file);
     } else {
       // Basic validation feedback
-      alert('Please upload a valid JSON file.');
+      alert('Por favor, sube un archivo JSON válido.');
     }
   };
 
@@ -75,9 +75,9 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 text-center p-6 border-2 border-dashed rounded-lg border-green-500 bg-green-50">
         <FileJson className="h-12 w-12 text-green-600" />
-        <p className="font-medium text-green-800">Successfully loaded:</p>
+        <p className="font-medium text-green-800">Archivo cargado:</p>
         <p className="text-sm text-green-700">{fileName}</p>
-        <Button variant="outline" onClick={() => { setFileName(null); onFileLoad(''); }} disabled={disabled}>Upload another file</Button>
+        <Button variant="outline" onClick={() => { setFileName(null); onFileLoad(''); }} disabled={disabled}>Subir otro archivo</Button>
       </div>
     );
   }
@@ -106,11 +106,11 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
       <div className="flex flex-col items-center gap-2 text-muted-foreground">
         <UploadCloud className="h-12 w-12" />
         <p className="font-semibold text-foreground">
-          Drag & drop your JSON file here
+          Arrastra y suelta tu archivo JSON aquí
         </p>
-        <p className="text-sm">or</p>
+        <p className="text-sm">o</p>
         <Button type="button" variant="secondary" size="sm" disabled={disabled}>
-          Browse Files
+          Busca en tus Archivos
         </Button>
       </div>
     </div>
