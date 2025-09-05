@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Info, CheckCircle, DatabaseZap, Loader2 } from "lucide-react";
+import { Search, Info, CheckCircle, DatabaseZap, Loader2, TrendingUp, TrendingDown, Target } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import Papa, { type ParseResult } from 'papaparse';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,13 @@ interface PgpRow {
     [key: string]: any;
 }
 
+interface SummaryData {
+  totalCostoMes: number;
+  upperBound: number;
+  lowerBound: number;
+}
+
+
 const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ACirTDcEYmwPR3GrhiHf1rakyztx50Ot/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 const formatCurrency = (value: number | null | undefined): string => {
@@ -46,6 +53,34 @@ const formatNumber = (value: number | null | undefined): string => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(value);
 };
+
+const SummaryCard = ({ summary }: { summary: SummaryData }) => (
+    <Card className="mb-6 shadow-lg border-primary/20">
+        <CardHeader>
+            <CardTitle>Resumen de Costos Mensuales</CardTitle>
+            <CardDescription>Cálculos basados en los resultados de la búsqueda actual.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+                    <TrendingDown className="h-8 w-8 mx-auto text-red-500 mb-2"/>
+                    <p className="text-sm text-muted-foreground">Rango Inferior (90%)</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.lowerBound)}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                    <Target className="h-8 w-8 mx-auto text-blue-500 mb-2"/>
+                    <p className="text-sm text-muted-foreground">Costo Total por Mes</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalCostoMes)}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <TrendingUp className="h-8 w-8 mx-auto text-green-500 mb-2"/>
+                    <p className="text-sm text-muted-foreground">Rango Superior (110%)</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.upperBound)}</p>
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+);
 
 const PgPsearchForm: React.FC = () => {
     const [searchValue, setSearchValue] = useState<string>('');
@@ -129,6 +164,18 @@ const PgPsearchForm: React.FC = () => {
         setLoading(false);
         toast({ title: "Búsqueda Realizada", description: `Se encontraron ${filteredResults.length} resultados.` });
     };
+
+    const summaryData: SummaryData | null = useMemo(() => {
+        if (results.length === 0) return null;
+
+        const totalCostoMes = results.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
+        
+        return {
+            totalCostoMes,
+            lowerBound: totalCostoMes * 0.9,
+            upperBound: totalCostoMes * 1.1,
+        };
+    }, [results]);
     
     const renderDetailCard = (row: PgpRow) => (
         <Card className="my-4 shadow-md">
@@ -182,11 +229,13 @@ const PgPsearchForm: React.FC = () => {
                 )}
 
                 {searchPerformed && !loading && (
-                    <div className="mt-6">
+                     <div className="mt-6">
                         <Badge variant="secondary" className="text-sm mb-4">
                             Se encontraron {results.length} resultados para "{searchValue}".
                         </Badge>
                         
+                        {summaryData && <SummaryCard summary={summaryData} />}
+
                         {results.length > 0 ? (
                             <ScrollArea className="h-[600px] w-full rounded-md border p-4">
                                {results.map((item, index) => <div key={`${item['CUPS']}-${index}`}>{renderDetailCard(item)}</div>)}
