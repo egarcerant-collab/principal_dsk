@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Users, Stethoscope, Microscope } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 interface DataVisualizerProps {
   data: any;
@@ -112,6 +112,11 @@ const ProceduresTable = ({ procedures }: { procedures: any[] }) => (
   );
 
 export default function DataVisualizer({ data }: DataVisualizerProps) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const summary = useMemo(() => {
     const usuarios = data?.usuarios || [];
@@ -133,6 +138,10 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
   }, [data]);
   
   const usuarios = data?.usuarios || [];
+
+  if (!isClient) {
+    return null; // O un esqueleto de carga
+  }
 
   return (
     <div className="space-y-6">
