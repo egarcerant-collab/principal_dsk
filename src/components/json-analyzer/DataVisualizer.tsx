@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, Stethoscope, Microscope } from "lucide-react";
+import { FileText, Users, Stethoscope, Microscope, Briefcase } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
 interface DataVisualizerProps {
@@ -61,55 +61,69 @@ const UserDetails = ({ user }: { user: any }) => {
 };
 
 
-const ConsultationsTable = ({ consultations }: { consultations: any[] }) => (
-  <Table>
-    <TableHeader>
-      <TableRow>
-        <TableHead>#</TableHead>
-        <TableHead>Fecha</TableHead>
-        <TableHead>Cod. Consulta</TableHead>
-        <TableHead>Diagnóstico</TableHead>
-        <TableHead>Valor</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {consultations.map((c: any) => (
-        <TableRow key={c.consecutivo}>
-          <TableCell>{c.consecutivo}</TableCell>
-          <TableCell>{new Date(c.fechaInicioAtencion).toLocaleDateString()}</TableCell>
-          <TableCell>{c.codConsulta}</TableCell>
-          <TableCell>{c.codDiagnosticoPrincipal}</TableCell>
-          <TableCell>${c.vrServicio.toLocaleString()}</TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-);
+const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
-const ProceduresTable = ({ procedures }: { procedures: any[] }) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>#</TableHead>
-          <TableHead>Fecha</TableHead>
-          <TableHead>Cod. Procedimiento</TableHead>
-          <TableHead>Diagnóstico</TableHead>
-          <TableHead>Valor</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {procedures.map((p: any) => (
-          <TableRow key={p.consecutivo}>
-            <TableCell>{p.consecutivo}</TableCell>
-            <TableCell>{new Date(p.fechaInicioAtencion).toLocaleDateString()}</TableCell>
-            <TableCell>{p.codProcedimiento}</TableCell>
-            <TableCell>{p.codDiagnosticoPrincipal}</TableCell>
-            <TableCell>${p.vrServicio.toLocaleString()}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+    return (
+        <Table>
+            <TableHeader>
+            <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Cod. Consulta</TableHead>
+                <TableHead>Diagnóstico</TableHead>
+                <TableHead>Valor</TableHead>
+            </TableRow>
+            </TableHeader>
+            <TableBody>
+            {consultations.map((c: any) => (
+                <TableRow key={c.consecutivo}>
+                <TableCell>{c.consecutivo}</TableCell>
+                <TableCell>{isClient ? new Date(c.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell>{c.codConsulta}</TableCell>
+                <TableCell>{c.codDiagnosticoPrincipal}</TableCell>
+                <TableCell>${c.vrServicio.toLocaleString()}</TableCell>
+                </TableRow>
+            ))}
+            </TableBody>
+        </Table>
+    )
+};
+
+const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    return (
+        <Table>
+        <TableHeader>
+            <TableRow>
+            <TableHead>#</TableHead>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Cod. Procedimiento</TableHead>
+            <TableHead>Diagnóstico</TableHead>
+            <TableHead>Valor</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {procedures.map((p: any) => (
+            <TableRow key={p.consecutivo}>
+                <TableCell>{p.consecutivo}</TableCell>
+                <TableCell>{isClient ? new Date(p.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell>{p.codProcedimiento}</TableCell>
+                <TableCell>{p.codDiagnosticoPrincipal}</TableCell>
+                <TableCell>${p.vrServicio.toLocaleString()}</TableCell>
+            </TableRow>
+            ))}
+        </TableBody>
+        </Table>
+    )
+};
 
 export default function DataVisualizer({ data }: DataVisualizerProps) {
   const [isClient, setIsClient] = useState(false);
@@ -119,7 +133,16 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
   }, []);
 
   const summary = useMemo(() => {
-    const usuarios = data?.usuarios || [];
+    if (!data) {
+        return {
+            numFactura: 'N/A',
+            numDocumentoIdObligado: 'N/A',
+            numUsuarios: 0,
+            numConsultas: 0,
+            numProcedimientos: 0
+        };
+    }
+    const usuarios = data.usuarios || [];
     const numUsuarios = usuarios.length;
     let numConsultas = 0;
     let numProcedimientos = 0;
@@ -130,7 +153,8 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
     });
 
     return {
-        numFactura: data?.numFactura || 'N/A',
+        numFactura: data.numFactura || 'N/A',
+        numDocumentoIdObligado: data.numDocumentoIdObligado || 'N/A',
         numUsuarios,
         numConsultas,
         numProcedimientos
@@ -145,7 +169,8 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
 
   return (
     <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            <StatCard title="NIT Prestador" value={summary.numDocumentoIdObligado} icon={Briefcase} />
             <StatCard title="Factura" value={summary.numFactura} icon={FileText} />
             <StatCard title="Usuarios" value={summary.numUsuarios} icon={Users} />
             <StatCard title="Consultas" value={summary.numConsultas} icon={Stethoscope} />
