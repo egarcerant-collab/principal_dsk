@@ -143,7 +143,7 @@ const PgPsearchForm: React.FC = () => {
                     header: true,
                     skipEmptyLines: true,
                     complete: (results) => {
-                        setPrestadores(results.data.filter(p => p.PRESTADOR && p.WEB));
+                        setPrestadores(results.data.filter(p => p.PRESTADOR));
                         toast({ title: "Lista de prestadores cargada." });
                     },
                     error: (error: Error) => { throw error; }
