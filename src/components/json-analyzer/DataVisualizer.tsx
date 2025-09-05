@@ -62,6 +62,11 @@ const UserDetails = ({ user }: { user: any }) => {
 
 
 const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return (
         <Table>
             <TableHeader>
@@ -77,10 +82,10 @@ const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
             {consultations.map((c: any) => (
                 <TableRow key={c.consecutivo}>
                 <TableCell>{c.consecutivo}</TableCell>
-                <TableCell>{new Date(c.fechaInicioAtencion).toLocaleDateString()}</TableCell>
+                <TableCell>{isClient ? new Date(c.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
                 <TableCell>{c.codConsulta}</TableCell>
                 <TableCell>{c.codDiagnosticoPrincipal}</TableCell>
-                <TableCell>${c.vrServicio.toLocaleString()}</TableCell>
+                <TableCell>{isClient ? `$${c.vrServicio.toLocaleString()}` : ''}</TableCell>
                 </TableRow>
             ))}
             </TableBody>
@@ -89,6 +94,10 @@ const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
 };
 
 const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
     return (
         <Table>
         <TableHeader>
@@ -104,10 +113,10 @@ const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
             {procedures.map((p: any) => (
             <TableRow key={p.consecutivo}>
                 <TableCell>{p.consecutivo}</TableCell>
-                <TableCell>{new Date(p.fechaInicioAtencion).toLocaleDateString()}</TableCell>
+                <TableCell>{isClient ? new Date(p.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
                 <TableCell>{p.codProcedimiento}</TableCell>
                 <TableCell>{p.codDiagnosticoPrincipal}</TableCell>
-                <TableCell>${p.vrServicio.toLocaleString()}</TableCell>
+                <TableCell>{isClient ? `$${p.vrServicio.toLocaleString()}`: ''}</TableCell>
             </TableRow>
             ))}
         </TableBody>
@@ -154,7 +163,7 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
   const usuarios = data?.usuarios || [];
 
   if (!isClient) {
-    return null; // O un esqueleto de carga
+    return <div>Cargando visualización...</div>;
   }
 
   return (

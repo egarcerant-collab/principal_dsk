@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -36,8 +36,8 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
                     if (row.NIT) {
                         map.set(row.NIT.trim(), {
                             NIT: row.NIT.trim(),
-                            PRESTADOR: row.PRESTADOR.trim(),
-                            WEB: row.WEB.trim()
+                            PRESTADOR: row.PRESTADOR ? row.PRESTADOR.trim() : '',
+                            WEB: row.WEB ? row.WEB.trim() : ''
                         });
                     }
                 });
@@ -61,8 +61,9 @@ export default function JsonAnalyzerPage() {
   const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
 
-  const handleLoadProviders = async () => {
+  const handleLoadProviders = useCallback(async () => {
     setIsLoadingProviders(true);
+    setError(null);
     toast({ title: "Accediendo a la Base de Datos de Prestadores...", description: "Espere un momento, por favor." });
     try {
         const providersMap = await fetchProvidersData();
@@ -70,40 +71,39 @@ export default function JsonAnalyzerPage() {
         setIsProvidersDataLoaded(true);
         toast({ title: "Datos de Prestadores Cargados", description: `Se cargaron ${providersMap.size} registros.` });
     } catch (e: any) {
-        setError('Error al cargar la base de datos de prestadores: ' + e.message);
-        toast({ title: "Error al Cargar Datos", description: e.message, variant: "destructive" });
+        const errorMessage = e instanceof Error ? e.message : 'Ocurrió un error inesperado.';
+        setError('Error al cargar la base de datos de prestadores: ' + errorMessage);
+        toast({ title: "Error al Cargar Datos", description: errorMessage, variant: "destructive" });
     } finally {
         setIsLoadingProviders(false);
     }
-  };
+  }, [toast]);
 
 
-  const handleFileLoad = (content: string, name: string) => {
+  const handleFileLoad = useCallback((content: string, name: string) => {
     try {
       const parsedJson = JSON.parse(content);
-      setJsonData(parsedJson);
-      setFileName(name);
       setError(null);
+      setFileName(name);
       
       const nit = parsedJson?.numDocumentoIdObligado;
       if (nit && providers) {
-        const info = providers.get(nit);
+        const info = providers.get(String(nit));
         setPrestadorInfo(info || null);
       } else {
         setPrestadorInfo(null);
       }
+      setJsonData(parsedJson);
 
     } catch (e: any) {
-      if (e instanceof Error) {
-        setError(`Error al parsear el archivo JSON: ${e.message}`);
-      } else {
-        setError('Ocurrió un error inesperado al parsear el archivo JSON.');
-      }
+      const errorMessage = e instanceof Error ? `Error al parsear el archivo JSON: ${e.message}`: 'Ocurrió un error inesperado al parsear el archivo JSON.';
+      setError(errorMessage);
+      toast({ title: "Error de Archivo", description: errorMessage, variant: "destructive" });
       setJsonData(null);
       setFileName(null);
       setPrestadorInfo(null);
     }
-  };
+  }, [providers, toast]);
 
   const handleReset = () => {
     setJsonData(null);
