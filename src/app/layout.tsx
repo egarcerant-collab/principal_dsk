@@ -16,8 +16,8 @@ const sourceCodePro = Source_Code_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'JSON Viewer',
-  description: 'Upload your JSON files to visualize them.',
+  title: 'Visor JSON',
+  description: 'Sube tus archivos JSON para visualizarlos.',
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${sourceCodePro.variable}`}>
+    <html lang="es" suppressHydrationWarning className={`${inter.variable} ${sourceCodePro.variable}`}>
       <body suppressHydrationWarning>
         {children}
         <Toaster />

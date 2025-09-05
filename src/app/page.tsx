@@ -28,7 +28,7 @@ export default function Home() {
         const parsed = JSON.parse(content);
         setParsedJson(parsed);
       } catch (e) {
-        setError("Invalid JSON file. Please upload a valid JSON file.");
+        setError("Archivo JSON inválido. Por favor, sube un archivo JSON válido.");
         setParsedJson(null);
       }
     }
@@ -44,16 +44,16 @@ export default function Home() {
       <div className="w-full max-w-6xl space-y-8">
         <header className="text-center space-y-2">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-foreground sm:text-5xl">
-            JSON Viewer
+            Visor JSON
           </h1>
           <p className="text-lg text-muted-foreground">
-            Upload your JSON files to visualize and analyze them.
+            Sube tus archivos JSON para visualizarlos y analizarlos.
           </p>
         </header>
 
         <Card className="w-full shadow-lg">
           <CardHeader>
-            <CardTitle>Upload Your File</CardTitle>
+            <CardTitle>Sube tu archivo</CardTitle>
           </CardHeader>
           <CardContent>
             <FileUpload onFileLoad={handleFileLoad} onReset={handleReset} />
@@ -71,8 +71,8 @@ export default function Home() {
         {parsedJson && !error && (
           <Tabs defaultValue="summary" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="summary">Summary</TabsTrigger>
-              <TabsTrigger value="raw">JSON Viewer</TabsTrigger>
+              <TabsTrigger value="summary">Resumen</TabsTrigger>
+              <TabsTrigger value="raw">Visor JSON</TabsTrigger>
             </TabsList>
             <TabsContent value="summary">
               <DataVisualizer data={parsedJson} />
@@ -80,7 +80,7 @@ export default function Home() {
             <TabsContent value="raw">
               <Card className="mt-2 shadow-lg">
                 <CardHeader>
-                  <CardTitle>JSON Structure</CardTitle>
+                  <CardTitle>Estructura JSON</CardTitle>
                 </CardHeader>
                 <CardContent className="font-code text-sm max-h-[60vh] overflow-auto">
                   <JsonViewer data={parsedJson} />
