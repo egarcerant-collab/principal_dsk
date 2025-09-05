@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -11,6 +12,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import FileUpload from "@/components/json-analyzer/FileUpload";
 import JsonViewer from "@/components/json-analyzer/JsonViewer";
+import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 export default function Home() {
@@ -31,15 +34,20 @@ export default function Home() {
     }
   };
 
+  const handleReset = () => {
+    setParsedJson(null);
+    setError(null);
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-background">
-      <div className="w-full max-w-4xl space-y-8">
+      <div className="w-full max-w-6xl space-y-8">
         <header className="text-center space-y-2">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-foreground sm:text-5xl">
             JSON Viewer
           </h1>
           <p className="text-lg text-muted-foreground">
-            Upload your JSON files to visualize them.
+            Upload your JSON files to visualize and analyze them.
           </p>
         </header>
 
@@ -48,7 +56,7 @@ export default function Home() {
             <CardTitle>Upload Your File</CardTitle>
           </CardHeader>
           <CardContent>
-            <FileUpload onFileLoad={handleFileLoad} />
+            <FileUpload onFileLoad={handleFileLoad} onReset={handleReset} />
           </CardContent>
         </Card>
 
@@ -61,16 +69,25 @@ export default function Home() {
         )}
 
         {parsedJson && !error && (
-          <>
-            <Card className="mt-2 shadow-lg">
-              <CardHeader>
-                <CardTitle>JSON Structure</CardTitle>
-              </CardHeader>
-              <CardContent className="font-code text-sm max-h-[60vh] overflow-auto">
-                <JsonViewer data={parsedJson} />
-              </CardContent>
-            </Card>
-          </>
+          <Tabs defaultValue="summary" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="summary">Summary</TabsTrigger>
+              <TabsTrigger value="raw">JSON Viewer</TabsTrigger>
+            </TabsList>
+            <TabsContent value="summary">
+              <DataVisualizer data={parsedJson} />
+            </TabsContent>
+            <TabsContent value="raw">
+              <Card className="mt-2 shadow-lg">
+                <CardHeader>
+                  <CardTitle>JSON Structure</CardTitle>
+                </CardHeader>
+                <CardContent className="font-code text-sm max-h-[60vh] overflow-auto">
+                  <JsonViewer data={parsedJson} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </main>

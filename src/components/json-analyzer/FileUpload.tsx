@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
@@ -7,10 +8,11 @@ import { Button } from '@/components/ui/button';
 
 interface FileUploadProps {
   onFileLoad: (content: string) => void;
+  onReset: () => void;
   disabled?: boolean;
 }
 
-export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
+export default function FileUpload({ onFileLoad, onReset, disabled }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,9 +73,9 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
     inputRef.current?.click();
   };
   
-  const handleReset = () => {
+  const handleResetClick = () => {
     setFileName(null);
-    onFileLoad(''); // Pass empty string to reset
+    onReset();
     if (inputRef.current) {
       inputRef.current.value = ''; // Reset file input
     }
@@ -85,7 +87,7 @@ export default function FileUpload({ onFileLoad, disabled }: FileUploadProps) {
         <FileJson className="h-12 w-12 text-green-600" />
         <p className="font-medium text-green-800">File loaded:</p>
         <p className="text-sm text-green-700">{fileName}</p>
-        <Button variant="outline" onClick={handleReset} disabled={disabled}>Upload another file</Button>
+        <Button variant="outline" onClick={handleResetClick} disabled={disabled}>Upload another file</Button>
       </div>
     );
   }
