@@ -62,15 +62,6 @@ const UserDetails = ({ user }: { user: any }) => {
 
 
 const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
-    const [isClient, setIsClient] = useState(false);
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
-        return null;
-    }
-
     return (
         <Table>
             <TableHeader>
@@ -98,15 +89,6 @@ const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
 };
 
 const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
-    const [isClient, setIsClient] = useState(false);
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-    
-    if (!isClient) {
-        return null;
-    }
-
     return (
         <Table>
         <TableHeader>
