@@ -57,7 +57,7 @@ const UserDetails = ({ user }: { user: any }) => {
         </div>
       </CardContent>
     </Card>
-    )
+    );
 };
 
 
@@ -66,6 +66,10 @@ const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
     useEffect(() => {
         setIsClient(true);
     }, []);
+
+    if (!isClient) {
+        return null;
+    }
 
     return (
         <Table>
@@ -82,7 +86,7 @@ const ConsultationsTable = ({ consultations }: { consultations: any[] }) => {
             {consultations.map((c: any) => (
                 <TableRow key={c.consecutivo}>
                 <TableCell>{c.consecutivo}</TableCell>
-                <TableCell>{isClient ? new Date(c.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell>{new Date(c.fechaInicioAtencion).toLocaleDateString()}</TableCell>
                 <TableCell>{c.codConsulta}</TableCell>
                 <TableCell>{c.codDiagnosticoPrincipal}</TableCell>
                 <TableCell>${c.vrServicio.toLocaleString()}</TableCell>
@@ -98,6 +102,10 @@ const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
     useEffect(() => {
         setIsClient(true);
     }, []);
+    
+    if (!isClient) {
+        return null;
+    }
 
     return (
         <Table>
@@ -114,7 +122,7 @@ const ProceduresTable = ({ procedures }: { procedures: any[] }) => {
             {procedures.map((p: any) => (
             <TableRow key={p.consecutivo}>
                 <TableCell>{p.consecutivo}</TableCell>
-                <TableCell>{isClient ? new Date(p.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell>{new Date(p.fechaInicioAtencion).toLocaleDateString()}</TableCell>
                 <TableCell>{p.codProcedimiento}</TableCell>
                 <TableCell>{p.codDiagnosticoPrincipal}</TableCell>
                 <TableCell>${p.vrServicio.toLocaleString()}</TableCell>
