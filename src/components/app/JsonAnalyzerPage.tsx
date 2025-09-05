@@ -60,6 +60,11 @@ export default function JsonAnalyzerPage() {
   const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(false);
   const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleLoadProviders = useCallback(async () => {
     setIsLoadingProviders(true);
@@ -111,6 +116,15 @@ export default function JsonAnalyzerPage() {
     setFileName(null);
     setPrestadorInfo(null);
   };
+  
+  if (!isClient) {
+    return (
+        <div className="flex items-center justify-center py-6">
+            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+            <p>Cargando analizador...</p>
+        </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-8 mt-4">
@@ -145,15 +159,16 @@ export default function JsonAnalyzerPage() {
                             <h3 className="text-xl font-bold text-foreground">{prestadorInfo.PRESTADOR}</h3>
                             <p className="text-md text-muted-foreground">NIT: {prestadorInfo.NIT}</p>
                         </div>
-                         <div className="aspect-video w-full rounded-lg border">
-                           <iframe
-                                src={prestadorInfo.WEB}
-                                title={`Web de ${prestadorInfo.PRESTADOR}`}
-                                className="h-full w-full rounded-md"
-                                allow="fullscreen"
-                            />
-                        </div>
-
+                         {isClient && prestadorInfo.WEB && (
+                           <div className="aspect-video w-full rounded-lg border">
+                             <iframe
+                                  src={prestadorInfo.WEB}
+                                  title={`Web de ${prestadorInfo.PRESTADOR}`}
+                                  className="h-full w-full rounded-md"
+                                  allow="fullscreen"
+                              />
+                          </div>
+                         )}
                     </CardContent>
                 </Card>
             )}

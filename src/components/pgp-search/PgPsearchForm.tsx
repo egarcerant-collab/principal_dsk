@@ -129,9 +129,16 @@ const PgPsearchForm: React.FC = () => {
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     // Carga la lista de prestadores al montar el componente
     useEffect(() => {
+        if (!isClient) return;
+        
         const fetchPrestadores = async () => {
             setLoadingPrestadores(true);
             toast({ title: "Cargando lista de prestadores..." });
@@ -143,7 +150,7 @@ const PgPsearchForm: React.FC = () => {
                     header: true,
                     skipEmptyLines: true,
                     complete: (results) => {
-                        setPrestadores(results.data.filter(p => p.PRESTADOR));
+                        setPrestadores(results.data.filter(p => p.PRESTADOR && p.PRESTADOR.trim() !== ''));
                         toast({ title: "Lista de prestadores cargada." });
                     },
                     error: (error: Error) => { throw error; }
@@ -155,7 +162,7 @@ const PgPsearchForm: React.FC = () => {
             }
         };
         fetchPrestadores();
-    }, [toast]);
+    }, [isClient, toast]);
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
@@ -175,9 +182,13 @@ const PgPsearchForm: React.FC = () => {
     const fetchAndParseSheetData = useCallback(async (url: string): Promise<PgpRow[]> => {
         // Normaliza la URL para asegurar que la salida sea CSV
         const csvUrl = new URL(url);
-        if (url.includes('edit')) {
+        if (url.includes('/edit')) {
             csvUrl.pathname = csvUrl.pathname.replace('/edit', '/gviz/tq');
             csvUrl.searchParams.set('tqx', 'out:csv');
+        } else if (!url.includes('gviz/tq')) {
+             const sheetId = new URL(url).pathname.split('/d/')[1].split('/')[0];
+             const newUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+             return fetchAndParseSheetData(newUrl);
         }
         
         const response = await fetch(csvUrl.toString());
@@ -225,6 +236,9 @@ const PgPsearchForm: React.FC = () => {
         toast({ title: `Cargando datos para ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
         try {
+            if (!prestador.WEB) {
+                throw new Error("La URL de la nota técnica no está definida para este prestador.");
+            }
             const data = await fetchAndParseSheetData(prestador.WEB);
             setPgpData(data);
             setGlobalSummary(calculateSummary(data));
@@ -299,6 +313,16 @@ const PgPsearchForm: React.FC = () => {
         </Card>
     );
 
+    if (!isClient) {
+        return (
+            <div className="flex items-center justify-center py-6">
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                <p>Cargando buscador...</p>
+            </div>
+        );
+    }
+
+
     return (
         <Card>
             <CardHeader>
@@ -316,7 +340,7 @@ const PgPsearchForm: React.FC = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-full md:w-[300px]">
                         {prestadores.map((p, index) => (
-                           <DropdownMenuItem key={index} onSelect={() => handleSelectPrestador(p)}>
+                           <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleSelectPrestador(p)}>
                                {p.PRESTADOR}
                            </DropdownMenuItem>
                         ))}
@@ -380,5 +404,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    

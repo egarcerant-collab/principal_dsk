@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, Stethoscope, Microscope, Briefcase } from "lucide-react";
+import { FileText, Users, Stethoscope, Microscope, Briefcase, Loader2 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
 interface DataVisualizerProps {
@@ -163,7 +163,12 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
   const usuarios = data?.usuarios || [];
 
   if (!isClient) {
-    return <div>Cargando visualización...</div>;
+    return (
+        <div className="flex items-center justify-center py-6">
+            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+            <p>Cargando visualización...</p>
+        </div>
+    );
   }
 
   return (
