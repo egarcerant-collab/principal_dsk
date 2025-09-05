@@ -1,20 +1,21 @@
 
 "use client";
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Info, CheckCircle, DatabaseZap, Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar } from "lucide-react";
+import { Search, Info, CheckCircle, DatabaseZap, Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import Papa, { type ParseResult } from 'papaparse';
 import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-
+// Estructura para la hoja de cálculo de Contratos PGP
 interface PgpRow {
     'SUBCATEGORIA': string;
     'AMBITO': string;
@@ -36,6 +37,15 @@ interface PgpRow {
     [key: string]: any;
 }
 
+// Estructura para la hoja de cálculo de Prestadores
+interface Prestador {
+    NIT: string;
+    PRESTADOR: string;
+    'ID DE ZONA': string; // Este campo es el que contiene el link a la nota técnica
+    WEB: string;
+}
+
+
 interface SummaryData {
   totalCostoMes: number;
   upperBound: number;
@@ -45,8 +55,8 @@ interface SummaryData {
   totalMaximoAnual: number;
 }
 
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
-const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ACirTDcEYmwPR3GrhiHf1rakyztx50Ot/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return 'N/A';
@@ -110,20 +120,48 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData, ti
 const PgPsearchForm: React.FC = () => {
     const [searchValue, setSearchValue] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
+    const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
     const [results, setResults] = useState<PgpRow[]>([]);
     const [searchPerformed, setSearchPerformed] = useState<boolean>(false);
     const [pgpData, setPgpData] = useState<PgpRow[]>([]);
+    const [prestadores, setPrestadores] = useState<Prestador[]>([]);
+    const [selectedPrestador, setSelectedPrestador] = useState<Prestador | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
     const { toast } = useToast();
-    
-    const calculateSummary = (data: PgpRow[]): SummaryData | null => {
-        if (data.length === 0) return null;
 
+    // Carga la lista de prestadores al montar el componente
+    useEffect(() => {
+        const fetchPrestadores = async () => {
+            setLoadingPrestadores(true);
+            toast({ title: "Cargando lista de prestadores..." });
+            try {
+                const response = await fetch(PRESTADORES_SHEET_URL);
+                if (!response.ok) throw new Error('No se pudo cargar la lista de prestadores.');
+                const csvText = await response.text();
+                Papa.parse<Prestador>(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        setPrestadores(results.data.filter(p => p.PRESTADOR && p.WEB));
+                        toast({ title: "Lista de prestadores cargada." });
+                    },
+                    error: (error: Error) => { throw error; }
+                });
+            } catch (error: any) {
+                toast({ title: "Error al Cargar Prestadores", description: error.message, variant: "destructive" });
+            } finally {
+                setLoadingPrestadores(false);
+            }
+        };
+        fetchPrestadores();
+    }, [toast]);
+    
+    const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
+        if (data.length === 0) return null;
         const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
-        
         return {
             totalCostoMes,
             lowerBound: totalCostoMes * 0.9,
@@ -132,10 +170,17 @@ const PgPsearchForm: React.FC = () => {
             totalMinimoAnual: totalMinimoMes * 12,
             totalMaximoAnual: totalMaximoMes * 12,
         };
-    };
+    }, []);
 
     const fetchAndParseSheetData = useCallback(async (url: string): Promise<PgpRow[]> => {
-        const response = await fetch(url);
+        // Normaliza la URL para asegurar que la salida sea CSV
+        const csvUrl = new URL(url);
+        if (url.includes('edit')) {
+            csvUrl.pathname = csvUrl.pathname.replace('/edit', '/gviz/tq');
+            csvUrl.searchParams.set('tqx', 'out:csv');
+        }
+        
+        const response = await fetch(csvUrl.toString());
         if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
         const csvText = await response.text();
 
@@ -169,17 +214,25 @@ const PgPsearchForm: React.FC = () => {
         });
     }, []);
 
-    const handleLoadData = async () => {
+    const handleSelectPrestador = async (prestador: Prestador) => {
+        setSelectedPrestador(prestador);
         setLoading(true);
-        toast({ title: "Accediendo a la Base de Datos PGP...", description: "Espere un momento, por favor." });
+        setIsDataLoaded(false);
+        setSearchValue('');
+        setSearchPerformed(false);
+        setResults([]);
+        setGlobalSummary(null);
+        toast({ title: `Cargando datos para ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
+        
         try {
-            const data = await fetchAndParseSheetData(GOOGLE_SHEET_URL);
+            const data = await fetchAndParseSheetData(prestador.WEB);
             setPgpData(data);
             setGlobalSummary(calculateSummary(data));
             setIsDataLoaded(true);
             toast({ title: "Datos PGP Cargados", description: `Se cargaron ${data.length} registros.` });
         } catch (error: any) {
-            toast({ title: "Error al Cargar Datos", description: error.message, variant: "destructive" });
+            toast({ title: "Error al Cargar Datos de la Nota Técnica", description: error.message, variant: "destructive" });
+            setSelectedPrestador(null);
         } finally {
             setLoading(false);
         }
@@ -187,7 +240,7 @@ const PgPsearchForm: React.FC = () => {
 
     const handleSearch = () => {
         if (!isDataLoaded) {
-            toast({ title: "Datos no Cargados", description: "Cargue la base de datos PGP primero.", variant: "default" });
+            toast({ title: "Datos no Cargados", description: "Seleccione un prestador para cargar su nota técnica primero.", variant: "default" });
             return;
         }
         if (!searchValue.trim()) {
@@ -211,9 +264,10 @@ const PgPsearchForm: React.FC = () => {
         toast({ title: "Búsqueda Realizada", description: `Se encontraron ${filteredResults.length} resultados.` });
     };
 
-    const summaryData: SummaryData | null = useMemo(() => {
+    const searchSummaryData: SummaryData | null = useMemo(() => {
+        if (!searchPerformed) return null;
         return calculateSummary(results);
-    }, [results]);
+    }, [results, searchPerformed, calculateSummary]);
     
     const renderDetailCard = (row: PgpRow) => (
         <Card className="my-4 shadow-md">
@@ -248,21 +302,40 @@ const PgPsearchForm: React.FC = () => {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Buscador PGP</CardTitle>
-                <CardDescription>Carga la base de datos desde Google Sheets y realiza búsquedas.</CardDescription>
+                <CardTitle>Buscador PGP por Nota Técnica</CardTitle>
+                <CardDescription>Selecciona un prestador para cargar su nota técnica y realizar búsquedas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <Button onClick={handleLoadData} disabled={loading || isDataLoaded} className={cn("w-full md:w-auto", isDataLoaded && "bg-green-600 hover:bg-green-700")}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
-                    {loading ? "Cargando..." : isDataLoaded ? "Base de Datos Cargada" : "Cargar Base de Datos PGP"}
-                </Button>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full md:w-auto" disabled={loadingPrestadores}>
+                            {loadingPrestadores ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building className="mr-2 h-4 w-4" />}
+                            {selectedPrestador ? selectedPrestador.PRESTADOR : "Seleccionar un Prestador"}
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-full md:w-[300px]">
+                        {prestadores.map((p, index) => (
+                           <DropdownMenuItem key={index} onSelect={() => handleSelectPrestador(p)}>
+                               {p.PRESTADOR}
+                           </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {loading && (
+                    <div className="flex items-center justify-center py-6">
+                        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                        <p>Cargando datos de la nota técnica...</p>
+                    </div>
+                )}
                 
                 {isDataLoaded && (
                     <>
                         {globalSummary && (
                            <SummaryCard 
                                 summary={globalSummary} 
-                                title="Resumen Global del Contrato" 
+                                title={`Resumen Global: Nota Técnica de ${selectedPrestador?.PRESTADOR}`}
                                 description="Cálculos basados en la totalidad de los datos cargados."
                            />
                         )}
@@ -281,9 +354,9 @@ const PgPsearchForm: React.FC = () => {
                             Se encontraron {results.length} resultados para "{searchValue}".
                         </Badge>
                         
-                        {summaryData && (
+                        {searchSummaryData && (
                             <SummaryCard 
-                                summary={summaryData} 
+                                summary={searchSummaryData} 
                                 title="Resumen de Costos de Búsqueda"
                                 description="Cálculos basados en los resultados de la búsqueda actual."
                             />
