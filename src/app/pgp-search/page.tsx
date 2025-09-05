@@ -9,10 +9,10 @@ export default function PgpSearchPage() {
       <div className="w-full max-w-6xl space-y-8">
         <header className="text-center space-y-4">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-foreground sm:text-5xl">
-            Buscador PGP
+            Buscador PGP desde Google Sheets
           </h1>
           <p className="text-lg text-muted-foreground">
-            Busca en la base de datos PGP cargada desde Google Sheets.
+            Busca en la base de datos PGP cargada directamente desde Google Sheets.
           </p>
            <Button asChild variant="outline">
             <Link href="/">Ir al Analizador JSON</Link>

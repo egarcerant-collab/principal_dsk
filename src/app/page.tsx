@@ -52,13 +52,13 @@ export default function Home() {
       <div className="w-full max-w-6xl space-y-8">
         <header className="text-center space-y-4">
           <h1 className="text-4xl font-headline font-bold tracking-tight text-foreground sm:text-5xl">
-            Visor y Analizador de Datos
+            Visor y Analizador de Archivos JSON
           </h1>
           <p className="text-lg text-muted-foreground">
-            Carga un archivo JSON o importa desde Google Sheets para visualizar y analizar tus datos.
+            Carga un archivo JSON para visualizar y analizar sus datos de forma interactiva.
           </p>
           <Button asChild variant="outline">
-            <Link href="/pgp-search">Ir al Buscador PGP (Prueba)</Link>
+            <Link href="/pgp-search">Ir al Buscador PGP (Google Sheets)</Link>
           </Button>
         </header>
 
