@@ -16,8 +16,8 @@ const sourceCodePro = Source_Code_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'Visor JSON',
-  description: 'Sube tus archivos JSON para visualizarlos.',
+  title: 'Buscador PGP',
+  description: 'Busca y visualiza datos desde la base de datos PGP.',
 };
 
 export default function RootLayout({
