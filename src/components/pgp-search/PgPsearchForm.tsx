@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -21,19 +20,21 @@ interface PgpRow {
     'AMBITO': string;
     'ID RESOLUCION 3100': string;
     'DESCRIPCION ID RESOLUCION': string;
-    'CUPS': string;
+    'CUP/CUM': string;
     'DESCRIPCION CUPS': string;
-    'VALOR UNITARIO': number;
     'FRECUENCIA AÑO SERVICIO': number;
+    'FRECUENCIA ESTIMADA EN MESES CONTRATADOS': number;
     'FRECUENCIA USO': number;
-    'FRECUENCIA EVENTOS MES': number;
-    'FRECUENCIA EVENTO DIA': number;
-    'COSTO EVENTO MES': number;
-    'COSTO EVENTO DIA': number;
-    'FRECUENCIA MINIMA MES': number;
-    'FRECUENCIA MAXIMA MES': number;
+    'COSTO EVENTO MES EN POBLACIÓN': number;
+    'FRECUENCIA EVENTO DIA EN POBLACIÓN': number;
+    'FRECUENCIA MINIMA': number;
+    'FRECUENCIA MAXIMA': number;
+    'VALOR UNITARIO DEL SERVICIO (CME)': number;
+    'COSTO EVENTO DIA (VALOR DIA)': number;
     'VALOR MINIMO MES': number;
+    'COSTO EVENTO MES (VALOR MES)': number;
     'VALOR MAXIMO MES': number;
+    'OBSERVACIONES': string;
     [key: string]: any;
 }
 
@@ -41,10 +42,9 @@ interface PgpRow {
 interface Prestador {
     NIT: string;
     PRESTADOR: string;
-    'ID DE ZONA': string; // Este campo es el que contiene el link a la nota técnica
+    'ID DE ZONA': string;
     WEB: string;
 }
-
 
 interface SummaryData {
   totalCostoMes: number;
@@ -135,7 +135,6 @@ const PgPsearchForm: React.FC = () => {
         setIsClient(true);
     }, []);
 
-    // Carga la lista de prestadores al montar el componente
     useEffect(() => {
         if (!isClient) return;
         
@@ -166,7 +165,7 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
         return {
@@ -180,11 +179,14 @@ const PgPsearchForm: React.FC = () => {
     }, []);
 
     const fetchAndParseSheetData = useCallback(async (url: string): Promise<PgpRow[]> => {
-        // Normaliza la URL para asegurar que la salida sea CSV
         const csvUrl = new URL(url);
         if (url.includes('/edit')) {
             csvUrl.pathname = csvUrl.pathname.replace('/edit', '/gviz/tq');
             csvUrl.searchParams.set('tqx', 'out:csv');
+             const gidMatch = url.match(/gid=([0-9]+)/);
+            if(gidMatch){
+                 csvUrl.searchParams.set('gid', gidMatch[1]);
+            }
         } else if (!url.includes('gviz/tq')) {
              const sheetId = new URL(url).pathname.split('/d/')[1].split('/')[0];
              const newUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
@@ -209,7 +211,7 @@ const PgPsearchForm: React.FC = () => {
                             const trimmedKey = key.trim() as keyof PgpRow;
                             const value = (row[key] || '').trim();
                             if (trimmedKey) {
-                                if (['VALOR UNITARIO', 'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES', 'FRECUENCIA EVENTO DIA', 'COSTO EVENTO MES', 'COSTO EVENTO DIA', 'FRECUENCIA MINIMA MES', 'FRECUENCIA MAXIMA MES', 'VALOR MINIMO MES', 'VALOR MAXIMO MES'].includes(trimmedKey)) {
+                                if (['FRECUENCIA AÑO SERVICIO', 'FRECUENCIA ESTIMADA EN MESES CONTRATADOS', 'FRECUENCIA USO', 'COSTO EVENTO MES EN POBLACIÓN', 'FRECUENCIA EVENTO DIA EN POBLACIÓN', 'FRECUENCIA MINIMA', 'FRECUENCIA MAXIMA', 'VALOR UNITARIO DEL SERVICIO (CME)', 'COSTO EVENTO DIA (VALOR DIA)', 'VALOR MINIMO MES', 'COSTO EVENTO MES (VALOR MES)', 'VALOR MAXIMO MES'].includes(trimmedKey)) {
                                     (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
                                 } else {
                                     (newRow as any)[trimmedKey] = value;
@@ -217,7 +219,7 @@ const PgPsearchForm: React.FC = () => {
                             }
                         }
                         return newRow as PgpRow;
-                    }).filter(item => item['CUPS']);
+                    }).filter(item => item['CUP/CUM']);
                     resolve(data);
                 },
                 error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
@@ -233,17 +235,17 @@ const PgPsearchForm: React.FC = () => {
         setSearchPerformed(false);
         setResults([]);
         setGlobalSummary(null);
-        toast({ title: `Cargando datos para ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
+        toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
         try {
-            if (!prestador.WEB) {
+            if (!prestador.WEB || prestador.WEB.trim() === '') {
                 throw new Error("La URL de la nota técnica no está definida para este prestador.");
             }
             const data = await fetchAndParseSheetData(prestador.WEB);
             setPgpData(data);
             setGlobalSummary(calculateSummary(data));
             setIsDataLoaded(true);
-            toast({ title: "Datos PGP Cargados", description: `Se cargaron ${data.length} registros.` });
+            toast({ title: "Datos PGP Cargados", description: `Se cargaron ${data.length} registros para ${prestador.PRESTADOR}.` });
         } catch (error: any) {
             toast({ title: "Error al Cargar Datos de la Nota Técnica", description: error.message, variant: "destructive" });
             setSelectedPrestador(null);
@@ -268,9 +270,9 @@ const PgPsearchForm: React.FC = () => {
 
         const searchTerm = searchValue.toLowerCase().trim();
         const filteredResults = pgpData.filter(item => {
-            const cups = String(item['CUPS'] || '').toLowerCase();
+            const cupCum = String(item['CUP/CUM'] || '').toLowerCase();
             const descripcion = String(item['DESCRIPCION CUPS'] || '').toLowerCase();
-            return cups.includes(searchTerm) || descripcion.includes(searchTerm);
+            return cupCum.includes(searchTerm) || descripcion.includes(searchTerm);
         });
 
         setResults(filteredResults);
@@ -287,7 +289,7 @@ const PgPsearchForm: React.FC = () => {
         <Card className="my-4 shadow-md">
             <CardHeader>
                 <CardTitle className="text-lg text-primary">{row['DESCRIPCION CUPS']}</CardTitle>
-                <CardDescription>CUPS: {row['CUPS']}</CardDescription>
+                <CardDescription>CUP/CUM: {row['CUP/CUM']}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
@@ -296,18 +298,21 @@ const PgPsearchForm: React.FC = () => {
                     <div className="space-y-1"><Label>ID Resolución 3100</Label><p className="text-muted-foreground">{row['ID RESOLUCION 3100']}</p></div>
                     <div className="space-y-1 col-span-1 md:col-span-2 lg:col-span-3"><Label>Desc. Resolución</Label><p className="text-muted-foreground">{row['DESCRIPCION ID RESOLUCION']}</p></div>
                     <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
-                    <div className="space-y-1"><Label>Frecuencia Año</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA AÑO SERVICIO'])}</p></div>
+                     <div className="space-y-1"><Label>Frecuencia Año</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA AÑO SERVICIO'])}</p></div>
+                    <div className="space-y-1"><Label>Frecuencia Meses Contratados</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA ESTIMADA EN MESES CONTRATADOS'])}</p></div>
                     <div className="space-y-1"><Label>Frecuencia Uso</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA USO'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Eventos Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTOS MES'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Evento Día</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTO DIA'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Mínima Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MINIMA MES'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Máxima Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MAXIMA MES'])}</p></div>
+                    <div className="space-y-1"><Label>Frecuencia Mínima</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MINIMA'])}</p></div>
+                    <div className="space-y-1"><Label>Frecuencia Máxima</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MAXIMA'])}</p></div>
+                     <div className="space-y-1"><Label>Frecuencia Evento Día Población</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTO DIA EN POBLACIÓN'])}</p></div>
                     <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
-                    <div className="space-y-1"><Label>Valor Unitario</Label><p className="font-semibold text-green-700">{formatCurrency(row['VALOR UNITARIO'])}</p></div>
-                    <div className="space-y-1"><Label>Costo Evento Mes</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO MES'])}</p></div>
-                    <div className="space-y-1"><Label>Costo Evento Día</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO DIA'])}</p></div>
+                    <div className="space-y-1"><Label>Valor Unitario (CME)</Label><p className="font-semibold text-green-700">{formatCurrency(row['VALOR UNITARIO DEL SERVICIO (CME)'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Mes Población</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO MES EN POBLACIÓN'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Día (Valor Día)</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO DIA (VALOR DIA)'])}</p></div>
                     <div className="space-y-1"><Label>Valor Mínimo Mes</Label><p className="font-semibold text-blue-700">{formatCurrency(row['VALOR MINIMO MES'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Mes (Valor Mes)</Label><p className="font-semibold text-blue-700">{formatCurrency(row['COSTO EVENTO MES (VALOR MES)'])}</p></div>
                     <div className="space-y-1"><Label>Valor Máximo Mes</Label><p className="font-semibold text-blue-700">{formatCurrency(row['VALOR MAXIMO MES'])}</p></div>
+                    <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
+                    <div className="space-y-1 col-span-1 md:col-span-2 lg:col-span-3"><Label>Observaciones</Label><p className="text-muted-foreground whitespace-pre-wrap">{row.OBSERVACIONES}</p></div>
                 </div>
             </CardContent>
         </Card>
@@ -321,7 +326,6 @@ const PgPsearchForm: React.FC = () => {
             </div>
         );
     }
-
 
     return (
         <Card>
@@ -364,7 +368,7 @@ const PgPsearchForm: React.FC = () => {
                            />
                         )}
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUPS o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
+                            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUP/CUM o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
                             <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
                                 <Search className="mr-2 h-4 w-4" /> Buscar
                             </Button>
@@ -388,7 +392,7 @@ const PgPsearchForm: React.FC = () => {
 
                         {results.length > 0 ? (
                             <ScrollArea className="h-[600px] w-full rounded-md border p-4">
-                               {results.map((item, index) => <div key={`${item['CUPS']}-${index}`}>{renderDetailCard(item)}</div>)}
+                               {results.map((item, index) => <div key={`${item['CUP/CUM']}-${index}`}>{renderDetailCard(item)}</div>)}
                             </ScrollArea>
                         ) : (
                             <div className="text-center py-10 text-muted-foreground">
