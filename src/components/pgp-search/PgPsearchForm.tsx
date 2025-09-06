@@ -133,6 +133,35 @@ const PgPsearchForm: React.FC = () => {
         setIsClient(true);
     }, []);
 
+    const fetchAndParseSheetData = useCallback(async (url: string): Promise<any[]> => {
+        const csvUrl = new URL(url.includes('/edit') ? url.replace(/\/edit.*$/, '/gviz/tq?tqx=out:csv') : url);
+        if(!url.includes('tqx=out:csv')) {
+            csvUrl.searchParams.set('tqx', 'out:csv');
+             const gidMatch = url.match(/gid=(\d+)/);
+            if (gidMatch) {
+                csvUrl.searchParams.set('gid', gidMatch[1]);
+            }
+        }
+        
+        const response = await fetch(csvUrl.toString());
+        if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
+        const csvText = await response.text();
+
+        return new Promise((resolve, reject) => {
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: 'greedy',
+                complete: (results: ParseResult<any>) => {
+                    if (results.errors.length) {
+                        return reject(new Error(results.errors.map(e => e.message).join(', ')));
+                    }
+                    resolve(results.data);
+                },
+                error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
+            });
+        });
+    }, []);
+
     useEffect(() => {
         if (!isClient) return;
         
@@ -140,18 +169,10 @@ const PgPsearchForm: React.FC = () => {
             setLoadingPrestadores(true);
             toast({ title: "Cargando lista de prestadores..." });
             try {
-                const response = await fetch(PRESTADORES_SHEET_URL);
-                if (!response.ok) throw new Error('No se pudo cargar la lista de prestadores.');
-                const csvText = await response.text();
-                Papa.parse<Prestador>(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        setPrestadores(results.data.filter(p => p.PRESTADOR && p.PRESTADOR.trim() !== ''));
-                        toast({ title: "Lista de prestadores cargada." });
-                    },
-                    error: (error: Error) => { throw error; }
-                });
+                const data = await fetchAndParseSheetData(PRESTADORES_SHEET_URL);
+                const typedData = data.map(item => item as Prestador).filter(p => p.PRESTADOR && p.PRESTADOR.trim() !== '');
+                setPrestadores(typedData);
+                 toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
             } catch (error: any) {
                 toast({ title: "Error al Cargar Prestadores", description: error.message, variant: "destructive" });
             } finally {
@@ -159,13 +180,13 @@ const PgPsearchForm: React.FC = () => {
             }
         };
         fetchPrestadores();
-    }, [isClient, toast]);
+    }, [isClient, toast, fetchAndParseSheetData]);
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || 0), 0);
-        const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
-        const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (Number(row['COSTO EVENTO MES (VALOR MES)']) || 0), 0);
+        const totalMinimoMes = data.reduce((acc, row) => acc + (Number(row['VALOR MINIMO MES']) || 0), 0);
+        const totalMaximoMes = data.reduce((acc, row) => acc + (Number(row['VALOR MAXIMO MES']) || 0), 0);
         return {
             totalCostoMes,
             lowerBound: totalCostoMes * 0.9,
@@ -174,52 +195,6 @@ const PgPsearchForm: React.FC = () => {
             totalMinimoAnual: totalMinimoMes * 12,
             totalMaximoAnual: totalMaximoMes * 12,
         };
-    }, []);
-
-    const fetchAndParseSheetData = useCallback(async (url: string): Promise<PgpRow[]> => {
-        const csvUrl = new URL(url.includes('/edit') ? url.replace(/\/edit.*$/, '/gviz/tq?tqx=out:csv') : url);
-        if(!url.includes('tqx=out:csv')) {
-            csvUrl.searchParams.set('tqx', 'out:csv');
-        }
-        
-        const response = await fetch(csvUrl.toString());
-        if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
-        const csvText = await response.text();
-
-        return new Promise((resolve, reject) => {
-            Papa.parse<Record<string, string>>(csvText, {
-                header: true,
-                skipEmptyLines: 'greedy',
-                dynamicTyping: false,
-                complete: (parsedResults: ParseResult<Record<string, string>>) => {
-                    if (parsedResults.errors.length) console.warn("Errores de parseo:", parsedResults.errors);
-                    
-                    const data = parsedResults.data.map(row => {
-                        const newRow: Partial<PgpRow> = {};
-                        for (const key in row) {
-                            const trimmedKey = key.trim() as keyof PgpRow;
-                            const value = (row[key] || '').trim();
-                            if (trimmedKey) {
-                                const numericKeys: (keyof PgpRow)[] = [
-                                    'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA ESTIMADA EN MESES CONTRATADOS', 'FRECUENCIA USO',
-                                    'COSTO EVENTO MES EN POBLACIÓN', 'FRECUENCIA EVENTO DIA EN POBLACIÓN', 'FRECUENCIA MINIMA',
-                                    'FRECUENCIA MAXIMA', 'VALOR UNITARIO DEL SERVICIO (CME)', 'COSTO EVENTO DIA (VALOR DIA)',
-                                    'VALOR MINIMO MES', 'COSTO EVENTO MES (VALOR MES)', 'VALOR MAXIMO MES'
-                                ];
-                                if (numericKeys.includes(trimmedKey)) {
-                                    (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
-                                } else {
-                                    (newRow as any)[trimmedKey] = value;
-                                }
-                            }
-                        }
-                        return newRow as PgpRow;
-                    }).filter(item => item['CUP/CUM']);
-                    resolve(data);
-                },
-                error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
-            });
-        });
     }, []);
 
     const handleSelectPrestador = async (prestador: Prestador) => {
@@ -237,10 +212,32 @@ const PgPsearchForm: React.FC = () => {
                 throw new Error("La URL de la nota técnica no está definida para este prestador.");
             }
             const data = await fetchAndParseSheetData(prestador.WEB);
-            setPgpData(data);
-            setGlobalSummary(calculateSummary(data));
+            const pgpRows = data.map(row => {
+                const newRow: Partial<PgpRow> = {};
+                 for (const key in row) {
+                    const trimmedKey = key.trim() as keyof PgpRow;
+                    const value = (row[key] || '').trim();
+                    if (trimmedKey) {
+                        const numericKeys: (keyof PgpRow)[] = [
+                            'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA ESTIMADA EN MESES CONTRATADOS', 'FRECUENCIA USO',
+                            'COSTO EVENTO MES EN POBLACIÓN', 'FRECUENCIA EVENTO DIA EN POBLACIÓN', 'FRECUENCIA MINIMA',
+                            'FRECUENCIA MAXIMA', 'VALOR UNITARIO DEL SERVICIO (CME)', 'COSTO EVENTO DIA (VALOR DIA)',
+                            'VALOR MINIMO MES', 'COSTO EVENTO MES (VALOR MES)', 'VALOR MAXIMO MES'
+                        ];
+                        if (numericKeys.includes(trimmedKey)) {
+                            (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
+                        } else {
+                            (newRow as any)[trimmedKey] = value;
+                        }
+                    }
+                }
+                return newRow as PgpRow;
+            }).filter(item => item['CUP/CUM']);
+
+            setPgpData(pgpRows);
+            setGlobalSummary(calculateSummary(pgpRows));
             setIsDataLoaded(true);
-            toast({ title: "Datos PGP Cargados", description: `Se cargaron ${data.length} registros para ${prestador.PRESTADOR}.` });
+            toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
         } catch (error: any) {
             toast({ title: "Error al Cargar Datos de la Nota Técnica", description: error.message, variant: "destructive" });
             setSelectedPrestador(null);
@@ -403,5 +400,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    
