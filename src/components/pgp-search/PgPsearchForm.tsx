@@ -37,7 +37,6 @@ interface PgpRow {
     [key: string]: any;
 }
 
-
 interface Prestador {
     NIT: string;
     PRESTADOR: string;
@@ -54,7 +53,7 @@ interface SummaryData {
   totalMaximoAnual: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?usp=sharing";
 
 const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return 'N/A';
@@ -134,16 +133,14 @@ const PgPsearchForm: React.FC = () => {
     }, []);
 
     const fetchAndParseSheetData = useCallback(async (url: string): Promise<any[]> => {
-        const csvUrl = new URL(url.includes('/edit') ? url.replace(/\/edit.*$/, '/gviz/tq?tqx=out:csv') : url);
-        if(!url.includes('tqx=out:csv')) {
-            csvUrl.searchParams.set('tqx', 'out:csv');
-             const gidMatch = url.match(/gid=(\d+)/);
-            if (gidMatch) {
-                csvUrl.searchParams.set('gid', gidMatch[1]);
-            }
-        }
+        const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (!idMatch) throw new Error("URL de Google Sheets inválida.");
+        const sheetId = idMatch[1];
+        const gidMatch = url.match(/gid=(\d+)/);
+        const gid = gidMatch ? gidMatch[1] : '0';
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
         
-        const response = await fetch(csvUrl.toString());
+        const response = await fetch(csvUrl);
         if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
         const csvText = await response.text();
 
@@ -400,3 +397,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    
