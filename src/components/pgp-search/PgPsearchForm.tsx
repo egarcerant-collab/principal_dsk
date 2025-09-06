@@ -137,6 +137,7 @@ const PgPsearchForm: React.FC = () => {
         if (!idMatch) throw new Error("URL de Google Sheets inválida.");
         const sheetId = idMatch[1];
         const gidMatch = url.match(/gid=(\d+)/);
+        // Fallback to '0' if gid is not present in the URL
         const gid = gidMatch ? gidMatch[1] : '0';
         const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
         
@@ -150,11 +151,25 @@ const PgPsearchForm: React.FC = () => {
                 skipEmptyLines: 'greedy',
                 complete: (results: ParseResult<any>) => {
                     if (results.errors.length) {
-                        return reject(new Error(results.errors.map(e => e.message).join(', ')));
+                        const errorMsg = results.errors.map(e => e.message).join(', ');
+                        console.error("Error de parseo Papaparse:", errorMsg);
+                        return reject(new Error(errorMsg));
                     }
-                    resolve(results.data);
+                     const cleanedData = results.data.map(row => {
+                        const cleanedRow: { [key: string]: any } = {};
+                        for (const key in row) {
+                            if (Object.prototype.hasOwnProperty.call(row, key)) {
+                                cleanedRow[key.trim()] = row[key];
+                            }
+                        }
+                        return cleanedRow;
+                    });
+                    resolve(cleanedData);
                 },
-                error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
+                error: (error: Error) => {
+                    console.error("Error en Papaparse:", error.message);
+                    reject(new Error(`Error parseando CSV: ${error.message}`))
+                }
             });
         });
     }, []);
@@ -169,9 +184,14 @@ const PgPsearchForm: React.FC = () => {
                 const data = await fetchAndParseSheetData(PRESTADORES_SHEET_URL);
                 const typedData = data.map(item => item as Prestador).filter(p => p.PRESTADOR && p.PRESTADOR.trim() !== '');
                 setPrestadores(typedData);
-                 toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
+                 if (typedData.length > 0) {
+                    toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
+                 } else {
+                    toast({ title: "Atención: No se encontraron prestadores.", description: "Verifique la hoja de cálculo o la conexión.", variant: "destructive" });
+                 }
             } catch (error: any) {
-                toast({ title: "Error al Cargar Prestadores", description: error.message, variant: "destructive" });
+                toast({ title: "Error al Cargar la Lista de Prestadores", description: error.message, variant: "destructive" });
+                console.error("Error fetching providers:", error);
             } finally {
                 setLoadingPrestadores(false);
             }
@@ -331,7 +351,7 @@ const PgPsearchForm: React.FC = () => {
                             <ChevronDown className="ml-2 h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-full md:w-[300px]">
+                    <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
                         {prestadores.map((p, index) => (
                            <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleSelectPrestador(p)}>
                                {p.PRESTADOR}
@@ -397,5 +417,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    
