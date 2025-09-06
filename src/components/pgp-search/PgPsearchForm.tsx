@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -20,20 +19,20 @@ interface PgpRow {
     'AMBITO': string;
     'ID RESOLUCION 3100': string;
     'DESCRIPCION ID RESOLUCION': string;
-    'CUPS': string;
-    'CUP/CUM'?: string;
+    'CUP/CUM': string;
     'DESCRIPCION CUPS': string;
     'FRECUENCIA AÑO SERVICIO': number;
+    'FRECUENCIA ESTIMADA EN MESES CONTRATADOS': number;
     'FRECUENCIA USO': number;
-    'FRECUENCIA EVENTOS MES': number;
-    'FRECUENCIA EVENTO DIA': number;
-    'COSTO EVENTO MES': number;
-    'COSTO EVENTO DIA': number;
-    'FRECUENCIA MINIMA MES': number;
-    'FRECUENCIA MAXIMA MES': number;
+    'COSTO EVENTO MES EN POBLACIÓN': number;
+    'FRECUENCIA EVENTO DIA EN POBLACIÓN': number;
+    'FRECUENCIA MINIMA': number;
+    'FRECUENCIA MAXIMA': number;
+    'VALOR UNITARIO DEL SERVICIO (CME)': number;
+    'COSTO EVENTO DIA (VALOR DIA)': number;
     'VALOR MINIMO MES': number;
+    'COSTO EVENTO MES (VALOR MES)': number;
     'VALOR MAXIMO MES': number;
-    'VALOR UNITARIO'?: number;
     'OBSERVACIONES': string;
     [key: string]: any;
 }
@@ -56,7 +55,6 @@ interface SummaryData {
 }
 
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
-
 
 const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return 'N/A';
@@ -165,7 +163,7 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
         return {
@@ -203,10 +201,10 @@ const PgPsearchForm: React.FC = () => {
                             const value = (row[key] || '').trim();
                             if (trimmedKey) {
                                 const numericKeys: (keyof PgpRow)[] = [
-                                    'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
-                                    'FRECUENCIA EVENTO DIA', 'COSTO EVENTO MES', 'COSTO EVENTO DIA',
-                                    'FRECUENCIA MINIMA MES', 'FRECUENCIA MAXIMA MES', 'VALOR MINIMO MES',
-                                    'VALOR MAXIMO MES', 'VALOR UNITARIO'
+                                    'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA ESTIMADA EN MESES CONTRATADOS', 'FRECUENCIA USO',
+                                    'COSTO EVENTO MES EN POBLACIÓN', 'FRECUENCIA EVENTO DIA EN POBLACIÓN', 'FRECUENCIA MINIMA',
+                                    'FRECUENCIA MAXIMA', 'VALOR UNITARIO DEL SERVICIO (CME)', 'COSTO EVENTO DIA (VALOR DIA)',
+                                    'VALOR MINIMO MES', 'COSTO EVENTO MES (VALOR MES)', 'VALOR MAXIMO MES'
                                 ];
                                 if (numericKeys.includes(trimmedKey)) {
                                     (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
@@ -216,7 +214,7 @@ const PgPsearchForm: React.FC = () => {
                             }
                         }
                         return newRow as PgpRow;
-                    }).filter(item => item['CUPS'] || item['CUP/CUM']);
+                    }).filter(item => item['CUP/CUM']);
                     resolve(data);
                 },
                 error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
@@ -267,7 +265,7 @@ const PgPsearchForm: React.FC = () => {
 
         const searchTerm = searchValue.toLowerCase().trim();
         const filteredResults = pgpData.filter(item => {
-            const cups = String(item['CUPS'] || '').toLowerCase();
+            const cups = String(item['CUP/CUM'] || '').toLowerCase();
             const descripcion = String(item['DESCRIPCION CUPS'] || '').toLowerCase();
             return cups.includes(searchTerm) || descripcion.includes(searchTerm);
         });
@@ -286,7 +284,7 @@ const PgPsearchForm: React.FC = () => {
         <Card className="my-4 shadow-md">
             <CardHeader>
                 <CardTitle className="text-lg text-primary">{row['DESCRIPCION CUPS']}</CardTitle>
-                <CardDescription>CUPS: {row['CUPS']}</CardDescription>
+                <CardDescription>CUP/CUM: {row['CUP/CUM']}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
@@ -296,16 +294,17 @@ const PgPsearchForm: React.FC = () => {
                     <div className="space-y-1 col-span-1 md:col-span-2 lg:col-span-3"><Label>Desc. Resolución</Label><p className="text-muted-foreground">{row['DESCRIPCION ID RESOLUCION']}</p></div>
                     <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
                      <div className="space-y-1"><Label>Frecuencia Año</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA AÑO SERVICIO'])}</p></div>
+                    <div className="space-y-1"><Label>Frec. Meses Contratados</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA ESTIMADA EN MESES CONTRATADOS'])}</p></div>
                     <div className="space-y-1"><Label>Frecuencia Uso</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA USO'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Eventos Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTOS MES'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Evento Día</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTO DIA'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Mínima Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MINIMA MES'])}</p></div>
-                    <div className="space-y-1"><Label>Frecuencia Máxima Mes</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MAXIMA MES'])}</p></div>
+                    <div className="space-y-1"><Label>Frec. Mínima</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MINIMA'])}</p></div>
+                    <div className="space-y-1"><Label>Frec. Máxima</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA MAXIMA'])}</p></div>
+                    <div className="space-y-1"><Label>Frec. Evento Día Población</Label><p className="font-semibold">{formatNumber(row['FRECUENCIA EVENTO DIA EN POBLACIÓN'])}</p></div>
                     <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
-                    <div className="space-y-1"><Label>Valor Unitario</Label><p className="font-semibold text-green-700">{formatCurrency(row['VALOR UNITARIO'])}</p></div>
-                    <div className="space-y-1"><Label>Costo Evento Mes</Label><p className="font-semibold text-blue-700">{formatCurrency(row['COSTO EVENTO MES'])}</p></div>
-                    <div className="space-y-1"><Label>Costo Evento Día</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO DIA'])}</p></div>
+                    <div className="space-y-1"><Label>Valor Unitario (CME)</Label><p className="font-semibold text-green-700">{formatCurrency(row['VALOR UNITARIO DEL SERVICIO (CME)'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Mes Población</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO MES EN POBLACIÓN'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Día (Valor Día)</Label><p className="font-semibold text-green-700">{formatCurrency(row['COSTO EVENTO DIA (VALOR DIA)'])}</p></div>
                     <div className="space-y-1"><Label>Valor Mínimo Mes</Label><p className="font-semibold text-blue-700">{formatCurrency(row['VALOR MINIMO MES'])}</p></div>
+                    <div className="space-y-1"><Label>Costo Evento Mes (Valor Mes)</Label><p className="font-semibold text-blue-700">{formatCurrency(row['COSTO EVENTO MES (VALOR MES)'])}</p></div>
                     <div className="space-y-1"><Label>Valor Máximo Mes</Label><p className="font-semibold text-blue-700">{formatCurrency(row['VALOR MAXIMO MES'])}</p></div>
                     <Separator className="col-span-1 md:col-span-2 lg:col-span-3" />
                     <div className="space-y-1 col-span-1 md:col-span-2 lg:col-span-3"><Label>Observaciones</Label><p className="text-muted-foreground whitespace-pre-wrap">{row.OBSERVACIONES}</p></div>
@@ -364,7 +363,7 @@ const PgPsearchForm: React.FC = () => {
                            />
                         )}
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUPS o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
+                            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="Buscar por CUP/CUM o descripción..." className="flex-grow" onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
                             <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
                                 <Search className="mr-2 h-4 w-4" /> Buscar
                             </Button>
@@ -388,7 +387,7 @@ const PgPsearchForm: React.FC = () => {
 
                         {results.length > 0 ? (
                             <ScrollArea className="h-[600px] w-full rounded-md border p-4">
-                               {results.map((item, index) => <div key={`${item['CUPS'] || item['CUP/CUM']}-${index}`}>{renderDetailCard(item)}</div>)}
+                               {results.map((item, index) => <div key={`${item['CUP/CUM']}-${index}`}>{renderDetailCard(item)}</div>)}
                             </ScrollArea>
                         ) : (
                             <div className="text-center py-10 text-muted-foreground">
