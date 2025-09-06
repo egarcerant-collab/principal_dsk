@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
@@ -14,35 +15,30 @@ import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// Estructura para la hoja de cálculo de Contratos PGP
 interface PgpRow {
     'SUBCATEGORIA': string;
     'AMBITO': string;
     'ID RESOLUCION 3100': string;
     'DESCRIPCION ID RESOLUCION': string;
-    'CUP/CUM': string;
     'CUPS': string;
+    'CUP/CUM'?: string;
     'DESCRIPCION CUPS': string;
     'FRECUENCIA AÑO SERVICIO': number;
-    'FRECUENCIA ESTIMADA EN MESES CONTRATADOS': number;
     'FRECUENCIA USO': number;
-    'COSTO EVENTO MES EN POBLACIÓN': number;
-    'FRECUENCIA EVENTO DIA EN POBLACIÓN': number;
-    'FRECUENCIA MINIMA': number;
-    'FRECUENCIA MAXIMA': number;
-    'VALOR UNITARIO DEL SERVICIO (CME)': number;
-    'VALOR UNITARIO': number;
-    'COSTO EVENTO DIA (VALOR DIA)': number;
-    'VALOR MINIMO MES': number;
-    'COSTO EVENTO MES (VALOR MES)': number;
+    'FRECUENCIA EVENTOS MES': number;
+    'FRECUENCIA EVENTO DIA': number;
     'COSTO EVENTO MES': number;
+    'COSTO EVENTO DIA': number;
+    'FRECUENCIA MINIMA MES': number;
+    'FRECUENCIA MAXIMA MES': number;
+    'VALOR MINIMO MES': number;
     'VALOR MAXIMO MES': number;
+    'VALOR UNITARIO'?: number;
     'OBSERVACIONES': string;
     [key: string]: any;
 }
 
 
-// Estructura para la hoja de cálculo de Prestadores
 interface Prestador {
     NIT: string;
     PRESTADOR: string;
@@ -169,7 +165,7 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || row['COSTO EVENTO MES (VALOR MES)'] || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES'] || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
         return {
@@ -207,11 +203,10 @@ const PgPsearchForm: React.FC = () => {
                             const value = (row[key] || '').trim();
                             if (trimmedKey) {
                                 const numericKeys: (keyof PgpRow)[] = [
-                                    'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA ESTIMADA EN MESES CONTRATADOS', 
-                                    'FRECUENCIA USO', 'COSTO EVENTO MES EN POBLACIÓN', 'FRECUENCIA EVENTO DIA EN POBLACIÓN', 
-                                    'FRECUENCIA MINIMA', 'FRECUENCIA MAXIMA', 'VALOR UNITARIO DEL SERVICIO (CME)',
-                                    'VALOR UNITARIO', 'COSTO EVENTO DIA (VALOR DIA)', 'VALOR MINIMO MES', 
-                                    'COSTO EVENTO MES (VALOR MES)', 'COSTO EVENTO MES', 'VALOR MAXIMO MES'
+                                    'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
+                                    'FRECUENCIA EVENTO DIA', 'COSTO EVENTO MES', 'COSTO EVENTO DIA',
+                                    'FRECUENCIA MINIMA MES', 'FRECUENCIA MAXIMA MES', 'VALOR MINIMO MES',
+                                    'VALOR MAXIMO MES', 'VALOR UNITARIO'
                                 ];
                                 if (numericKeys.includes(trimmedKey)) {
                                     (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
@@ -221,7 +216,7 @@ const PgPsearchForm: React.FC = () => {
                             }
                         }
                         return newRow as PgpRow;
-                    }).filter(item => item['CUP/CUM'] || item['CUPS']);
+                    }).filter(item => item['CUPS'] || item['CUP/CUM']);
                     resolve(data);
                 },
                 error: (error: Error) => reject(new Error(`Error parseando CSV: ${error.message}`))
@@ -272,9 +267,9 @@ const PgPsearchForm: React.FC = () => {
 
         const searchTerm = searchValue.toLowerCase().trim();
         const filteredResults = pgpData.filter(item => {
-            const cupCum = String(item['CUP/CUM'] || item['CUPS'] || '').toLowerCase();
+            const cups = String(item['CUPS'] || '').toLowerCase();
             const descripcion = String(item['DESCRIPCION CUPS'] || '').toLowerCase();
-            return cupCum.includes(searchTerm) || descripcion.includes(searchTerm);
+            return cups.includes(searchTerm) || descripcion.includes(searchTerm);
         });
 
         setResults(filteredResults);
@@ -291,7 +286,7 @@ const PgPsearchForm: React.FC = () => {
         <Card className="my-4 shadow-md">
             <CardHeader>
                 <CardTitle className="text-lg text-primary">{row['DESCRIPCION CUPS']}</CardTitle>
-                <CardDescription>CUPS: {row['CUPS'] || row['CUP/CUM']}</CardDescription>
+                <CardDescription>CUPS: {row['CUPS']}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
