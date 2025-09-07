@@ -65,19 +65,21 @@ const getNumericValue = (value: any): number => {
     if (typeof value !== 'string') {
       value = String(value ?? '0');
     }
-    const cleanValue = value.trim().replace(/\$/g, '');
+    // First, remove currency symbols and trim whitespace
+    let cleanValue = value.replace(/\$/g, '').trim();
 
-    // Case 1: "1.234,56" (mil-dot, decimal-comma)
+    // Standardize to use dot as decimal separator
+    // Handles "1.234,56" -> "1234.56"
     if (cleanValue.includes(',') && cleanValue.includes('.')) {
-        return parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
+        cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
+    } 
+    // Handles "1234,56" -> "1234.56"
+    else if (cleanValue.includes(',')) {
+        cleanValue = cleanValue.replace(',', '.');
     }
-    // Case 2: "1234,56" (decimal-comma)
-    if (cleanValue.includes(',')) {
-        return parseFloat(cleanValue.replace(',', '.'));
-    }
-    // Case 3: "1234.56" or "1234" (decimal-dot or no decimal)
-    // parseFloat will handle this correctly.
-    return parseFloat(cleanValue) || 0;
+    
+    const num = parseFloat(cleanValue);
+    return isNaN(num) ? 0 : num;
 };
 
 
@@ -422,3 +424,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    

@@ -52,7 +52,7 @@ const prompt = ai.definePrompt({
   name: 'pgpAnalysisPrompt',
   input: {schema: AnalyzePgpDataInputSchema},
   output: {schema: AnalyzePgpDataOutputSchema},
-  prompt: `Eres un analista experto en contrats PGP (Pago Global Prospectivo) en el sector salud de Colombia.
+  prompt: `Eres un analista experto en contratos PGP (Pago Global Prospectivo) en el sector salud de Colombia.
   Analiza la siguiente muestra de datos de una nota técnica y proporciona un resumen conciso y profesional.
   Tu análisis debe ser estratégico y centrado en la toma de decisiones.
 
@@ -81,3 +81,5 @@ const analyzePgpDataFlow = ai.defineFlow(
     return output;
   }
 );
+
+    
