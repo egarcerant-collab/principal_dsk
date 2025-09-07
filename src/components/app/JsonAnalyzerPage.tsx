@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { CupCountsMap } from '@/app/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 interface FileState {
     jsonData: any | null;
@@ -296,54 +298,32 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
             </Alert>
         )}
 
-        {anyFileLoaded && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-                {files.map((file, index) => file.jsonData && (
-                    <Card key={index} className="shadow-lg">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <Building className="h-5 w-5 text-primary" />
-                                Prestador Archivo {index + 1}
-                            </CardTitle>
-                             <CardDescription>{file.fileName}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {file.prestadorInfo ? (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">{file.prestadorInfo.PRESTADOR}</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file.prestadorInfo.NIT}</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file.jsonData.numDocumentoIdObligado}</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        )}
-
-
       {anyFileLoaded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+        <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-center">Resultados de Archivos Cargados</h3>
             {files.map((file, index) => file.jsonData && (
-                 <div key={index} className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span className="text-xl">Análisis Archivo {index + 1}</span>
-                        </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <DataVisualizer data={file.jsonData} />
-                        </CardContent>
-                    </Card>
-                 </div>
+                <Card key={index} className="shadow-md">
+                    <Accordion type="single" collapsible>
+                        <AccordionItem value={`item-${index}`}>
+                            <AccordionTrigger className="p-6">
+                                <div className="flex flex-col items-start text-left">
+                                    <h4 className="text-lg font-bold text-foreground">
+                                        <Building className="inline-block mr-2 h-5 w-5 text-primary" />
+                                        {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : 'Nombre no encontrado'}
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">NIT: {file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName}</p>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <DataVisualizer data={file.jsonData} />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </Card>
             ))}
         </div>
       )}
+
 
       {error && (
         <Alert variant="destructive">
@@ -355,5 +335,3 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     </div>
   );
 }
-
-    
