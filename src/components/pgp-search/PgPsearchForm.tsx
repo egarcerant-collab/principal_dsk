@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon } from "lucide-react";
 import Papa, { type ParseResult } from 'papaparse';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
+import { analyzePgpData, type AnalyzePgpDataOutput } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,13 +41,6 @@ interface PgpRow {
   OBSERVACIONES?: string;
   [key: string]: any; // Allow other properties
 }
-
-interface AnalyzePgpDataOutput {
-    keyObservations: string[];
-    potentialRisks: string[];
-    strategicRecommendations: string[];
-}
-
 
 interface SummaryData {
   totalCostoMes: number;
@@ -287,13 +280,14 @@ const PgPsearchForm: React.FC = () => {
                 'VALOR MINIMO MES', 'VALOR MAXIMO MES', 'COSTO EVENTO MES (VALOR MES)'
             ];
 
-            const pgpRows = data.map(row => {
+            const pgpRows: PgpRow[] = data.map(row => {
                 const newRow: Partial<PgpRow> = {};
                  for (const key in row) {
                     const trimmedKey = key.trim();
                     if (!trimmedKey) continue;
 
                     let value = (row[key] || '').trim();
+                    
                     const isNumeric = numericKeys.some(nk => nk.toUpperCase() === trimmedKey.toUpperCase());
 
                     if (isNumeric) {
@@ -375,7 +369,7 @@ const PgPsearchForm: React.FC = () => {
                     </div>
                 )}
                 
-                {isDataLoaded && (
+                {isDataLoaded && !loading && (
                     <div className="space-y-6">
                         {globalSummary && (
                            <SummaryCard 
@@ -427,5 +421,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    
