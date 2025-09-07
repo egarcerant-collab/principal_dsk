@@ -85,31 +85,37 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 
 /** Parser numérico robusto para formatos es-CO y en-US */
 export const getNumericValue = (value: any): number => {
-  if (value === null || value === undefined) return 0;
-  let v = String(value).trim();
-  if (!v) return 0;
-
-  // quitar símbolo de moneda y espacios
-  v = v.replace(/\s+/g, '').replace(/\$/g, '');
-
-  // Caso: "126.618,75" → 126618.75
-  if (v.includes('.') && v.includes(',')) {
-    v = v.replace(/\./g, '').replace(/,/g, '.');
+    if (value === null || value === undefined || value === '') return 0;
+    let v = String(value).trim();
+    if (!v) return 0;
+  
+    // 1. Quitar símbolo de moneda y espacios
+    v = v.replace(/\s+/g, '').replace(/\$/g, '');
+  
+    // 2. Determinar si el formato es US (1,234.56) o EU (1.234,56)
+    const hasComma = v.includes(',');
+    const hasDot = v.includes('.');
+    
+    // Si tiene ambos, el último es el separador decimal
+    if (hasComma && hasDot) {
+      const lastComma = v.lastIndexOf(',');
+      const lastDot = v.lastIndexOf('.');
+      // Formato EU: el punto es de miles, la coma es decimal. "1.234,56" -> "1234.56"
+      if (lastComma > lastDot) {
+        v = v.replace(/\./g, '').replace(',', '.');
+      } else {
+        // Formato US: la coma es de miles, el punto es decimal. "1,234.56" -> "1234.56"
+        v = v.replace(/,/g, '');
+      }
+    } else if (hasComma) {
+      // Solo coma: es decimal en formato EU. "1234,56" -> "1234.56"
+      v = v.replace(',', '.');
+    }
+    // Si solo tiene puntos (1.234) o no tiene separadores (1234), no se hace nada
+  
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
-  }
-
-  // Solo coma, asumir coma decimal
-  if (v.includes(',') && !v.includes('.')) {
-    v = v.replace(/\./g, '').replace(/,/g, '.');
-    const n = parseFloat(v);
-    return isNaN(n) ? 0 : n;
-  }
-
-  // Solo puntos: asumir punto decimal (o miles) estilo en-US
-  const n = parseFloat(v.replace(/,/g, '')); // por si vienen comas de miles en-US
-  return isNaN(n) ? 0 : n;
-};
+  };
 
 const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   const keys = Object.keys(row);
@@ -443,7 +449,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     setMismatchWarning(null);
     setIsDataLoaded(false); // Reset data loaded state on new selection
 
-    setSelectedPrestador(prestador);
     setPrestadorToLoad(prestador);
 
     const pgpZoneId = normalizeString(prestador['ID DE ZONA']);
@@ -624,7 +629,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
             {prestadores.map((p, index) => (
-              <DropdownMenuItem key={`${p.NIT}-${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)}>
+              <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)}>
                 {p.PRESTADOR} ({p['ID DE ZONA']})
               </DropdownMenuItem>
             ))}
