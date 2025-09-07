@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Users, Stethoscope, Microscope, Pill, Syringe, Loader2 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
+import StatCard from "@/components/shared/StatCard";
 
 interface DataVisualizerProps {
   data: any;
@@ -72,18 +73,6 @@ export const calculateSummary = (data: any) => {
         totalOtrosServicios,
     }
 }
-
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-);
 
 const UserDetails = ({ user }: { user: any }) => {
     return (

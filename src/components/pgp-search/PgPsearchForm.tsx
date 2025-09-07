@@ -5,13 +5,14 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
+import StatCard from '@/components/shared/StatCard';
 
 // Types moved from the server file to the client component
 interface PgpRow {
@@ -52,6 +53,11 @@ interface SummaryData {
   totalAnual: number;
   totalMinimoAnual: number;
   totalMaximoAnual: number;
+}
+
+interface PgpStats {
+    totalCodes: number;
+    totalMonthlyEvents: number;
 }
 
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
@@ -182,7 +188,28 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
             </CardContent>
         </Card>
     )
-}
+};
+
+
+const StatsSummaryCard = ({ stats }: { stats: PgpStats | null }) => {
+    if (!stats) return null;
+
+    return (
+        <Card className="w-full shadow-lg">
+            <CardHeader>
+                <CardTitle>Estadísticas Clave de la Nota Técnica</CardTitle>
+                <CardDescription>Métricas calculadas a partir de los servicios definidos en el contrato.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                    <StatCard title="Total de Códigos (CUPS/CUMs)" value={stats.totalCodes.toLocaleString()} icon={Hash} />
+                    <StatCard title="Eventos Esperados por Mes" value={stats.totalMonthlyEvents.toLocaleString()} icon={BarChart} />
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const PgPsearchForm: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
@@ -193,6 +220,7 @@ const PgPsearchForm: React.FC = () => {
     const [selectedPrestador, setSelectedPrestador] = useState<Prestador | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
+    const [pgpStats, setPgpStats] = useState<PgpStats | null>(null);
     const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
@@ -249,12 +277,25 @@ const PgPsearchForm: React.FC = () => {
         };
     }, []);
 
+    const calculatePgpStats = useCallback((data: PgpRow[]): PgpStats | null => {
+        if (data.length === 0) return null;
+
+        const totalCodes = new Set(data.map(row => row['CUP/CUM'])).size;
+        const totalMonthlyEvents = data.reduce((acc, row) => acc + getNumericValue(row['FRECUENCIA EVENTOS MES']), 0);
+
+        return {
+            totalCodes,
+            totalMonthlyEvents,
+        };
+    }, []);
+
     const handleSelectPrestador = async (prestador: Prestador) => {
         setSelectedPrestador(prestador);
         setLoading(true);
         setLoadingAnalysis(true);
         setIsDataLoaded(false);
         setGlobalSummary(null);
+        setPgpStats(null);
         setAnalysis(null);
         toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
@@ -285,6 +326,7 @@ const PgPsearchForm: React.FC = () => {
 
             setPgpData(pgpRows);
             setGlobalSummary(calculateSummary(pgpRows));
+            setPgpStats(calculatePgpStats(pgpRows));
             setIsDataLoaded(true);
             toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
 
@@ -382,6 +424,7 @@ const PgPsearchForm: React.FC = () => {
                            />
                         )}
                         <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />
+                        <StatsSummaryCard stats={pgpStats} />
                          <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -424,5 +467,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    

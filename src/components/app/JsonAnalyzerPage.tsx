@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
+import StatCard from '@/components/shared/StatCard';
 
 interface FileState {
     jsonData: any | null;
@@ -42,18 +43,6 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     });
     return map;
 }
-
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-);
 
 export default function JsonAnalyzerPage() {
   const [file1, setFile1] = useState<FileState>(initialFileState);
