@@ -101,6 +101,30 @@ export const getNumericValue = (value: any): number => {
     return isNaN(num) ? 0 : num;
 };
 
+const calculateSummary = (data: PgpRow[]): SummaryData | null => {
+    if (data.length === 0) return null;
+    
+    const findColumnValue = (row: PgpRow, possibleNames: string[]): number => {
+        for (const name of possibleNames) {
+            const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
+            if (key) return getNumericValue(row[key]);
+        }
+        return 0;
+    };
+
+    const totalCostoMes = data.reduce((acc, row) => {
+        const costo = findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']);
+        return acc + costo;
+    }, 0);
+
+    return {
+        totalCostoMes,
+        lowerBound: totalCostoMes * 0.9,
+        upperBound: totalCostoMes * 1.1,
+        totalAnual: totalCostoMes * 12,
+    };
+};
+
 
 const SummaryCard = ({ summary, title, description }: { summary: SummaryData | null, title: string, description: string }) => {
     if (!summary) return null;
@@ -284,6 +308,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const [pgpData, setPgpData] = useState<PgpRow[]>([]);
     const [prestadores, setPrestadores] = useState<Prestador[]>([]);
     const [selectedPrestador, setSelectedPrestador] = useState<Prestador | null>(null);
+    const [prestadorToLoad, setPrestadorToLoad] = useState<Prestador | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
     const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
@@ -295,29 +320,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const [isAiEnabled, setIsAiEnabled] = useState(false);
     const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
 
-    const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
-        if (data.length === 0) return null;
-        
-        const findColumnValue = (row: PgpRow, possibleNames: string[]): number => {
-            for (const name of possibleNames) {
-                const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
-                if (key) return getNumericValue(row[key]);
-            }
-            return 0;
-        };
-
-        const totalCostoMes = data.reduce((acc, row) => {
-            const costo = findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']);
-            return acc + costo;
-        }, 0);
-
-        return {
-            totalCostoMes,
-            lowerBound: totalCostoMes * 0.9,
-            upperBound: totalCostoMes * 1.1,
-            totalAnual: totalCostoMes * 12,
-        };
-    }, []);
 
     useEffect(() => {
         setIsClient(true);
@@ -326,23 +328,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         });
     }, []);
 
-    const handleLoadPrestador = useCallback(async (prestador: Prestador) => {
-        setMismatchWarning(null);
-        setSelectedPrestador(prestador);
-
-        // Check for mismatch but allow loading
-        const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
-        if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
-            const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
-            setMismatchWarning(warningMsg);
-            toast({
-                title: "Advertencia de No Coincidencia",
-                description: warningMsg,
-                variant: "destructive",
-                duration: 7000,
-            });
-        }
-
+    const performLoadPrestador = useCallback(async (prestador: Prestador) => {
         setLoading(true);
         if (isAiEnabled) {
           setLoadingAnalysis(true);
@@ -428,9 +414,33 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
             setIsDataLoaded(false);
         } finally {
             setLoading(false);
+            setMismatchWarning(null);
+            setPrestadorToLoad(null);
         }
-    }, [isAiEnabled, toast, calculateSummary, jsonPrestadorCode]);
+    }, [isAiEnabled, toast]);
 
+
+    const handleSelectPrestador = useCallback((prestador: Prestador) => {
+        setMismatchWarning(null);
+        setSelectedPrestador(prestador);
+
+        const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
+        if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
+            const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
+            setMismatchWarning(warningMsg);
+            setPrestadorToLoad(prestador); // Store the prestador to load, but don't load it yet
+        } else {
+            // If it matches, load it directly
+            performLoadPrestador(prestador);
+        }
+    }, [jsonPrestadorCode, performLoadPrestador]);
+
+    const handleForceLoad = () => {
+        if (prestadorToLoad) {
+            performLoadPrestador(prestadorToLoad);
+        }
+    };
+    
 
     useEffect(() => {
         if (!isClient) return;
@@ -458,17 +468,18 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     }, [isClient, toast]);
 
      useEffect(() => {
-        if (jsonPrestadorCode && prestadores.length > 0 && !loading) {
+        if (jsonPrestadorCode && prestadores.length > 0 && !loading && !selectedPrestador) {
             const matchedPrestador = prestadores.find(p => p['ID DE ZONA']?.trim() === jsonPrestadorCode);
-            if (matchedPrestador && !selectedPrestador) {
+            if (matchedPrestador) {
                 toast({
                     title: "Prestador Sugerido Encontrado",
                     description: `Cargando automáticamente la nota técnica para ${matchedPrestador.PRESTADOR}.`
                 });
-                handleLoadPrestador(matchedPrestador);
+                setSelectedPrestador(matchedPrestador);
+                performLoadPrestador(matchedPrestador);
             }
         }
-    }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleLoadPrestador, toast]);
+    }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, performLoadPrestador, toast]);
     
     const calculateValueComparison = useCallback((pgpData: PgpRow[], cupCounts: CupCountsMap) => {
         let totalExpected = 0;
@@ -549,7 +560,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
                         {prestadores.map((p, index) => (
-                           <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleLoadPrestador(p)}>
+                           <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleSelectPrestador(p)}>
                                {p.PRESTADOR}
                            </DropdownMenuItem>
                         ))}
@@ -557,10 +568,19 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                 </DropdownMenu>
 
                  {mismatchWarning && (
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Advertencia de Coincidencia</AlertTitle>
-                        <AlertDescription>{mismatchWarning}</AlertDescription>
+                     <Alert variant="destructive">
+                        <div className="flex flex-col sm:flex-row items-center justify-between">
+                            <div className="flex items-center">
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                <div>
+                                    <AlertTitle>Advertencia de Coincidencia</AlertTitle>
+                                    <AlertDescription>{mismatchWarning}</AlertDescription>
+                                </div>
+                            </div>
+                             <Button onClick={handleForceLoad} variant="secondary" className="mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
+                                Cargar de todos modos
+                            </Button>
+                        </div>
                     </Alert>
                 )}
                 
