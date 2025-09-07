@@ -34,7 +34,9 @@ const initialFileState: FileState = {
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
-    const response = await fetch(PROVIDERS_SHEET_URL);
+    // The gid=0 part of the URL is important to select the first sheet.
+    const url = PROVIDERS_SHEET_URL.replace('/edit?gid=0#gid=0', '/gviz/tq?tqx=out:csv&gid=0');
+    const response = await fetch(url);
     if (!response.ok) {
         throw new Error('No se pudo cargar la información de los prestadores.');
     }
@@ -49,7 +51,7 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
                     if (row.NIT) {
                         map.set(row.NIT.trim(), {
                             NIT: row.NIT.trim(),
-                            PRESTADOR: row.PRESTADOR ? row.PRESTADOR.trim() : '',
+                            PRESTADOR: row.PRESTADOR ? row.PRESTADOR.trim() : 'Nombre no encontrado',
                             WEB: row.WEB ? row.WEB.trim() : ''
                         });
                     }
@@ -227,7 +229,7 @@ export default function JsonAnalyzerPage() {
             <div className="space-y-4">
                {file1.jsonData && (
                 <>
-                {file1.prestadorInfo && (
+                
                     <Card className="shadow-lg">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl">
@@ -236,13 +238,17 @@ export default function JsonAnalyzerPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                                <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
-                                <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
-                            </div>
+                            {file1.prestadorInfo ? (
+                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                    <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">NIT: {file1.jsonData.numDocumentoIdObligado} (Nombre no encontrado en la base de datos)</p>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                
                 <Card>
                     <CardHeader>
                     <CardTitle className="flex items-center justify-between">
@@ -261,7 +267,7 @@ export default function JsonAnalyzerPage() {
             <div className="space-y-4">
                {file2.jsonData && (
                 <>
-                {file2.prestadorInfo && (
+                
                     <Card className="shadow-lg">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl">
@@ -270,13 +276,17 @@ export default function JsonAnalyzerPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                                <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
-                                <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
-                            </div>
+                            {file2.prestadorInfo ? (
+                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                    <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">NIT: {file2.jsonData.numDocumentoIdObligado} (Nombre no encontrado en la base de datos)</p>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                
                 <Card>
                     <CardHeader>
                     <CardTitle className="flex items-center justify-between">
