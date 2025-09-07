@@ -99,7 +99,10 @@ const getNumericValue = (value: any): number => {
 };
 
 
-const SummaryCard = ({ summary, title, description }: { summary: SummaryData, title: string, description: string }) => (
+const SummaryCard = ({ summary, title, description }: { summary: SummaryData | null, title: string, description: string }) => {
+    if (!summary) return null;
+    
+    return (
     <Card className="mb-6 shadow-lg border-primary/20">
         <CardHeader>
             <CardTitle>{title}</CardTitle>
@@ -146,7 +149,8 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData, ti
             </div>
         </CardContent>
     </Card>
-);
+    )
+};
 
 const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput | null, isLoading: boolean }) => {
     if (isLoading) {
@@ -203,19 +207,19 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
 
 const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts: CupCountsMap }) => {
     const comparisonData: ComparisonData[] = pgpData.map(row => {
-        const cup = row['CUP/CUM'] || '';
-        const expectedFrequency = getNumericValue(row['FRECUENCIA EVENTOS MES']);
+        const cup = row['CUP/CUM'] || row['CUPS'] || '';
+        const expectedFrequency = getNumericValue(row['FRECUENCIA EVENTOS MES'] || row['Frecuencia Eventos Mes']);
         const realFrequency = cupCounts.get(cup) || 0;
         const difference = realFrequency - expectedFrequency;
 
         return {
             cup,
-            description: row['DESCRIPCION CUPS'] || 'N/A',
+            description: row['DESCRIPCION CUPS'] || row['DESCRIPCION'] || 'N/A',
             expectedFrequency,
             realFrequency,
             difference,
         };
-    }).filter(item => item.cup); // Filter out rows without a CUP code
+    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows without a CUP code or with 0 real frequency
 
     if (comparisonData.length === 0) {
         return (
@@ -224,7 +228,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
                     <CardTitle className="flex items-center gap-2"><AlertCircle className="h-6 w-6 text-yellow-500" />Análisis Comparativo</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground text-center">Cargue un archivo JSON y una nota técnica para ver la comparación de frecuencias.</p>
+                    <p className="text-muted-foreground text-center">No hay datos de ejecución (JSON) para los CUPS de esta nota técnica, o no se ha cargado una nota técnica que coincida.</p>
                 </CardContent>
             </Card>
         );
@@ -320,10 +324,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         if (data.length === 0) return null;
         
         const totalCostoMes = data.reduce((acc, row) => {
-            const costColumnKey = row['COSTO EVENTO MES (VALOR MES)'] !== undefined 
-                ? 'COSTO EVENTO MES (VALOR MES)' 
-                : 'COSTO EVENTO MES';
-            return acc + getNumericValue(row[costColumnKey]);
+            const cost = row['COSTO EVENTO MES (VALOR MES)'] ?? row['COSTO EVENTO MES'];
+            return acc + getNumericValue(cost);
         }, 0);
         
         const totalMinimoMes = data.reduce((acc, row) => acc + getNumericValue(row['VALOR MINIMO MES']), 0);
@@ -373,7 +375,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                     delete newRow['DESCRIPCION'];
                 }
                 return newRow as PgpRow;
-            }).filter(item => item['CUP/CUM']);
+            }).filter(item => item['CUP/CUM'] || item['CUPS']);
 
             setPgpData(pgpRows);
             setGlobalSummary(calculateSummary(pgpRows));
@@ -382,7 +384,15 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 
             if (isAiEnabled) {
                 try {
+                    // Try to find the frequency column, accommodating for case variations
+                    const freqKey = Object.keys(pgpRows[0] || {}).find(k => k.toLowerCase() === 'frecuencia uso');
+
                     const analysisInput = pgpRows.slice(0, 50).map(row => {
+                         const freqUso = freqKey ? row[freqKey] : row['FRECUENCIA USO'];
+                         const costoMes = row['COSTO EVENTO MES (VALOR MES)'] !== undefined
+                                ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
+                                : getNumericValue(row['COSTO EVENTO MES']);
+
                         return {
                             'SUBCATEGORIA': row.SUBCATEGORIA,
                             'AMBITO': row.AMBITO,
@@ -391,7 +401,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                             'CUP/CUM': row['CUP/CUM'],
                             'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
                             'FRECUENCIA AÑO SERVICIO': getNumericValue(row['FRECUENCIA AÑO SERVICIO']),
-                            'FRECUENCIA USO': getNumericValue(row['FRECUencia uso']),
+                            'FRECUENCIA USO': getNumericValue(freqUso),
                             'FRECUENCIA EVENTOS MES': getNumericValue(row['FRECUENCIA EVENTOS MES']),
                             'FRECUENCIA EVENTO DIA': getNumericValue(row['FRECUENCIA EVENTO DIA']),
                             'COSTO EVENTO MES': getNumericValue(row['COSTO EVENTO MES']),
@@ -401,9 +411,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                             'VALOR UNITARIO': getNumericValue(row['VALOR UNITARIO']),
                             'VALOR MINIMO MES': getNumericValue(row['VALOR MINIMO MES']),
                             'VALOR MAXIMO MES': getNumericValue(row['VALOR MAXIMO MES']),
-                            'COSTO EVENTO MES (VALOR MES)': row['COSTO EVENTO MES (VALOR MES)'] !== undefined
-                                ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
-                                : getNumericValue(row['COSTO EVENTO MES']),
+                            'COSTO EVENTO MES (VALOR MES)': costoMes,
                             'OBSERVACIONES': row.OBSERVACIONES
                         }
                     })
@@ -489,13 +497,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                 
                 {isDataLoaded && !loading && (
                     <div className="space-y-6">
-                        {globalSummary && (
-                           <SummaryCard 
-                                summary={globalSummary} 
-                                title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR}`}
-                                description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
-                           />
-                        )}
+                        <SummaryCard 
+                            summary={globalSummary} 
+                            title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR}`}
+                            description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
+                        />
                         { isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} /> }
                         
                         { showComparison && <ComparisonTable pgpData={pgpData} cupCounts={cupCounts} /> }
@@ -507,3 +513,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
+
+    
