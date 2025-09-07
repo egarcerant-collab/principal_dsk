@@ -205,17 +205,19 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
 
 const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts: CupCountsMap }) => {
     const comparisonData: ComparisonData[] = pgpData.map(row => {
-        const cupKey = Object.keys(row).find(k => k.toLowerCase() === 'cup/cum' || k.toLowerCase() === 'cups');
-        const cup = cupKey ? row[cupKey] : '';
-        
-        const freqKey = Object.keys(row).find(k => k.toLowerCase() === 'frecuencia eventos mes');
-        const expectedFrequency = freqKey ? getNumericValue(row[freqKey]) : 0;
-        
+        const findColumn = (possibleNames: string[]) => {
+            for (const name of possibleNames) {
+                const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+                if (key) return row[key];
+            }
+            return '';
+        };
+
+        const cup = findColumn(['cup/cum', 'cups']);
+        const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
         const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
         const difference = realFrequency - expectedFrequency;
-        
-        const descKey = Object.keys(row).find(k => k.toLowerCase().startsWith('descripcion'));
-        const description = descKey ? row[descKey] : 'N/A';
+        const description = findColumn(['descripcion cups', 'descripcion']);
 
         return {
             cup,
@@ -224,7 +226,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
             realFrequency,
             difference,
         };
-    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows without a CUP or with 0 real frequency
+    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows with 0 real frequency
 
     if (comparisonData.length === 0) {
         return (
@@ -329,28 +331,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
         
-        const findColumn = (row: PgpRow, possibleNames: string[]) => {
+        const findColumnValue = (row: PgpRow, possibleNames: string[]): number => {
             for (const name of possibleNames) {
                 const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
-                if (key) return row[key];
+                if (key) return getNumericValue(row[key]);
             }
             return 0;
         };
 
-        const totalCostoMes = data.reduce((acc, row) => {
-            const cost = findColumn(row, ['costo evento mes (valor mes)', 'costo evento mes']);
-            return acc + getNumericValue(cost);
-        }, 0);
-
-        const totalMinimoMes = data.reduce((acc, row) => {
-            const cost = findColumn(row, ['valor minimo mes']);
-            return acc + getNumericValue(cost);
-        }, 0);
-
-        const totalMaximoMes = data.reduce((acc, row) => {
-            const cost = findColumn(row, ['valor maximo mes']);
-            return acc + getNumericValue(cost);
-        }, 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']), 0);
+        const totalMinimoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor minimo mes']), 0);
+        const totalMaximoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor maximo mes']), 0);
 
         return {
             totalCostoMes,
@@ -558,3 +549,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
+
+    
