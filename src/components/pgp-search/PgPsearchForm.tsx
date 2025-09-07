@@ -71,20 +71,17 @@ const getNumericValue = (value: any): number => {
         return 0;
     }
     const cleanValue = value.replace(/[$\s]/g, '');
-    let number;
+    
     // Handle formats like "1.234,56" and "1,234.56"
     if (cleanValue.includes(',') && cleanValue.includes('.')) {
         // Assuming '.' is thousand separator and ',' is decimal
-        number = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
+        return parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
     } else if (cleanValue.includes(',')) {
          // Assuming ',' is decimal separator
-        number = parseFloat(cleanValue.replace(',', '.'));
+        return parseFloat(cleanValue.replace(',', '.'));
     }
-    else {
-        number = parseFloat(cleanValue);
-    }
-
-    return isNaN(number) ? 0 : number;
+    // Assumes '.' is a decimal separator if it's the only one
+    return parseFloat(cleanValue);
 };
 
 
