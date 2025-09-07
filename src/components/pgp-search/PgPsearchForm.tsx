@@ -15,6 +15,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import StatCard from '@/components/shared/StatCard';
 import { CupCountsMap } from '@/app/page';
+import ValueComparisonCard from './ValueComparisonCard'; 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 // Types moved from the server file to the client component
 interface PgpRow {
@@ -65,6 +67,15 @@ interface ComparisonData {
     difference: number;
 }
 
+export interface ValueComparisonItem {
+    cup: string;
+    description: string;
+    unitValue: number;
+    expectedValue: number;
+    executedValue: number;
+    difference: number;
+}
+
 interface PgPsearchFormProps {
   unifiedSummary: any | null;
   cupCounts: CupCountsMap;
@@ -74,12 +85,12 @@ interface PgPsearchFormProps {
 
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
-const formatCurrency = (value: number | null | undefined): string => {
+export const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return '$0';
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 };
 
-const getNumericValue = (value: any): number => {
+export const getNumericValue = (value: any): number => {
     if (typeof value === 'number') {
         return value;
     }
@@ -207,7 +218,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
     const comparisonData: ComparisonData[] = pgpData.map(row => {
         const findColumn = (possibleNames: string[]) => {
             for (const name of possibleNames) {
-                const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+                const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
                 if (key) return row[key];
             }
             return '';
@@ -290,6 +301,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
     const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
+    const [valueComparison, setValueComparison] = useState<ValueComparisonItem[]>([]);
+    const [totalExpectedValue, setTotalExpectedValue] = useState(0);
+    const [totalExecutedValue, setTotalExecutedValue] = useState(0);
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isAiEnabled, setIsAiEnabled] = useState(false);
@@ -333,7 +347,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         
         const findColumnValue = (row: PgpRow, possibleNames: string[]): number => {
             for (const name of possibleNames) {
-                const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+                const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
                 if (key) return getNumericValue(row[key]);
             }
             return 0;
@@ -352,6 +366,57 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
             totalMaximoAnual: totalMaximoMes * 12,
         };
     }, []);
+
+    const calculateValueComparison = useCallback((pgpData: PgpRow[], cupCounts: CupCountsMap) => {
+        let totalExpected = 0;
+        let totalExecuted = 0;
+        
+        const comparisonData = pgpData.map(row => {
+            const findColumn = (possibleNames: string[]) => {
+                for (const name of possibleNames) {
+                    const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
+                    if (key) return row[key];
+                }
+                return '';
+            };
+
+            const cup = findColumn(['cup/cum', 'cups']);
+            const description = findColumn(['descripcion cups', 'descripcion']);
+            const unitValue = getNumericValue(findColumn(['valor unitario']));
+            const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
+            const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
+
+            const expectedValue = unitValue * expectedFrequency;
+            const executedValue = unitValue * realFrequency;
+
+            totalExpected += expectedValue;
+            totalExecuted += executedValue;
+
+            return {
+                cup,
+                description,
+                unitValue,
+                expectedValue,
+                executedValue,
+                difference: executedValue - expectedValue,
+            };
+        }).filter(item => item.cup && item.executedValue > 0);
+
+        setValueComparison(comparisonData);
+        setTotalExpectedValue(totalExpected);
+        setTotalExecutedValue(totalExecuted);
+
+    }, []);
+
+    useEffect(() => {
+        if (isDataLoaded && pgpData.length > 0 && cupCounts && cupCounts.size > 0) {
+            calculateValueComparison(pgpData, cupCounts);
+        } else {
+            setValueComparison([]);
+            setTotalExpectedValue(0);
+            setTotalExecutedValue(0);
+        }
+    }, [isDataLoaded, pgpData, cupCounts, calculateValueComparison]);
 
     const handleSelectPrestador = async (prestador: Prestador) => {
         setMismatchError(null);
@@ -512,24 +577,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                         <p>Cargando datos de la nota técnica...</p>
                     </div>
                 )}
-
-                {unifiedSummary && (
-                    <Card className="w-full shadow-lg border-green-500/50 bg-green-50/20">
-                        <CardHeader>
-                            <CardTitle>Datos Reales Consolidados (desde JSON)</CardTitle>
-                            <CardDescription>Suma de las estadísticas de los archivos JSON cargados.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                <StatCard title="Total Usuarios" value={unifiedSummary.numUsuarios} icon={Users} />
-                                <StatCard title="Total Consultas" value={unifiedSummary.numConsultas} icon={Stethoscope} />
-                                <StatCard title="Total Procedimientos" value={unifiedSummary.numProcedimientos} icon={Microscope} />
-                                <StatCard title="Total Medicamentos" value={unifiedSummary.totalMedicamentos.toLocaleString()} icon={Pill} />
-                                <StatCard title="Total Otros Servicios" value={unifiedSummary.totalOtrosServicios.toLocaleString()} icon={Syringe} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
                 
                 {isDataLoaded && !loading && (
                     <div className="space-y-6">
@@ -540,7 +587,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                         />
                         { isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} /> }
                         
-                        { showComparison && <ComparisonTable pgpData={pgpData} cupCounts={cupCounts} /> }
+                        { showComparison && (
+                            <>
+                                <ComparisonTable pgpData={pgpData} cupCounts={cupCounts} />
+                                <ValueComparisonCard 
+                                    expectedValue={totalExpectedValue}
+                                    executedValue={totalExecutedValue}
+                                    comparisonData={valueComparison}
+                                />
+                            </>
+                        )}
                     </div>
                 )}
             </CardContent>
@@ -549,5 +605,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
-
-    
