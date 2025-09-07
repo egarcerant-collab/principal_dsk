@@ -11,8 +11,6 @@ import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
-
 
 interface PrestadorInfo {
   NIT: string;
@@ -99,40 +97,47 @@ export default function JsonAnalyzerPage() {
   }, [toast]);
 
 
-  const handleFileLoad = useCallback((content: string, name: string, fileSlot: 'file1' | 'file2') => {
-    try {
-      const parsedJson = JSON.parse(content);
-      setError(null);
-      
-      const nit = parsedJson?.numDocumentoIdObligado;
-      let prestadorInfo: PrestadorInfo | null = null;
-      if (nit && providers) {
-        prestadorInfo = providers.get(String(nit)) || null;
-      }
-      
-      const newState: FileState = {
-        jsonData: parsedJson,
-        fileName: name,
-        prestadorInfo: prestadorInfo,
-      };
+  const handleFileLoad = useCallback((files: File[]) => {
+    setError(null);
+    
+    files.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+            if (!e.target?.result) return;
+            
+            try {
+                const content = e.target.result as string;
+                const parsedJson = JSON.parse(content);
 
-      if (fileSlot === 'file1') {
-        setFile1(newState);
-      } else {
-        setFile2(newState);
-      }
+                const nit = parsedJson?.numDocumentoIdObligado;
+                let prestadorInfo: PrestadorInfo | null = null;
+                if (nit && providers) {
+                    prestadorInfo = providers.get(String(nit)) || null;
+                }
 
-    } catch (e: any) {
-      const errorMessage = e instanceof Error ? `Error al parsear el archivo JSON: ${e.message}`: 'Ocurrió un error inesperado al parsear el archivo JSON.';
-      setError(errorMessage);
-      toast({ title: "Error de Archivo", description: errorMessage, variant: "destructive" });
-      if (fileSlot === 'file1') {
-        setFile1(initialFileState);
-      } else {
-        setFile2(initialFileState);
-      }
-    }
-  }, [providers, toast]);
+                const newState: FileState = {
+                    jsonData: parsedJson,
+                    fileName: file.name,
+                    prestadorInfo: prestadorInfo,
+                };
+                
+                // Assign to file1 if it's empty, otherwise to file2
+                if (!file1.jsonData) {
+                    setFile1(newState);
+                } else {
+                    setFile2(newState);
+                }
+
+            } catch (err: any) {
+                const errorMessage = err instanceof Error ? `Error al parsear ${file.name}: ${err.message}`: `Error inesperado al parsear ${file.name}.`;
+                setError(prev => prev ? `${prev}\n${errorMessage}` : errorMessage);
+                toast({ title: "Error de Archivo", description: errorMessage, variant: "destructive" });
+            }
+        };
+        reader.readAsText(file);
+    });
+
+  }, [providers, toast, file1.jsonData]);
 
   const handleReset = () => {
     setFile1(initialFileState);
@@ -149,8 +154,8 @@ export default function JsonAnalyzerPage() {
     );
   }
 
-  const bothFilesLoaded = file1.jsonData && file2.jsonData;
   const anyFileLoaded = file1.jsonData || file2.jsonData;
+  const loadedFileNames = [file1.fileName, file2.fileName].filter(Boolean) as string[];
 
   return (
     <div className="w-full space-y-8 mt-4">
@@ -178,28 +183,11 @@ export default function JsonAnalyzerPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Uploader 1 */}
-                <Card className="flex-1">
-                     <CardHeader>
-                        <CardTitle>Archivo 1</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <FileUpload onFileLoad={(content, name) => handleFileLoad(content, name, 'file1')} disabled={!isProvidersDataLoaded} fileSlot="file1" loadedFileName={file1.fileName} />
-                    </CardContent>
-                </Card>
-
-                {/* Uploader 2 */}
-                <Card className="flex-1">
-                     <CardHeader>
-                        <CardTitle>Archivo 2</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <FileUpload onFileLoad={(content, name) => handleFileLoad(content, name, 'file2')} disabled={!isProvidersDataLoaded} fileSlot="file2" loadedFileName={file2.fileName} />
-                    </CardContent>
-                </Card>
-            </div>
+            <FileUpload 
+                onFileLoad={handleFileLoad} 
+                disabled={!isProvidersDataLoaded || loadedFileNames.length >= 2} 
+                loadedFileNames={loadedFileNames}
+             />
           </CardContent>
         </Card>
       
@@ -286,3 +274,5 @@ export default function JsonAnalyzerPage() {
     </div>
   );
 }
+
+    
