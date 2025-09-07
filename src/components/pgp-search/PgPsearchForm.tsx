@@ -42,6 +42,7 @@ interface PgpRow {
   'VALOR UNITARIO'?: number;
   'VALOR MINIMO MES'?: number;
   'VALOR MAXIMO MES'?: number;
+  'COSTO EVENTO MES (VALOR MES)'?: number;
   OBSERVACIONES?: string;
 }
 
@@ -262,7 +263,7 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (Number(row['COSTO EVENTO MES']) || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (Number(row['COSTO EVENTO MES (VALOR MES)']) || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (Number(row['VALOR MINIMO MES']) || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (Number(row['VALOR MAXIMO MES']) || 0), 0);
         return {
@@ -296,7 +297,7 @@ const PgPsearchForm: React.FC = () => {
                 'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
                 'COSTO EVENTO MES', 'FRECUENCIA EVENTO DIA', 'FRECUENCIA MINIMA MES',
                 'FRECUENCIA MAXIMA MES', 'VALOR UNITARIO', 'COSTO EVENTO DIA',
-                'VALOR MINIMO MES', 'VALOR MAXIMO MES'
+                'VALOR MINIMO MES', 'VALOR MAXIMO MES', 'COSTO EVENTO MES (VALOR MES)'
             ];
 
             const pgpRows = data.map(row => {
@@ -307,7 +308,7 @@ const PgPsearchForm: React.FC = () => {
                     if (trimmedKey) {
                         // Use a flexible check for numeric keys
                         if (numericKeys.some(nk => (nk as string).toUpperCase() === trimmedKey.toUpperCase())) {
-                            (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$.]/g, '').replace(',', '.')) || 0;
+                           (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$\s,]/g, '')) || 0;
                         } else {
                             (newRow as any)[trimmedKey] = value;
                         }
@@ -532,3 +533,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    
