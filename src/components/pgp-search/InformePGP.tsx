@@ -111,7 +111,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Análisis y Contabilidad PGP</CardTitle>
-              <div className="text-sm text-muted-foreground">
+               <div className="text-sm text-muted-foreground">
                 {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
                 <br />
                 Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
