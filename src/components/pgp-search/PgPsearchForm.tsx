@@ -5,7 +5,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart, Users, Stethoscope, Microscope, Pill, Syringe } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart, Users, Stethoscope, Microscope, Pill, Syringe, AlertCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import StatCard from '@/components/shared/StatCard';
+import { CupCountsMap } from '@/app/page';
 
 // Types moved from the server file to the client component
 interface PgpRow {
@@ -55,13 +56,17 @@ interface SummaryData {
   totalMaximoAnual: number;
 }
 
-interface PgpStats {
-    totalCodes: number;
-    totalMonthlyEvents: number;
+interface ComparisonData {
+    cup: string;
+    description: string;
+    expectedFrequency: number;
+    realFrequency: number;
+    difference: number;
 }
 
 interface PgPsearchFormProps {
   unifiedSummary: any | null;
+  cupCounts: CupCountsMap;
 }
 
 
@@ -195,7 +200,76 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
     )
 };
 
-const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
+
+const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts: CupCountsMap }) => {
+    const comparisonData: ComparisonData[] = pgpData.map(row => {
+        const cup = row['CUP/CUM'] || '';
+        const expectedFrequency = getNumericValue(row['FRECUENCIA EVENTOS MES']);
+        const realFrequency = cupCounts.get(cup) || 0;
+        const difference = realFrequency - expectedFrequency;
+
+        return {
+            cup,
+            description: row['DESCRIPCION CUPS'] || 'N/A',
+            expectedFrequency,
+            realFrequency,
+            difference,
+        };
+    }).filter(item => item.cup); // Filter out rows without a CUP code
+
+    if (comparisonData.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><AlertCircle className="h-6 w-6 text-yellow-500" />Análisis Comparativo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground text-center">Cargue un archivo JSON y una nota técnica para ver la comparación de frecuencias.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Análisis Comparativo de Frecuencias (Esperado vs. Real)</CardTitle>
+                <CardDescription>Comparación entre la frecuencia mensual esperada en la nota técnica y la frecuencia real observada en los archivos JSON.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-[400px]">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                                <TableHead>CUPS / CUM</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead className="text-center">Frec. Esperada (Mes)</TableHead>
+                                <TableHead className="text-center">Frec. Real (JSON)</TableHead>
+                                <TableHead className="text-center">Diferencia</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {comparisonData.map((item) => (
+                                <TableRow key={item.cup}>
+                                    <TableCell className="font-mono">{item.cup}</TableCell>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-center">{item.expectedFrequency.toLocaleString()}</TableCell>
+                                    <TableCell className="text-center font-semibold">{item.realFrequency.toLocaleString()}</TableCell>
+                                    <TableCell className={`text-center font-bold ${item.difference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {item.difference.toLocaleString()}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+};
+
+
+const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
     const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
@@ -362,6 +436,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
         );
     }
 
+    const showComparison = isDataLoaded && cupCounts.size > 0;
+
     return (
         <Card>
             <CardHeader>
@@ -421,6 +497,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
                            />
                         )}
                         { isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} /> }
+                        
+                        { showComparison && <ComparisonTable pgpData={pgpData} cupCounts={cupCounts} /> }
                     </div>
                 )}
             </CardContent>

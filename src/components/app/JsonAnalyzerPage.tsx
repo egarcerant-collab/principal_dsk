@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import StatCard from '@/components/shared/StatCard';
+import { CupCountsMap } from '@/app/page';
+
 
 interface FileState {
     jsonData: any | null;
@@ -21,6 +23,7 @@ interface FileState {
 
 interface JsonAnalyzerPageProps {
   setUnifiedSummary: (summary: any | null) => void;
+  setCupCounts: (cupCounts: CupCountsMap) => void;
 }
 
 const initialFileState: FileState = {
@@ -48,7 +51,48 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     return map;
 }
 
-export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPageProps) {
+export const calculateCupCounts = (jsonData: any | any[]): CupCountsMap => {
+    const counts: CupCountsMap = new Map();
+    const dataSources = Array.isArray(jsonData) ? jsonData : [jsonData];
+
+    for (const data of dataSources) {
+        if (!data || !data.usuarios) continue;
+
+        data.usuarios.forEach((user: any) => {
+            // Consultas
+            user.servicios?.consultas?.forEach((c: any) => {
+                if (c.codConsulta) {
+                    counts.set(c.codConsulta, (counts.get(c.codConsulta) || 0) + 1);
+                }
+            });
+            // Procedimientos
+            user.servicios?.procedimientos?.forEach((p: any) => {
+                if (p.codProcedimiento) {
+                    counts.set(p.codProcedimiento, (counts.get(p.codProcedimiento) || 0) + 1);
+                }
+            });
+            // Medicamentos
+            user.servicios?.medicamentos?.forEach((m: any) => {
+                if (m.codTecnologiaSalud) {
+                    const quantity = Number(m.cantidadMedicamento) || 0;
+                    counts.set(m.codTecnologiaSalud, (counts.get(m.codTecnologiaSalud) || 0) + quantity);
+                }
+            });
+            // Otros Servicios
+            user.servicios?.otrosServicios?.forEach((os: any) => {
+                if (os.codTecnologiaSalud) {
+                    const quantity = Number(os.cantidadOS) || 0;
+                    counts.set(os.codTecnologiaSalud, (counts.get(os.codTecnologiaSalud) || 0) + quantity);
+                }
+            });
+        });
+    }
+
+    return counts;
+};
+
+
+export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts }: JsonAnalyzerPageProps) {
   const [file1, setFile1] = useState<FileState>(initialFileState);
   const [file2, setFile2] = useState<FileState>(initialFileState);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +183,14 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
   }, [providers, toast, file1.jsonData, file2.jsonData]);
 
   useEffect(() => {
+    const loadedFiles = [file1.jsonData, file2.jsonData].filter(Boolean);
+    
+    if (loadedFiles.length > 0) {
+        setCupCounts(calculateCupCounts(loadedFiles));
+    } else {
+        setCupCounts(new Map());
+    }
+
     if (file1.jsonData && file2.jsonData) {
         const nit1 = file1.jsonData.numDocumentoIdObligado;
         const nit2 = file2.jsonData.numDocumentoIdObligado;
@@ -165,7 +217,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
     } else {
         setUnifiedSummary(null);
     }
-  }, [file1.jsonData, file2.jsonData, setUnifiedSummary]);
+  }, [file1.jsonData, file2.jsonData, setUnifiedSummary, setCupCounts]);
 
   const handleReset = () => {
     setFile1(initialFileState);
@@ -173,6 +225,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
     setError(null);
     setShowDuplicateAlert(false);
     setUnifiedSummary(null);
+    setCupCounts(new Map());
   };
   
   if (!isClient) {
