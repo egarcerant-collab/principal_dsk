@@ -95,11 +95,13 @@ export const getNumericValue = (value: any): number => {
         return value;
     }
     if (typeof value !== 'string') {
-      value = String(value ?? '0');
+        value = String(value ?? '0');
     }
+    
     // First, remove currency symbols and thousands separators (dots in COP)
-    const cleanValue = value.replace(/[$.]/g, '').replace(/,/g, '.').trim();
+    const cleanValue = value.replace(/[$,]/g, '').trim();
     const num = parseFloat(cleanValue);
+
     return isNaN(num) ? 0 : num;
 };
 
