@@ -85,27 +85,20 @@ export const formatCurrency = (value: number | null | undefined): string => {
 };
 
 export const getNumericValue = (value: any): number => {
-    if (typeof value === 'number') {
-        return value;
-    }
-    const strValue = String(value ?? '0');
+    const strValue = String(value ?? '0').trim();
 
-    // Handle US/Google Sheets format like "1,234,567.89"
-    if (strValue.includes(',') && strValue.includes('.')) {
-        const cleanValue = strValue.replace(/[$,]/g, '').trim();
+    // Case 1: Handle Google Sheets/US format like "1,234.56" or "$1,234.56"
+    if (strValue.includes(',')) {
+        const cleanValue = strValue.replace(/[$,]/g, '');
         return parseFloat(cleanValue) || 0;
     }
     
-    // Handle simple decimal format like "0.48467" or "48.467"
-    if (!strValue.includes(',')) {
-        const cleanValue = strValue.replace(/[$,]/g, '').trim();
-        return parseFloat(cleanValue) || 0;
-    }
-
-    // Handle Colombian format like "1.234.567,89"
-    const cleanValue = strValue.replace(/[$.]/g, '').replace(',', '.').trim();
-    return parseFloat(cleanValue) || 0;
+    // Case 2: Handle simple numbers or decimals like "0.48467", "48.467", or "1234"
+    // This will correctly parse them without alteration.
+    const numericValue = parseFloat(strValue);
+    return isNaN(numericValue) ? 0 : numericValue;
 };
+
 
 const calculateSummary = (data: PgpRow[]): SummaryData | null => {
     if (data.length === 0) return null;
@@ -248,7 +241,7 @@ const ComparisonTable = ({ pgpData, executionDataByMonth, monthNames }: { pgpDat
             realFrequencies,
             totalRealFrequency,
         };
-    }).filter(item => item.cup && item.totalRealFrequency > 0);
+    }).filter(item => item.cup && (item.totalRealFrequency > 0 || item.expectedFrequency > 0));
 
     if (comparisonData.length === 0) {
         return (
@@ -343,6 +336,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         setIsDataLoaded(false);
         setGlobalSummary(null);
         setAnalysis(null);
+        setMismatchWarning(null); // Clear warning once loading starts
+        setPrestadorToLoad(null); // Clear pending load
         toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
         try {
@@ -421,23 +416,22 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             setIsDataLoaded(false);
         } finally {
             setLoading(false);
-            setMismatchWarning(null);
-            setPrestadorToLoad(null);
         }
     }, [isAiEnabled, toast]);
 
 
     const handleSelectPrestador = useCallback((prestador: Prestador) => {
-        setMismatchWarning(null);
         setSelectedPrestador(prestador);
-
+        setMismatchWarning(null); // Clear previous warnings
+        setIsDataLoaded(false); // Hide old data while deciding
+        
         const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
         if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
             const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
             setMismatchWarning(warningMsg);
-            setPrestadorToLoad(prestador); 
+            setPrestadorToLoad(prestador); // Set the prestador to be loaded if the user confirms
         } else {
-            performLoadPrestador(prestador);
+            performLoadPrestador(prestador); // If they match or no JSON is loaded, load directly
         }
     }, [jsonPrestadorCode, performLoadPrestador]);
 
@@ -474,8 +468,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }, [isClient, toast]);
 
      useEffect(() => {
-        if (jsonPrestadorCode && prestadores.length > 0 && !loading && !selectedPrestador) {
-            const matchedPrestador = prestadores.find(p => p['ID DE ZONA']?.trim() === jsonPrestadorCode);
+        if (jsonPrestadorCode && prestadores.length > 0 && !selectedPrestador && !loading) {
+            const matchedPrestador = prestadores.find(p => p['ID DE ZONA'] && String(p['ID DE ZONA']).trim() === jsonPrestadorCode);
             if (matchedPrestador) {
                 toast({
                     title: "Prestador Sugerido Encontrado",
@@ -553,7 +547,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     const getMonthName = (monthNumber: string) => {
         const date = new Date();
         date.setMonth(parseInt(monthNumber) - 1);
-        return date.toLocaleString('es-CO', { month: 'long' });
+        const name = date.toLocaleString('es-CO', { month: 'long' });
+        return name.charAt(0).toUpperCase() + name.slice(1);
     }
 
     if (!isClient) {
