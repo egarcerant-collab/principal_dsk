@@ -93,6 +93,10 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
         disabled ? 'cursor-not-allowed bg-muted/50' : 'cursor-pointer hover:border-accent/70',
         hasFiles && 'border-green-500 bg-green-50'
       )}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       onClick={disabled ? undefined : triggerFileSelect}
     >
       <input
@@ -114,7 +118,7 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
                  <li key={index} className="truncate max-w-xs">{name}</li>
             ))}
             </ul>
-             {loadedFileNames.length < 2 && !disabled && (
+             {loadedFileNames.length < 3 && !disabled && (
                  <Button type="button" variant="secondary" size="sm" className="mt-2">Añadir otro archivo</Button>
             )}
         </div>
@@ -122,7 +126,7 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <UploadCloud className="h-12 w-12" />
             <p className="font-semibold text-foreground">
-            Arrastra o selecciona hasta 2 archivos
+            Arrastra o selecciona hasta 3 archivos
             </p>
             <p className="text-sm">o</p>
             <Button type="button" variant="secondary" size="sm" disabled={disabled}>
