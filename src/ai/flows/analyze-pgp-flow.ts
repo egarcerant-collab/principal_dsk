@@ -31,8 +31,9 @@ const PgpRowSchema = z.object({
 });
 type PgpRow = z.infer<typeof PgpRowSchema>;
 
-const AnalyzePgpDataInputSchema = z.array(PgpRowSchema);
-
+const AnalyzePgpDataInputSchema = z.object({
+  jsonData: z.string(),
+});
 const AnalyzePgpDataOutputSchema = z.object({
     keyObservations: z.array(z.string()).describe("Una lista de 3 a 5 observaciones clave y concisas sobre los datos."),
     potentialRisks: z.array(z.string()).describe("Una lista de 2 a 3 riesgos potenciales identificados en los datos."),
@@ -40,7 +41,7 @@ const AnalyzePgpDataOutputSchema = z.object({
 });
 
 export async function analyzePgpData(input: PgpRow[]): Promise<z.infer<typeof AnalyzePgpDataOutputSchema>> {
-  return analyzePgpDataFlow(input);
+  return analyzePgpDataFlow({ jsonData: JSON.stringify(input, null, 2) });
 }
 
 const prompt = ai.definePrompt({
@@ -52,7 +53,7 @@ const prompt = ai.definePrompt({
   Tu análisis debe ser estratégico y centrado en la toma de decisiones.
 
   Datos de la Nota Técnica:
-  {{jsonStringify input}}
+  {{{jsonData}}}
 
   Basado en estos datos, por favor, genera:
   1.  **Observaciones Clave:** Identifica las tendencias más importantes. ¿Qué servicios tienen el mayor costo? ¿Hay alguna frecuencia que parezca inusual? ¿Existen grandes diferencias entre los valores mínimos y máximos?
