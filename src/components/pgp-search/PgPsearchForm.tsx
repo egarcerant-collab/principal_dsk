@@ -97,9 +97,13 @@ export const getNumericValue = (value: any): number => {
     if (typeof value !== 'string') {
         value = String(value ?? '0');
     }
-    
-    // First, remove currency symbols and thousands separators (dots in COP)
-    const cleanValue = value.replace(/[$,]/g, '').trim();
+
+    // Remove currency symbols, thousands separators (dots for COP), and whitespace
+    let cleanValue = value.replace(/[$.]/g, '').trim();
+
+    // Replace comma decimal separator with a dot
+    cleanValue = cleanValue.replace(',', '.');
+
     const num = parseFloat(cleanValue);
 
     return isNaN(num) ? 0 : num;
@@ -118,18 +122,10 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData | n
         <CardContent className="space-y-6">
             <div>
                 <h3 className="text-lg font-medium mb-2 flex items-center"><Calendar className="mr-2 h-5 w-5 text-muted-foreground" />Proyección Anual del Contrato</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
-                        <p className="text-sm text-muted-foreground">Costo Mínimo Anual</p>
-                        <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.totalMinimoAnual)}</p>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 text-center">
                     <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700">
                         <p className="text-sm text-muted-foreground">Valor Total Anual (Estimado)</p>
                         <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalAnual)}</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                        <p className="text-sm text-muted-foreground">Costo Máximo Anual</p>
-                        <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.totalMaximoAnual)}</p>
                     </div>
                 </div>
             </div>
@@ -351,7 +347,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
             return 0;
         };
 
-        const totalCostoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']), 0);
+        const totalCostoMes = data.reduce((acc, row) => {
+            const costo = findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']);
+            return acc + costo;
+        }, 0);
+        
         const totalMinimoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor minimo mes']), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor maximo mes']), 0);
 
@@ -603,5 +603,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
-
-    
