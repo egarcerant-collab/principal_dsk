@@ -51,6 +51,8 @@ type Prestador = PrestadorInfo;
 interface SummaryData {
   totalCostoMes: number;
   totalAnual: number;
+  costoMinimoMes: number;
+  costoMaximoMes: number;
 }
 
 interface MonthlyComparisonData {
@@ -86,16 +88,9 @@ export const formatCurrency = (value: number | null | undefined): string => {
 
 export const getNumericValue = (value: any): number => {
     const strValue = String(value ?? '0').trim();
-
-    // Case 1: Handle Google Sheets/US format like "1,234.56" or "$1,234.56"
-    if (strValue.includes(',')) {
-        const cleanValue = strValue.replace(/[$,]/g, '');
-        return parseFloat(cleanValue) || 0;
-    }
-    
-    // Case 2: Handle simple numbers or decimals like "0.48467", "48.467", or "1234"
-    // This will correctly parse them without alteration.
-    const numericValue = parseFloat(strValue);
+    // Handles US-style numbers from Google Sheets ("1,234.56") AND simple decimals ("0.48467")
+    const cleanValue = strValue.replace(/[$,]/g, '');
+    const numericValue = parseFloat(cleanValue);
     return isNaN(numericValue) ? 0 : numericValue;
 };
 
@@ -119,6 +114,8 @@ const calculateSummary = (data: PgpRow[]): SummaryData | null => {
     return {
         totalCostoMes,
         totalAnual: totalCostoMes * 12,
+        costoMinimoMes: totalCostoMes * 0.9,
+        costoMaximoMes: totalCostoMes * 1.1,
     };
 };
 
@@ -145,11 +142,21 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData | n
              <Separator />
             <div>
                 <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle Mensual</h3>
-                <div className="grid grid-cols-1 gap-4 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+                        <TrendingDown className="h-6 w-6 mx-auto text-red-500 mb-1"/>
+                        <p className="text-sm text-muted-foreground">Costo Mínimo Aceptable (-10%)</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.costoMinimoMes)}</p>
+                    </div>
                     <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                         <Target className="h-6 w-6 mx-auto text-blue-500 mb-1"/>
                         <p className="text-sm text-muted-foreground">Costo Total por Mes</p>
                         <p className="text-xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalCostoMes)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <TrendingUp className="h-6 w-6 mx-auto text-green-500 mb-1"/>
+                        <p className="text-sm text-muted-foreground">Costo Máximo Aceptable (+10%)</p>
+                        <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.costoMaximoMes)}</p>
                     </div>
                 </div>
             </div>
