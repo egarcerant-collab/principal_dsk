@@ -19,6 +19,7 @@ import {
   TrendingDown,
   TrendingUp,
   Download,
+  Loader2,
 } from "lucide-react";
 import {
   Table,
@@ -45,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 
 // ======= Tipos =======
 export type MonthKey =
@@ -287,12 +289,14 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick, 
 };
 
 
-const DiscrepancyAccordion = ({ title, icon, count, data, onDownload }: { title: string, icon: React.ReactNode, count: number, data: string[], onDownload: () => void }) => {
+const DiscrepancyAccordion = ({ title, icon, count, data, onDownload, onCupClick }: { title: string, icon: React.ReactNode, count: number, data: string[], onDownload: () => void, onCupClick: (cup: string) => void }) => {
   if (count === 0) return null;
   
   const description = title.includes("Faltantes") 
     ? "CUPS de la nota técnica no encontrados en el JSON."
-    : "CUPS del JSON no encontrados en la nota técnica.";
+    : "CUPS del JSON no encontrados en la nota técnica. Haz clic para buscar su descripción.";
+
+  const isUnexpected = title.includes("Inesperados");
 
   return (
     <AccordionItem value={`${title.toLowerCase().replace(/\s+/g, '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
@@ -311,7 +315,17 @@ const DiscrepancyAccordion = ({ title, icon, count, data, onDownload }: { title:
         <p className="text-xs text-muted-foreground mb-2">{description}</p>
         <ScrollArea className="h-48">
           <div className="text-xs font-mono space-y-1 p-2 bg-gray-50 rounded">
-            {data.map(cup => <div key={cup}>{cup}</div>)}
+            {data.map(cup => (
+              <div key={cup}>
+                {isUnexpected ? (
+                  <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(cup)}>
+                    {cup}
+                  </Button>
+                ) : (
+                  cup
+                )}
+              </div>
+            ))}
           </div>
         </ScrollArea>
       </AccordionContent>
@@ -325,6 +339,10 @@ export default function InformePGP({ data }: { data: ReportData }) {
   const { header, pgpData } = data;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCupInfo, setSelectedCupInfo] = useState<PgpRow | null>(null);
+  const [isLookupModalOpen, setLookupModalOpen] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
+
 
   const pgpDataMap = useMemo(() => {
     if (!pgpData) return new Map();
@@ -338,6 +356,22 @@ export default function InformePGP({ data }: { data: ReportData }) {
       setIsModalOpen(true);
     }
   };
+
+  const handleUnexpectedCupClick = async (cupCode: string) => {
+    setIsLookingUp(true);
+    setLookedUpCupInfo(null);
+    setLookupModalOpen(true);
+    try {
+        const description = await describeCup(cupCode);
+        setLookedUpCupInfo(description);
+    } catch (error) {
+        console.error("Error looking up CUP:", error);
+        setLookedUpCupInfo({ cup: cupCode, description: "No se pudo obtener la descripción." });
+    } finally {
+        setIsLookingUp(false);
+    }
+  };
+
 
   const closeModal = () => setIsModalOpen(false);
   
@@ -451,6 +485,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         count={data.comparisonSummary.missingCups.length}
                         data={data.comparisonSummary.missingCups}
                         onDownload={() => handleDownloadCsv(data.comparisonSummary?.missingCups.map(cup => ({ cup })) || [], 'cups_faltantes.xls')}
+                        onCupClick={() => {}}
                       />
                       
                       <DiscrepancyAccordion
@@ -459,6 +494,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         count={data.comparisonSummary.unexpectedCups.length}
                         data={data.comparisonSummary.unexpectedCups}
                         onDownload={() => handleDownloadCsv(data.comparisonSummary?.unexpectedCups.map(cup => ({ cup })) || [], 'cups_inesperados.xls')}
+                        onCupClick={handleUnexpectedCupClick}
                       />
 
                   </Accordion>
@@ -557,8 +593,28 @@ export default function InformePGP({ data }: { data: ReportData }) {
         </CardContent>
       </Card>
        <CupDetailModal cup={selectedCupInfo} isOpen={isModalOpen} onClose={closeModal} />
+       <AlertDialog open={isLookupModalOpen} onOpenChange={setLookupModalOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>
+                        {isLookingUp ? "Buscando información..." : `Descripción para ${lookedUpCupInfo?.cup}`}
+                    </AlertDialogTitle>
+                </AlertDialogHeader>
+                {isLookingUp ? (
+                    <div className="flex items-center justify-center p-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <AlertDialogDescription>
+                        {lookedUpCupInfo?.description}
+                    </AlertDialogDescription>
+                )}
+                <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => setLookupModalOpen(false)}>Cerrar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
-
 
