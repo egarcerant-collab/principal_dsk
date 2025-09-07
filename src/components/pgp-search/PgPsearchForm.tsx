@@ -16,7 +16,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard'; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import FinancialSummaryMatrix from './FinancialSummaryMatrix';
+import QuarterlyFinancialReport, { type MonthInput, type ReportHeader } from './FinancialSummaryMatrix';
 
 interface PgpRow {
   SUBCATEGORIA?: string;
@@ -580,6 +580,19 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     const showComparison = isDataLoaded && executionDataByMonth.size > 0;
     const monthNames = [...executionDataByMonth.keys()].map(m => getMonthName(m));
 
+    const reportMonths: MonthInput[] = [...totalExecutedValueByMonth.entries()].map(([month, executedValue]) => ({
+        monthName: getMonthName(month),
+        pgpMensualAutorizado: globalSummary?.totalCostoMes || 0,
+        ejecutadoMes: executedValue,
+    }));
+    
+    const reportHeader: ReportHeader = {
+        empresa: selectedPrestador?.PRESTADOR,
+        nit: selectedPrestador?.NIT,
+        contrato: `PGP-${selectedPrestador?.['ID DE ZONA']}`,
+        periodo: monthNames.join(' - ')
+    }
+
 
     return (
         <Card>
@@ -652,14 +665,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                                     executionDataByMonth={executionDataByMonth}
                                     monthNames={monthNames}
                                 />
-                                {[...totalExecutedValueByMonth.entries()].map(([month, executedValue]) => (
-                                    <FinancialSummaryMatrix
-                                        key={month}
-                                        summary={globalSummary}
-                                        executedValue={executedValue}
-                                        monthName={getMonthName(month)}
-                                    />
-                                ))}
+                                <QuarterlyFinancialReport
+                                  header={reportHeader}
+                                  months={reportMonths}
+                                />
                             </>
                         )}
                     </div>
