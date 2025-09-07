@@ -210,13 +210,6 @@ const QuarterlyFinancialReport: React.FC<QuarterlyFinancialReportProps> = ({ hea
 
   return (
     <div className="space-y-6">
-       <div className="flex justify-end">
-        <Button onClick={handleDownloadPdf}>
-          <Download className="mr-2 h-4 w-4" />
-          Descargar Informe en PDF
-        </Button>
-      </div>
-
       <div ref={reportRef} className="space-y-6 p-4 bg-background">
         <Card>
           <CardHeader>
