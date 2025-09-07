@@ -1,622 +1,373 @@
-
 "use client";
 
-import React, { useState, useMemo } from "react";
-import Papa from 'papaparse';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  ArrowRightLeft,
-  XCircle,
-  HelpCircle,
-  TrendingDown,
-  TrendingUp,
-  Download,
-  Loader2,
-} from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import React, { useMemo, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
+import { FileText, TrendingUp, Info, Activity, Stamp } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // ======= Tipos =======
-export type MonthKey =
-  | "ABRIL"
-  | "MAYO"
-  | "JUNIO"
-  | "ENERO"
-  | "FEBRERO"
-  | "MARZO"
-  | "JULIO"
-  | "AGOSTO"
-  | "SEPTIEMBRE"
-  | "OCTUBRE"
-  | "NOVIEMBRE"
-  | "DICIEMBRE";
-
 export interface MonthExecution {
-  month: MonthKey;
-  cups: number;
-  valueCOP: number;
-}
-
-export interface ContractBand {
-  estimateCOP: number;
-  minPct: number;
-  maxPct: number;
-}
-
-export interface Anticipos80_20 {
-  anticipado80COP: number;
-  mes1_80COP: number;
-  mes2_80COP: number;
-  mes3_100COP: number;
-}
-
-export interface HeaderInfo {
-  informeNo?: string;
-  fecha?: string;
-  empresa?: string;
-  nit?: string;
-  municipio?: string;
-  departamento?: string;
-  contrato?: string;
-  vigencia?: string;
-  responsable?: string;
-  periodo?: string;
-}
-
-export interface DeviatedCupInfo {
-  cup: string;
-  description: string;
-  activityDescription?: string;
   month: string;
-  expected: number;
-  real: number;
-  diff: number;
+  cups: number; // cantidad (no dinero)
+  valueCOP: number; // valor ejecutado COP
 }
 
-export interface ComparisonSummary {
-  totalPgpCups: number;
-  matchingCups: number;
-  missingCups: string[];
-  unexpectedCups: string[];
-  underExecutedCups: DeviatedCupInfo[];
-  overExecutedCups: DeviatedCupInfo[];
+export interface ReportHeader {
+  empresa: string;
+  nit: string;
+  municipio: string;
+  contrato: string;
+  vigencia: string;
+  ciudad?: string;
+  fecha?: string; // DD/MM/AAAA
+  logoEpsiUrl?: string; // opcional: URL o dataURI
+  logoIpsUrl?: string; // opcional: URL o dataURI
+  responsable1?: { nombre: string; cargo: string };
+  responsable2?: { nombre: string; cargo: string };
+  responsable3?: { nombre: string; cargo: string };
 }
-
-export interface FinancialMatrixRow {
-  concepto: string;
-  autorizado: number;
-  ejecutado: number;
-  diferencia: number;
-  cumplimiento: number;
-}
-
-export interface PgpRow {
-  SUBCATEGORIA?: string;
-  AMBITO?: string;
-  'ID RESOLUCION 3100'?: string;
-  'DESCRIPCION ID RESOLUCION'?: string;
-  'CUP/CUM'?: string;
-  'DESCRIPCION CUPS'?: string;
-  'FRECUENCIA AÑO SERVICIO'?: number;
-  'FRECUENCIA USO'?: number;
-  'FRECUENCIA EVENTOS MES'?: number;
-  'FRECUENCIA EVENTO DIA'?: number;
-  'COSTO EVENTO MES'?: number;
-  'COSTO EVENTO DIA'?: number;
-  'FRECUENCIA MINIMA MES'?: number;
-  'FRECUENCIA MAXIMA MES'?: number;
-  'VALOR UNITARIO'?: number;
-  'VALOR MINIMO MES'?: number;
-  'VALOR MAXIMO MES'?: number;
-  'COSTO EVENTO MES (VALOR MES)'?: number;
-  OBSERVACIONES?: string;
-  [key: string]: any;
-}
-
 
 export interface ReportData {
-  header: HeaderInfo;
+  header: ReportHeader;
   months: MonthExecution[];
-  band: ContractBand;
-  anticipos: Anticipos80_20;
-  comparisonSummary?: ComparisonSummary;
-  descuentosCOP?: number;
-  reconocimientosCOP?: number;
-  objetivoTexto?: string;
-  financialMatrix?: FinancialMatrixRow[];
-  totalExpectedFrequency?: number;
-  totalRealFrequency?: number;
-  expectedMonthlyValue?: number;
-  pgpData?: PgpRow[]; // <-- Añadido
+  notaTecnica?: {
+    min90: number;
+    valor3m: number;
+    max110: number;
+    anticipos: number;
+    totalPagar: number;
+    totalFinal: number;
+  };
 }
 
 // ======= Utilidades =======
-const formatCOP = (n?: number) => {
-    if (n === undefined || n === null) return '$0';
-    return new Intl.NumberFormat("es-CO", {
-        style: "currency",
-        currency: "COP",
-        minimumFractionDigits: 2,
-    }).format(n);
+const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(n);
+
+function downloadPdfTexto(filename: string, content: string) {
+  const doc = new jsPDF({ unit: "mm", format: "letter" });
+  const margin = 12;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const textWidth = pageWidth - margin * 2;
+  doc.setFont("helvetica", "");
+  doc.setFontSize(11);
+  const lines = doc.splitTextToSize(content, textWidth);
+  let y = margin;
+  lines.forEach((line) => {
+    if (y > 270) { doc.addPage(); y = margin; }
+    doc.text(line, margin, y);
+    y += 6;
+  });
+  doc.save(filename);
 }
 
-const formatNumber = (n?: number) => {
-  if (n === undefined || n === null) return '0';
-  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
+async function downloadPdfVisual(filename: string, container: HTMLElement) {
+  const sections = Array.from(container.querySelectorAll<HTMLElement>(".pdf-section"));
+  const doc = new jsPDF({ unit: "mm", format: "letter" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  let first = true;
+
+  for (const section of sections) {
+    const canvas = await html2canvas(section, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    const imgW = pageW - 14; // márgenes
+    const ratio = (imgW / canvas.width) * canvas.height;
+    const imgH = Math.min(pageH - 14, ratio);
+
+    if (!first) doc.addPage();
+    first = false;
+    doc.addImage(imgData, "PNG", 7, 7, imgW, imgH);
+  }
+
+  doc.save(filename);
 }
 
-const pctBadge = (ratio?: number) => {
-  const p = isFinite(ratio ?? 0) ? (ratio ?? 0) * 100 : 0;
-  let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-  if (p > 105) variant = "destructive";
-  else if (p >= 95 && p <= 105) variant = "default";
-  return <Badge variant={variant}>{p.toFixed(2)}%</Badge>;
+// ======= Datos de ejemplo (combinados y robustos) =======
+export const defaultData: ReportData = {
+  header: {
+    empresa: "DUSAKAWI EPSI",
+    nit: "901226064",
+    municipio: "URIBIA",
+    contrato: "44847_04_PGP",
+    vigencia: "01/01/2025–01/12/2025",
+    ciudad: "Uribia",
+    fecha: "30/06/2025",
+    // logoEpsiUrl: "/logos/epsi.png",
+    // logoIpsUrl: "/logos/ips.png",
+    responsable1: { nombre: "_________________________", cargo: "Representante EPSI" },
+    responsable2: { nombre: "_________________________", cargo: "Representante IPS" },
+    responsable3: { nombre: "_________________________", cargo: "Testigo" },
+  },
+  months: [
+    { month: "ABRIL", cups: 4497, valueCOP: 410_494_560.21 },
+    { month: "MAYO", cups: 4609, valueCOP: 418_866_468.86 },
+    { month: "JUNIO", cups: 4567, valueCOP: 408_704_877.86 },
+  ],
+  notaTecnica: {
+    min90: 1_173_299_917.73,
+    valor3m: 1_303_666_575.25,
+    max110: 1_434_033_272.78,
+    anticipos: 695_288_840.14,
+    totalPagar: 608_377_735,
+    totalFinal: 1_303_666_575.14,
+  },
 };
 
-const DetailRow = ({ label, value }: { label: string, value: any }) => (
-    <div className="flex justify-between border-b py-2">
-        <span className="text-sm font-medium text-muted-foreground">{label}:</span>
-        <span className="text-sm font-semibold">{value || 'N/A'}</span>
-    </div>
-);
+// ======= Componente (fusionado y reforzado) =======
+export default function InformePGP({ data = defaultData }: { data?: ReportData }) {
+  const actaRef = useRef<HTMLDivElement>(null);
 
-const CupDetailModal = ({ cup, isOpen, onClose }: { cup: PgpRow | null, isOpen: boolean, onClose: () => void }) => {
-    if (!cup) return null;
+  // Derivados y KPIs
+  const sumaMensual = useMemo(() => data.months.reduce((acc, m) => acc + m.valueCOP, 0), [data.months]);
+  const totalCups = useMemo(() => data.months.reduce((a, m) => a + m.cups, 0), [data.months]);
+  const diffVsNota = useMemo(() => (data.notaTecnica?.valor3m || 0) - sumaMensual, [data.notaTecnica?.valor3m, sumaMensual]);
+  const unitAvg = useMemo(() => {
+    const mean = data.months.reduce((acc, m) => acc + (m.cups > 0 ? m.valueCOP / m.cups : 0), 0) / data.months.length;
+    return Number.isFinite(mean) ? mean : 0;
+  }, [data.months]);
 
-    return (
-         <AlertDialog open={isOpen} onOpenChange={onClose}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Detalle del CUP: {cup['CUP/CUM']}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        {cup['DESCRIPCION CUPS']}
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="max-h-96 overflow-y-auto pr-4 space-y-2">
-                    <DetailRow label="Subcategoría" value={cup.SUBCATEGORIA} />
-                    <DetailRow label="Ámbito" value={cup.AMBITO} />
-                    <Separator />
-                    <h4 className="font-semibold pt-2">Frecuencias</h4>
-                    <DetailRow label="Frecuencia Año Servicio" value={formatNumber(cup['FRECUENCIA AÑO SERVICIO'])} />
-                    <DetailRow label="Frecuencia Uso" value={formatNumber(cup['FRECUENCIA USO'])} />
-                    <DetailRow label="Frecuencia Eventos Mes" value={formatNumber(cup['FRECUENCIA EVENTOS MES'])} />
-                    <DetailRow label="Frecuencia Mínima Mes" value={formatNumber(cup['FRECUENCIA MINIMA MES'])} />
-                    <DetailRow label="Frecuencia Máxima Mes" value={formatNumber(cup['FRECUENCIA MAXIMA MES'])} />
-                     <Separator />
-                    <h4 className="font-semibold pt-2">Costos y Valores</h4>
-                    <DetailRow label="Valor Unitario" value={formatCOP(cup['VALOR UNITARIO'])} />
-                    <DetailRow label="Costo Evento Mes" value={formatCOP(cup['COSTO EVENTO MES (VALOR MES)'])} />
-                    <DetailRow label="Valor Mínimo Mes" value={formatCOP(cup['VALOR MINIMO MES'])} />
-                    <DetailRow label="Valor Máximo Mes" value={formatCOP(cup['VALOR MAXIMO MES'])} />
-                    <Separator />
-                    <h4 className="font-semibold pt-2">Observaciones</h4>
-                    <p className="text-sm text-muted-foreground">{cup.OBSERVACIONES || "Sin observaciones."}</p>
-                </div>
-                <AlertDialogFooter>
-                    <AlertDialogAction onClick={onClose}>Cerrar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    )
-}
+  // Series para gráficas
+  const barData = useMemo(() => data.months.map((m) => ({ Mes: m.month, Valor: m.valueCOP })), [data.months]);
+  const cupsData = useMemo(() => data.months.map((m) => ({ Mes: m.month, CUPS: m.cups })), [data.months]);
+  const unitData = useMemo(() => data.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })), [data.months, unitAvg]);
 
-const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick, onDownload }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under', onCupClick: (cup: string) => void, onDownload: () => void }) => {
-  if (count === 0) return null;
-  
-  const diffClass = variant === 'over' ? "font-bold text-red-500" : "font-bold text-yellow-600";
-  const diffPrefix = variant === 'over' ? "+" : "";
+  // Exportación a PDF
+  const handleDownloadActaTexto = () => {
+    const texto = [
+      `ACTA/INFORME – PGP (Trimestre II)`,
+      `${data.header.empresa} | NIT ${data.header.nit} | Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato}`,
+      `Vigencia: ${data.header.vigencia}`,
+      ``,
+      `OBJETIVOS`,
+      `• Gestión financiera y validación de valores (ejecutado, descuentos, reconocimientos).`,
+      `• Calidad del servicio y continuidad del acceso.`,
+      `• Cambios demográficos y adecuación de oferta.`,
+      `• Eficiencia técnica (COP/CUPS) y análisis de resultados.`,
+      `• Recomendaciones para sostenibilidad.`,
+      ``,
+      `RESUMEN`,
+      `Total CUPS T2: ${totalCups.toLocaleString("es-CO")} | Total ejecutado T2: ${formatCOP(sumaMensual)}`,
+      `Nota técnica (3m): ${formatCOP(data.notaTecnica?.valor3m || 0)} (90%-110%: ${formatCOP(data.notaTecnica?.min90 || 0)} - ${formatCOP(data.notaTecnica?.max110 || 0)})`,
+      `Brecha vs nota: ${formatCOP(diffVsNota)}`,
+      ``,
+      `INTERPRETACIÓN`,
+      `Ejecución estable (finanzas, volumen y costo unitario), dentro de banda 90–110%; evidencia de control del riesgo y sostenibilidad del PGP.`,
+      ``,
+      `${data.header.ciudad || ""}${data.header.ciudad && data.header.fecha ? ", " : ""}${data.header.fecha || ""}`,
+    ].join("\n");
+    downloadPdfTexto(`Informe_PGP_${data.header?.municipio || ""}.pdf`, texto);
+  };
+
+  const handleDownloadActaVisual = async () => {
+    if (!actaRef.current) return;
+    await downloadPdfVisual(`Informe_PGP_${data.header?.municipio || ""}_visual.pdf`, actaRef.current);
+  };
 
   return (
-     <AccordionItem value={`${variant}-executed-cups`} className="border rounded-lg bg-white shadow-sm">
-        <div className="flex w-full items-center justify-between p-4">
-            <AccordionTrigger className="p-0 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50 w-full">
-                <div className="flex items-center gap-3">
-                    {icon}
-                    <span className="font-semibold">{count} {title}</span>
-                </div>
-            </AccordionTrigger>
-             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 ml-2 shrink-0">
-                <Download className="h-4 w-4" />
-            </Button>
+    <div className="mx-auto max-w-6xl space-y-6 p-4">
+      {/* Estilos de impresión carta */}
+      <style>{`
+        @page { size: Letter; margin: 12mm; }
+        @media print { .no-print { display:none !important } }
+      `}</style>
+
+      {/* Encabezado y acciones */}
+      <div className="flex items-start justify-between no-print">
+        <div className="text-sm">
+          <div className="font-semibold">{data.header.empresa} – NIT {data.header.nit}</div>
+          <div>Municipio: {data.header.municipio} | Contrato: {data.header.contrato}</div>
+          <div>Vigencia: {data.header.vigencia}</div>
         </div>
-      <AccordionContent className="p-4 pt-0">
-        <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real {variant === 'over' ? 'mayor' : 'menor'} a la esperada.</p>
-        <ScrollArea className="h-48">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>CUP</TableHead>
-                <TableHead>Actividad</TableHead>
-                <TableHead>Mes</TableHead>
-                <TableHead className="text-right">Esperado</TableHead>
-                <TableHead className="text-right">Real</TableHead>
-                <TableHead className="text-right">Diferencia</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((c, i) => (
-                <TableRow key={`${c.cup}-${i}`}>
-                  <TableCell>
-                    <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(c.cup)}>
-                      {c.cup}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="text-xs">{c.activityDescription}</TableCell>
-                  <TableCell>{c.month}</TableCell>
-                  <TableCell className="text-right">{formatNumber(c.expected)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(c.real)}</TableCell>
-                  <TableCell className={diffClass + " text-right"}>{diffPrefix}{formatNumber(c.diff)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </AccordionContent>
-    </AccordionItem>
-  );
-};
-
-
-const DiscrepancyAccordion = ({ title, icon, count, data, onDownload, onCupClick }: { title: string, icon: React.ReactNode, count: number, data: string[], onDownload: () => void, onCupClick: (cup: string) => void }) => {
-  if (count === 0) return null;
-  
-  const description = title.includes("Faltantes") 
-    ? "CUPS de la nota técnica no encontrados en el JSON."
-    : "CUPS del JSON no encontrados en la nota técnica. Haz clic para buscar su descripción.";
-
-  const isUnexpected = title.includes("Inesperados");
-
-  return (
-    <AccordionItem value={`${title.toLowerCase().replace(/\s+/g, '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
-        <div className="flex w-full items-center justify-between p-4">
-            <AccordionTrigger className="p-0 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50 w-full">
-                <div className="flex items-center gap-3">
-                    {icon}
-                    <span className="font-semibold">{count} {title}</span>
-                </div>
-            </AccordionTrigger>
-            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 ml-2 shrink-0">
-                <Download className="h-4 w-4" />
-            </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDownloadActaTexto}><FileText className="h-4 w-4 mr-1"/> PDF (texto)</Button>
+          <Button variant="default" onClick={handleDownloadActaVisual}><Stamp className="h-4 w-4 mr-1"/> PDF (visual)</Button>
         </div>
-      <AccordionContent className="p-4 pt-0">
-        <p className="text-xs text-muted-foreground mb-2">{description}</p>
-        <ScrollArea className="h-48">
-          <div className="text-xs font-mono space-y-1 p-2 bg-gray-50 rounded">
-            {data.map(cup => (
-              <div key={cup}>
-                {isUnexpected ? (
-                  <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(cup)}>
-                    {cup}
-                  </Button>
-                ) : (
-                  cup
-                )}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </AccordionContent>
-    </AccordionItem>
-  );
-};
+      </div>
 
-
-// ======= Componente principal =======
-export default function InformePGP({ data }: { data: ReportData }) {
-  const { header, pgpData } = data;
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCupInfo, setSelectedCupInfo] = useState<PgpRow | null>(null);
-  const [isLookupModalOpen, setLookupModalOpen] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
-
-
-  const pgpDataMap = useMemo(() => {
-    if (!pgpData) return new Map();
-    return new Map<string, PgpRow>(pgpData.map(row => [row['CUP/CUM'] ?? '', row]));
-  }, [pgpData]);
-
-  const handleCupClick = (cupCode: string) => {
-    const cupInfo = pgpDataMap.get(cupCode);
-    if (cupInfo) {
-      setSelectedCupInfo(cupInfo);
-      setIsModalOpen(true);
-    }
-  };
-
-  const handleUnexpectedCupClick = async (cupCode: string) => {
-    setIsLookingUp(true);
-    setLookedUpCupInfo(null);
-    setLookupModalOpen(true);
-    try {
-        const description = await describeCup(cupCode);
-        setLookedUpCupInfo(description);
-    } catch (error) {
-        console.error("Error looking up CUP:", error);
-        setLookedUpCupInfo({ cup: cupCode, description: "No se pudo obtener la descripción." });
-    } finally {
-        setIsLookingUp(false);
-    }
-  };
-
-
-  const closeModal = () => setIsModalOpen(false);
-  
-  const handleDownloadCsv = (dataToDownload: any[], filename: string) => {
-    const csv = Papa.unparse(dataToDownload);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
-      <Card className="shadow-xl print:shadow-none print:border-none">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl">Análisis y Contabilidad PGP</CardTitle>
-               <div className="text-sm text-muted-foreground">
-                {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
-                <br />
-                Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
-              </div>
+      <Card ref={actaRef} className="shadow-xl">
+        <CardHeader className="pdf-section">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {data.header.logoEpsiUrl && (<img src={data.header.logoEpsiUrl} alt="Logo EPSI" className="h-10 w-auto" />)}
+              <CardTitle>INFORME PGP – TRIMESTRE II (Abr–Jun)</CardTitle>
+              {data.header.logoIpsUrl && (<img src={data.header.logoIpsUrl} alt="Logo IPS" className="h-10 w-auto" />)}
             </div>
+            {(data.header.ciudad || data.header.fecha) && (
+              <div className="text-sm" style={{ color: "#4b5563" }}>
+                {data.header.ciudad ?? ""}{data.header.ciudad && data.header.fecha ? ", " : ""}{data.header.fecha ?? ""}
+              </div>
+            )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          
-          {data.months.length > 0 && data.expectedMonthlyValue !== undefined && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Detalle Mensual</CardTitle>
-                    <CardDescription>Comparación del valor esperado (nota técnica) vs. el ejecutado (JSON) para cada mes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Mes</TableHead>
-                                <TableHead className="text-right">Valor Esperado</TableHead>
-                                <TableHead className="text-right">Valor Ejecutado</TableHead>
-                                <TableHead className="text-right">Diferencia</TableHead>
-                                <TableHead className="text-right">% Cumplimiento</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {data.months.map(month => {
-                            const expected = data.expectedMonthlyValue ?? 0;
-                            const executed = month.valueCOP;
-                            const diff = executed - expected;
-                            const ratio = expected > 0 ? executed / expected : 0;
-                            return (
-                              <TableRow key={month.month}>
-                                <TableCell className="font-medium">{month.month}</TableCell>
-                                <TableCell className="text-right">{formatCOP(expected)}</TableCell>
-                                <TableCell className="text-right">{formatCOP(executed)}</TableCell>
-                                <TableCell className={`text-right ${diff > 0 ? "text-red-600" : "text-green-600"}`}>
-                                    {formatCOP(diff)}
-                                </TableCell>
-                                <TableCell className="text-right">{pctBadge(ratio)}</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-             </Card>
-          )}
 
-          <Separator />
+        <CardContent className="space-y-8">
+          {/* Objetivos (del archivo 2) */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Activity className="h-4 w-4"/> Objetivos del Acta</h3>
+            <ul className="list-disc pl-6 text-sm">
+              <li>Revisión de la gestión financiera y disciplina presupuestal.</li>
+              <li>Impacto en la calidad del servicio y continuidad del acceso.</li>
+              <li>Reconocimiento de cambios demográficos y ajuste de oferta.</li>
+              <li>Validación de valores financieros del PGP (ejecutado, anticipos, pagos).</li>
+              <li>Evaluación de resultados y eficiencia (COP por CUPS).</li>
+              <li>Recomendaciones para mejoras y sostenibilidad.</li>
+            </ul>
+          </section>
 
-          {data.comparisonSummary && (
-            <Card className="bg-gray-50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Análisis de Frecuencias y Desviaciones</CardTitle>
-                <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
-              </CardHeader>
-              <CardContent>
-                 <Accordion type="multiple" className="space-y-4">
+          {/* Nota Técnica (tabla + explicación robusta) */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Nota Técnica</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left" style={{ color: "#6b7280" }}>
+                    <th>Concepto</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>90% mínimo permitido</td><td>{formatCOP(data.notaTecnica?.min90 || 0)}</td></tr>
+                  <tr><td>Meta 3 meses (nota técnica)</td><td>{formatCOP(data.notaTecnica?.valor3m || 0)}</td></tr>
+                  <tr><td>Suma ejecución (T2)</td><td>{formatCOP(sumaMensual)}</td></tr>
+                  <tr><td>Diferencia vs meta</td><td>{formatCOP(diffVsNota)}</td></tr>
+                  <tr><td>110% máximo permitido</td><td>{formatCOP(data.notaTecnica?.max110 || 0)}</td></tr>
+                  <tr><td>Anticipos (modelo 80/20)</td><td>{formatCOP(data.notaTecnica?.anticipos || 0)}</td></tr>
+                  <tr><td>Total a pagar (3er mes)</td><td>{formatCOP(data.notaTecnica?.totalPagar || 0)}</td></tr>
+                  <tr><td>Total final</td><td>{formatCOP(data.notaTecnica?.totalFinal || 0)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-sm mt-2">
+              <strong>Lectura epidemiológica:</strong> La banda 90–110% funciona como control de riesgo
+              financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad
+              operacional y capacidad de absorción ante variaciones moderadas de la demanda. La coherencia
+              entre anticipos y pago del tercer mes evidencia disciplina del flujo de caja y disminuye la
+              probabilidad de desfinanciamiento por eventos de alto costo.
+            </p>
+          </section>
 
-                     <DeviatedCupsAccordion
-                        title={`CUPS Sobreejecutados (>111%)`}
-                        icon={<TrendingUp className="h-5 w-5 text-red-500" />}
-                        count={data.comparisonSummary.overExecutedCups.length}
-                        data={data.comparisonSummary.overExecutedCups}
-                        variant="over"
-                        onCupClick={handleCupClick}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.overExecutedCups || [], 'cups_sobrejecutados.xls')}
-                      />
-                      
-                      <DeviatedCupsAccordion
-                        title="CUPS Subejecutados"
-                        icon={<TrendingDown className="h-5 w-5 text-yellow-600" />}
-                        count={data.comparisonSummary.underExecutedCups.length}
-                        data={data.comparisonSummary.underExecutedCups}
-                        variant="under"
-                        onCupClick={handleCupClick}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.underExecutedCups || [], 'cups_subejecutados.xls')}
-                      />
-                      
-                      <DiscrepancyAccordion
-                        title="CUPS Faltantes"
-                        icon={<XCircle className="h-5 w-5 text-red-500" />}
-                        count={data.comparisonSummary.missingCups.length}
-                        data={data.comparisonSummary.missingCups}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.missingCups.map(cup => ({ cup })) || [], 'cups_faltantes.xls')}
-                        onCupClick={() => {}}
-                      />
-                      
-                      <DiscrepancyAccordion
-                        title="CUPS Inesperados"
-                        icon={<HelpCircle className="h-5 w-5 text-yellow-600" />}
-                        count={data.comparisonSummary.unexpectedCups.length}
-                        data={data.comparisonSummary.unexpectedCups}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.unexpectedCups.map(cup => ({ cup })) || [], 'cups_inesperados.xls')}
-                        onCupClick={handleUnexpectedCupClick}
-                      />
+          {/* Gráfico: Ejecución financiera */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="h-4 w-4"/> Ejecución Financiera (COP)</h3>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData}>
+                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" stroke="#374151" />
+                  <YAxis stroke="#374151" tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Valor" fill="#4a90e2" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-sm mt-2">
+              Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de
+              cartera, negociación con prestadores y continuidad de la atención, reduciendo el riesgo de
+              racionamiento por restricciones financieras.
+            </p>
+          </section>
 
-                  </Accordion>
-              </CardContent>
-            </Card>
-          )}
+          {/* Gráfico: CUPS (cantidad) */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> CUPS (Cantidad)</h3>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cupsData}>
+                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" stroke="#374151" />
+                  <YAxis stroke="#374151" allowDecimals={false} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="CUPS" stroke="#16a34a" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-sm mt-2">
+              Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en
+              continuidad de acceso, menor rezago diagnóstico y oportunidad terapéutica sostenida. La
+              estabilidad respalda la planificación por microred y la asignación de talento humano.
+            </p>
+          </section>
 
-           {data.financialMatrix && data.financialMatrix.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Matriz de Resumen Financiero (Periodo)</CardTitle>
-                        <CardDescription>Análisis consolidado del rendimiento financiero y operativo del periodo.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>CONCEPTO</TableHead>
-                                    <TableHead className="text-right">VALOR/FRECUENCIA AUTORIZADO</TableHead>
-                                    <TableHead className="text-right">EJECUCIÓN</TableHead>
-                                    <TableHead className="text-right">DIFERENCIA</TableHead>
-                                    <TableHead className="text-right">% CUMPLIMIENTO</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.financialMatrix.map(row => (
-                                <TableRow
-                                    key={row.concepto}
-                                    className={"font-bold bg-muted/50"}
-                                >
-                                    <TableCell>{row.concepto}</TableCell>
-                                    <TableCell className="text-right">{formatCOP(row.autorizado)}</TableCell>
-                                    <TableCell className="text-right">{formatCOP(row.ejecutado)}</TableCell>
-                                    <TableCell className={`text-right ${row.diferencia > 0 ? "text-red-600" : "text-green-600"}`}>
-                                    {formatCOP(row.diferencia)}
-                                    </TableCell>
-                                    <TableCell className="text-right">{pctBadge(row.cumplimiento)}</TableCell>
-                                </TableRow>
-                                ))}
-                                 <TableRow>
-                                    <TableCell className="font-bold">Frecuencia de Actividades (CUPS)</TableCell>
-                                    <TableCell className="text-right">{formatNumber(data.totalExpectedFrequency || 0)}</TableCell>
-                                    <TableCell className="text-right">{formatNumber(data.totalRealFrequency || 0)}</TableCell>
-                                    <TableCell className={`text-right ${(data.totalRealFrequency || 0) > (data.totalExpectedFrequency || 0) ? "text-red-600" : "text-green-600"}`}>
-                                     {formatNumber((data.totalRealFrequency || 0) - (data.totalExpectedFrequency || 0))}
-                                    </TableCell>
-                                     <TableCell className="text-right">
-                                       {pctBadge((data.totalExpectedFrequency) ? (data.totalRealFrequency || 0) / (data.totalExpectedFrequency || 1) : 0)}
-                                    </TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-           )}
+          {/* Gráfico: Costo unitario */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={unitData}>
+                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" stroke="#374151" />
+                  <YAxis stroke="#374151" tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="Unit" stroke="#ef4444" strokeWidth={2} />
+                  <ReferenceLine y={unitAvg} label="Promedio" stroke="#111827" strokeDasharray="4 4" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-sm mt-2">
+              La cercanía al promedio indica eficiencia técnica y control de variaciones clínicas; disminuye
+              la probabilidad de desviaciones por cambio de mezcla de casos. Permite proyectar costos con
+              mayor certidumbre y orientar auditoría concurrente hacia códigos de alto impacto.
+            </p>
+          </section>
+
+          {/* Conclusiones y Proyecciones (del archivo 1, ampliadas) */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> Conclusiones y Proyecciones</h3>
+            <p className="text-sm mt-2">
+              El trimestre evidencia estabilidad financiera (COP), operacional (CUPS) y técnica (COP/CUPS), con
+              ejecución dentro de la banda 90–110% de la Nota Técnica. Proyectando la tendencia observada, se
+              espera mantenimiento del equilibrio sin presiones significativas, sujeto a vigilancia de eventos
+              de alto costo y cambios demográficos. Se recomienda profundizar programas preventivos y
+              mantener tableros de control con alertas tempranas.
+            </p>
+          </section>
+
+          {/* Firmas (del archivo 2) */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Stamp className="h-4 w-4"/> Firmas</h3>
+            <div className="grid gap-8 md:grid-cols-3 pt-8">
+              {[data.header.responsable1, data.header.responsable2, data.header.responsable3]
+                .filter((r): r is { nombre: string; cargo: string } => Boolean(r))
+                .map((r, idx) => (
+                  <div key={idx} className="text-sm text-center">
+                    <div className="h-14 border-b" style={{ borderColor: "#d1d5db" }} />
+                    <div className="mt-2 font-semibold">{r.nombre}</div>
+                    <div style={{ color: "#6b7280" }}>{r.cargo}</div>
+                  </div>
+                ))}
+            </div>
+          </section>
+
+          {/* Pruebas rápidas (sanity tests) del archivo 2 */}
+          <section className="pdf-section">
+            <h3 className="font-semibold mb-2">Pruebas rápidas</h3>
+            <ul className="list-disc pl-6 text-sm">
+              <li>Total CUPS = {totalCups.toLocaleString("es-CO")} – {totalCups === data.months.reduce((a, m) => a + m.cups, 0) ? "OK" : "FALLA"}</li>
+              <li>Suma mensual (COP) = {formatCOP(sumaMensual)} – {Math.abs(sumaMensual - data.months.reduce((a, m) => a + m.valueCOP, 0)) < 0.001 ? "OK" : "FALLA"}</li>
+              <li>Diferencia vs Nota Técnica = {formatCOP(diffVsNota)} – {Math.abs(diffVsNota - ((data.notaTecnica?.valor3m || 0) - sumaMensual)) < 0.001 ? "OK" : "FALLA"}</li>
+              <li>Promedio COP/CUPS calculado = {formatCOP(unitAvg)}</li>
+            </ul>
+          </section>
         </CardContent>
       </Card>
-      
-      <Card className="bg-green-50 dark:bg-green-900/20">
-        <CardHeader>
-          <CardTitle>INFORME</CardTitle>
-          <CardDescription>Plantilla para conceptos o proyecciones adicionales.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40%]">Concepto</TableHead>
-                <TableHead className="text-right">Valor A</TableHead>
-                <TableHead className="text-right">Valor B</TableHead>
-                <TableHead className="text-right">Resultado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-              </TableRow>
-              <TableRow className="font-bold bg-muted/50">
-                <TableCell>Total</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-                <TableCell className="text-right">...</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-       <CupDetailModal cup={selectedCupInfo} isOpen={isModalOpen} onClose={closeModal} />
-       <AlertDialog open={isLookupModalOpen} onOpenChange={setLookupModalOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>
-                        {isLookingUp ? "Buscando información..." : `Descripción para ${lookedUpCupInfo?.cup}`}
-                    </AlertDialogTitle>
-                </AlertDialogHeader>
-                {isLookingUp ? (
-                    <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : (
-                    <AlertDialogDescription>
-                        {lookedUpCupInfo?.description}
-                    </AlertDialogDescription>
-                )}
-                <AlertDialogFooter>
-                    <AlertDialogAction onClick={() => setLookupModalOpen(false)}>Cerrar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
     </div>
   );
 }
-
-
-
-    

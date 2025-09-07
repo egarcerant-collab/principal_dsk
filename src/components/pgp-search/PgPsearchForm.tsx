@@ -8,14 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertCircle, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow, type DeviatedCupInfo, type PgpRow } from './InformePGP';
+import InformePGP, { type ReportData, type MonthKey } from './InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -72,6 +69,11 @@ export interface ValueComparisonItem {
   executedValues: Map<string, number>; // month -> value
   totalExecutedValue: number;
 }
+
+interface PgpRow {
+  [key: string]: any;
+}
+
 
 interface PgPsearchFormProps {
   executionDataByMonth: ExecutionDataByMonth;
@@ -244,87 +246,6 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
   )
 };
 
-/** =====================  TABLA COMPARATIVA  ===================== **/
-const ComparisonTable = ({ pgpData, executionDataByMonth, monthNames }: { pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth, monthNames: string[] }) => {
-  const comparisonData: MonthlyComparisonData[] = pgpData.map(row => {
-    const cup = findColumnValue(row, ['cup/cum', 'cups']) ?? '';
-    const expectedFrequency = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
-    const description = findColumnValue(row, ['descripcion cups', 'descripcion']) ?? '';
-
-    const realFrequencies = new Map<string, number>();
-    let totalRealFrequency = 0;
-
-    executionDataByMonth.forEach((data, month) => {
-      const realFrequency = cup ? data.cupCounts.get(cup) || 0 : 0;
-      realFrequencies.set(month, realFrequency);
-      totalRealFrequency += realFrequency;
-    });
-
-    return {
-      cup,
-      description,
-      expectedFrequency,
-      realFrequencies,
-      totalRealFrequency,
-    };
-  }).filter(item => item.cup && (item.totalRealFrequency > 0 || item.expectedFrequency > 0));
-
-  if (comparisonData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><AlertCircle className="h-6 w-6 text-yellow-500" />Análisis Comparativo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center">No hay datos de ejecución (JSON) para los CUPS de esta nota técnica, o no se ha cargado una nota técnica que coincida.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Análisis Comparativo de Frecuencias (Esperado vs. Real)</CardTitle>
-        <CardDescription>Comparación entre la frecuencia mensual esperada en la nota técnica y la frecuencia real observada en los archivos JSON.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow>
-                <TableHead>CUPS / CUM</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead className="text-center">Frec. Esperada (Mes)</TableHead>
-                {monthNames.map(month => (
-                  <TableHead key={month} className="text-center">Frec. Real ({month})</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {comparisonData.map((item, index) => (
-                <TableRow key={`${item.cup}-${index}`}>
-                  <TableCell className="font-mono">{item.cup}</TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell className="text-center">{item.expectedFrequency.toLocaleString()}</TableCell>
-                  {[...executionDataByMonth.keys()].map(monthKey => {
-                    const realFrequency = item.realFrequencies.get(monthKey) || 0;
-                    const difference = realFrequency - item.expectedFrequency;
-                    return (
-                      <TableCell key={monthKey} className={`text-center font-semibold ${difference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {realFrequency.toLocaleString()}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-};
 
 /** =====================  MONEDA  ===================== **/
 export const formatCurrency = (value: number | null | undefined): string => {
@@ -531,170 +452,54 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       return;
     }
     
-    const pgpDataMap = new Map<string, PgpRow>(pgpData.map(row => [findColumnValue(row, ['cup/cum', 'cups']), row]));
-    const pgpCups = new Set(pgpDataMap.keys());
-    const jsonCups = new Set<string>();
-    executionDataByMonth.forEach(monthData => {
-        monthData.cupCounts.forEach((_, cup) => jsonCups.add(cup));
-    });
-
-    const matchingCups = new Set([...pgpCups].filter(cup => jsonCups.has(cup)));
-    const missingCups = [...pgpCups].filter(cup => !jsonCups.has(cup));
-    const unexpectedCups = [...jsonCups].filter(cup => !pgpCups.has(cup));
-
-    const underExecutedCups: DeviatedCupInfo[] = [];
-    const overExecutedCups: DeviatedCupInfo[] = [];
-
-    matchingCups.forEach(cup => {
-      const pgpRow = pgpDataMap.get(cup)!;
-      const expected = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
-
-      executionDataByMonth.forEach((monthData, month) => {
-        const real = monthData.cupCounts.get(cup) || 0;
-        const diff = real - expected;
-
-        if (diff !== 0) {
-            const cupInfo: DeviatedCupInfo = {
-                cup,
-                description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']) ?? '',
-                activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']) ?? '',
-                month: getMonthName(month),
-                expected,
-                real,
-                diff,
-            };
-
-            if (diff < 0) {
-                underExecutedCups.push(cupInfo);
-            } else if (real / expected > 1.11) { // Filter for > 111%
-                overExecutedCups.push(cupInfo);
-            }
-        }
-      });
-    });
-
-    const comparisonSummary: ComparisonSummary = {
-        totalPgpCups: pgpCups.size,
-        matchingCups: matchingCups.size,
-        missingCups,
-        unexpectedCups,
-        underExecutedCups,
-        overExecutedCups
-    };
-    
-    let totalExpected = 0;
-    const totalExecutedByMonth = new Map<string, number>();
-
-    executionDataByMonth.forEach((_, month) => {
-      totalExecutedByMonth.set(month, 0);
-    });
-    
-    const totalExpectedFrequency = pgpData.reduce((acc, row) => {
-      const freq = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
-      return acc + freq;
-    }, 0) * executionDataByMonth.size;
-    
-    let totalRealFrequency = 0;
-    executionDataByMonth.forEach(data => {
-        data.cupCounts.forEach(count => totalRealFrequency += count);
-    });
-
-
-    const comparisonData = pgpData.map(row => {
-      const cup = findColumnValue(row, ['cup/cum', 'cups']) ?? '';
-      const unitValue = getNumericValue(findColumnValue(row, ['valor unitario']));
-      const expectedFrequency = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
-      const expectedValue = unitValue * expectedFrequency;
-      totalExpected += expectedValue;
-
-      const executedValues = new Map<string, number>();
-      let totalExecutedValue = 0;
-
-      executionDataByMonth.forEach((data, month) => {
-        const realFrequency = cup ? data.cupCounts.get(cup) || 0 : 0;
-        const executedValue = unitValue * realFrequency;
-        executedValues.set(month, executedValue);
-        totalExecutedValue += executedValue;
-        totalExecutedByMonth.set(month, (totalExecutedByMonth.get(month) || 0) + executedValue);
-      });
-      
-      return { cup, unitValue, expectedValue, executedValues, totalExecutedValue };
-    }).filter(item => item.cup);
-    
-    const months: MonthExecution[] = Array.from(executionDataByMonth.entries()).map(([monthNum, monthData]) => {
+    const monthKeys = [...executionDataByMonth.keys()].sort();
+    const periodo = monthKeys.length > 0 ? `${getMonthName(monthKeys[0])} - ${getMonthName(monthKeys[monthKeys.length-1])}` : 'N/A';
+    const monthsForReport = Array.from(executionDataByMonth.entries()).map(([monthNum, monthData]) => {
       let totalCups = 0;
-      monthData.cupCounts.forEach(count => totalCups += count);
+      let totalValue = 0;
+       
+       monthData.cupCounts.forEach((count, cup) => {
+         const pgpRow = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
+         const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+         totalCups += count;
+         totalValue += count * unitValue;
+       });
+
       return {
         month: getMonthName(monthNum),
         cups: totalCups,
-        valueCOP: totalExecutedByMonth.get(monthNum) ?? 0,
+        valueCOP: totalValue,
       };
     });
 
-    if (months.length === 0) {
-      setReportData(null);
-      return;
-    }
-    
-    const totalAutorizadoPeriodo = globalSummary.totalCostoMes * months.length;
-    const totalEjecutadoPeriodo = months.reduce((acc, m) => acc + m.valueCOP, 0);
-    const diferenciaPeriodo = totalEjecutadoPeriodo - totalAutorizadoPeriodo;
-    const cumplimientoPeriodo = totalAutorizadoPeriodo > 0 ? totalEjecutadoPeriodo / totalAutorizadoPeriodo : 0;
-
-    const financialMatrix: FinancialMatrixRow[] = [
-        {
-          concepto: `Valor Total del Periodo (${months.length > 1 ? `${months.length} meses` : '1 mes'})`,
-          autorizado: totalAutorizadoPeriodo,
-          ejecutado: totalEjecutadoPeriodo,
-          diferencia: diferenciaPeriodo,
-          cumplimiento: cumplimientoPeriodo
-        },
-    ];
-
-
-    const monthKeys = [...executionDataByMonth.keys()].sort();
-    const periodo = monthKeys.length > 0 ? `${getMonthName(monthKeys[0])} - ${getMonthName(monthKeys[monthKeys.length-1])}` : 'N/A';
-
-    const pgpMensual = globalSummary.totalCostoMes;
-    const estimacionTrimestral = pgpMensual * months.length;
-
-    const anticipos = {
-      mes1_80COP: months.length > 0 ? pgpMensual * 0.8 : 0,
-      mes2_80COP: months.length > 1 ? pgpMensual * 0.8 : 0,
-      mes3_100COP: months.length > 2 ? pgpMensual : 0,
-    };
-    anticipos.anticipado80COP = anticipos.mes1_80COP + anticipos.mes2_80COP;
+    const totalExecutedForPeriod = monthsForReport.reduce((acc, m) => acc + m.valueCOP, 0);
 
     const dataForReport: ReportData = {
       header: {
         empresa: 'DUSAKAWI EPSI',
         nit: selectedPrestador.NIT,
-        municipio: 'N/A',
-        departamento: 'N/A',
+        municipio: 'N/A', // O obtener de algún lado
         contrato: `PGP-${normalizeDigits(selectedPrestador['ID DE ZONA'])}`,
         vigencia: `01/01/${new Date().getFullYear()} - 31/12/${new Date().getFullYear()}`,
-        periodo: periodo,
-        responsable: 'Dirección Nacional del Riesgo en Salud',
+        ciudad: 'N/A',
+        fecha: new Date().toLocaleDateString('es-CO'),
+        responsable1: { nombre: "_________________________", cargo: "Representante EPSI" },
+        responsable2: { nombre: "_________________________", cargo: "Representante IPS" },
+        responsable3: { nombre: "_________________________", cargo: "Testigo" },
       },
-      pgpData,
-      months: months,
-      band: {
-        estimateCOP: estimacionTrimestral,
-        minPct: 0.9,
-        maxPct: 1.1,
+      months: monthsForReport,
+      notaTecnica: {
+        min90: globalSummary.totalCostoMes * monthsForReport.length * 0.9,
+        valor3m: globalSummary.totalCostoMes * monthsForReport.length,
+        max110: globalSummary.totalCostoMes * monthsForReport.length * 1.1,
+        anticipos: 0, // Calcular si aplica
+        totalPagar: 0, // Calcular si aplica
+        totalFinal: totalExecutedForPeriod, // o el cálculo que corresponda
       },
-      anticipos: anticipos,
-      comparisonSummary,
-      financialMatrix,
-      totalExpectedFrequency,
-      totalRealFrequency,
-      expectedMonthlyValue: globalSummary.totalCostoMes,
     };
     
     setReportData(dataForReport);
-    setValueComparison(comparisonData as any[]);
-    setTotalExpectedValue(totalExpected);
-    setTotalExecutedValueByMonth(totalExecutedByMonth);
+    
 
   }, [isDataLoaded, pgpData, executionDataByMonth, globalSummary, selectedPrestador]);
 
