@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -11,8 +11,7 @@ import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
-import ValueComparisonCard from './ValueComparisonCard';
-import InformePGP, { type ReportData, type MonthKey } from './InformePGP';
+import InformePGP, { type ComparisonSummary, type DeviatedCupInfo } from './InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -51,23 +50,6 @@ export interface SummaryData {
   totalAnual: number;
   costoMinimoMes: number;
   costoMaximoMes: number;
-}
-
-interface MonthlyComparisonData {
-  cup: string;
-  description: string;
-  expectedFrequency: number;
-  realFrequencies: Map<string, number>; // month -> frequency
-  totalRealFrequency: number;
-}
-
-export interface ValueComparisonItem {
-  cup: string;
-  description: string;
-  unitValue: number;
-  expectedValue: number;
-  executedValues: Map<string, number>; // month -> value
-  totalExecutedValue: number;
 }
 
 interface PgpRow {
@@ -253,6 +235,79 @@ export const formatCurrency = (value: number | null | undefined): string => {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 };
 
+const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth): ComparisonSummary => {
+  const overExecutedCups: DeviatedCupInfo[] = [];
+  const underExecutedCups: DeviatedCupInfo[] = [];
+  const missingCups: DeviatedCupInfo[] = [];
+  const unexpectedCups: { cup: string, realFrequency: number }[] = [];
+
+  const pgpCups = new Set(pgpData.map(row => findColumnValue(row, ['cup/cum', 'cups'])).filter(Boolean));
+  const executedCups = new Set<string>();
+  executionDataByMonth.forEach(monthData => {
+    monthData.cupCounts.forEach((_, cup) => executedCups.add(cup));
+  });
+
+  const allRelevantCups = new Set([...pgpCups, ...executedCups]);
+
+  allRelevantCups.forEach(cup => {
+    const pgpRow = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
+    let totalRealFrequency = 0;
+    executionDataByMonth.forEach(monthData => {
+      totalRealFrequency += monthData.cupCounts.get(cup) || 0;
+    });
+
+    if (pgpRow) {
+      const expectedFrequency = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
+      const totalExpectedFrequency = expectedFrequency * executionDataByMonth.size;
+
+      if (totalRealFrequency > 0) {
+        const cupInfo: DeviatedCupInfo = {
+          cup,
+          description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
+          activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']),
+          expectedFrequency: totalExpectedFrequency,
+          realFrequency: totalRealFrequency,
+          deviation: totalRealFrequency - totalExpectedFrequency,
+        };
+        
+        // **Filtro de >111% aplicado aquí**
+        if (totalExpectedFrequency > 0 && (totalRealFrequency / totalExpectedFrequency) > 1.11) {
+            overExecutedCups.push(cupInfo);
+        } else if (totalRealFrequency < totalExpectedFrequency) {
+            underExecutedCups.push(cupInfo);
+        }
+      } else {
+        // CUPS en nota técnica pero no ejecutados
+        missingCups.push({
+          cup,
+          description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
+          activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']),
+          expectedFrequency: totalExpectedFrequency,
+          realFrequency: 0,
+          deviation: -totalExpectedFrequency,
+        });
+      }
+    } else if (totalRealFrequency > 0) {
+      // CUPS ejecutados pero no en nota técnica
+      unexpectedCups.push({
+        cup,
+        realFrequency: totalRealFrequency,
+      });
+    }
+  });
+  
+  overExecutedCups.sort((a, b) => b.deviation - a.deviation);
+  underExecutedCups.sort((a, b) => a.deviation - b.deviation);
+
+
+  return {
+    overExecutedCups,
+    underExecutedCups,
+    missingCups,
+    unexpectedCups,
+  };
+};
+
 /** =====================  COMPONENTE PRINCIPAL  ===================== **/
 const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode }) => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -265,14 +320,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
   const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
-  const [valueComparison, setValueComparison] = useState<ValueComparisonItem[]>([]);
-  const [totalExpectedValue, setTotalExpectedValue] = useState(0);
-  const [totalExecutedValueByMonth, setTotalExecutedValueByMonth] = useState<Map<string, number>>(new Map());
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
+
+  const comparisonSummary = useMemo(() => {
+    if (!isDataLoaded || executionDataByMonth.size === 0) {
+      return null;
+    }
+    return calculateComparison(pgpData, executionDataByMonth);
+  }, [pgpData, executionDataByMonth, isDataLoaded]);
 
   useEffect(() => {
     setIsClient(true);
@@ -439,69 +497,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleSelectPrestador, toast]);
 
-  const getMonthName = (monthNumber: string): MonthKey => {
-    const date = new Date();
-    date.setMonth(parseInt(monthNumber, 10) - 1);
-    const name = date.toLocaleString('es-CO', { month: 'long' });
-    return name.toUpperCase() as MonthKey;
-  };
-
-  useEffect(() => {
-    if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary) {
-      setReportData(null);
-      return;
-    }
-    
-    const monthKeys = [...executionDataByMonth.keys()].sort();
-    const periodo = monthKeys.length > 0 ? `${getMonthName(monthKeys[0])} - ${getMonthName(monthKeys[monthKeys.length-1])}` : 'N/A';
-    const monthsForReport = Array.from(executionDataByMonth.entries()).map(([monthNum, monthData]) => {
-      let totalCups = 0;
-      let totalValue = 0;
-       
-       monthData.cupCounts.forEach((count, cup) => {
-         const pgpRow = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
-         const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
-         totalCups += count;
-         totalValue += count * unitValue;
-       });
-
-      return {
-        month: getMonthName(monthNum),
-        cups: totalCups,
-        valueCOP: totalValue,
-      };
-    });
-
-    const totalExecutedForPeriod = monthsForReport.reduce((acc, m) => acc + m.valueCOP, 0);
-
-    const dataForReport: ReportData = {
-      header: {
-        empresa: 'DUSAKAWI EPSI',
-        nit: selectedPrestador.NIT,
-        municipio: 'N/A', // O obtener de algún lado
-        contrato: `PGP-${normalizeDigits(selectedPrestador['ID DE ZONA'])}`,
-        vigencia: `01/01/${new Date().getFullYear()} - 31/12/${new Date().getFullYear()}`,
-        ciudad: 'N/A',
-        fecha: new Date().toLocaleDateString('es-CO'),
-        responsable1: { nombre: "_________________________", cargo: "Representante EPSI" },
-        responsable2: { nombre: "_________________________", cargo: "Representante IPS" },
-        responsable3: { nombre: "_________________________", cargo: "Testigo" },
-      },
-      months: monthsForReport,
-      notaTecnica: {
-        min90: globalSummary.totalCostoMes * monthsForReport.length * 0.9,
-        valor3m: globalSummary.totalCostoMes * monthsForReport.length,
-        max110: globalSummary.totalCostoMes * monthsForReport.length * 1.1,
-        anticipos: 0, // Calcular si aplica
-        totalPagar: 0, // Calcular si aplica
-        totalFinal: totalExecutedForPeriod, // o el cálculo que corresponda
-      },
-    };
-    
-    setReportData(dataForReport);
-    
-
-  }, [isDataLoaded, pgpData, executionDataByMonth, globalSummary, selectedPrestador]);
 
   if (!isClient) {
     return (
@@ -512,9 +507,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     );
   }
 
-  const showComparison = isDataLoaded && executionDataByMonth.size > 0;
-  
-  const monthNames = [...executionDataByMonth.keys()].map(m => getMonthName(m));
+  const showComparison = isDataLoaded && executionDataByMonth.size > 0 && comparisonSummary;
 
   return (
     <Card>
@@ -574,15 +567,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
             {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
             
-            {showComparison && reportData && (
-              <InformePGP data={reportData} />
-            )}
-
-            {showComparison && !reportData && (
-               <Card>
-                <CardHeader><CardTitle>Esperando datos completos...</CardTitle></CardHeader>
-                <CardContent><p>El informe se generará en cuanto se disponga de todos los datos necesarios (JSON y Nota Técnica).</p></CardContent>
-              </Card>
+            {showComparison && (
+                <InformePGP 
+                    comparisonSummary={comparisonSummary}
+                    pgpData={pgpData}
+                />
             )}
           </div>
         )}
