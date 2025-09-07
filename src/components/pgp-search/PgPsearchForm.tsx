@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon } from "lucide-react";
 import Papa, { type ParseResult } from 'papaparse';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { analyzePgpData, type AnalyzePgpDataOutput } from '@/ai/flows/analyze-pgp-flow';
+import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,6 +41,13 @@ interface PgpRow {
   OBSERVACIONES?: string;
   [key: string]: any; // Allow other properties
 }
+
+interface AnalyzePgpDataOutput {
+    keyObservations: string[];
+    potentialRisks: string[];
+    strategicRecommendations: string[];
+}
+
 
 interface SummaryData {
   totalCostoMes: number;
@@ -245,9 +252,25 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || row['COSTO EVENTO MES'] || 0), 0);
-        const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
-        const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
+        
+        const getNumericValue = (row: PgpRow, key: keyof PgpRow) => {
+            const value = row[key];
+            if (value === null || value === undefined) return 0;
+            // Robust cleaning: remove $, all dots (for thousands), and replace comma with dot for decimals
+            const cleanValue = String(value).replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.');
+            return parseFloat(cleanValue) || 0;
+        };
+
+        const totalCostoMes = data.reduce((acc, row) => {
+            const costo = row['COSTO EVENTO MES (VALOR MES)'] !== undefined 
+                ? getNumericValue(row, 'COSTO EVENTO MES (VALOR MES)')
+                : getNumericValue(row, 'COSTO EVENTO MES');
+            return acc + costo;
+        }, 0);
+        
+        const totalMinimoMes = data.reduce((acc, row) => acc + getNumericValue(row, 'VALOR MINIMO MES'), 0);
+        const totalMaximoMes = data.reduce((acc, row) => acc + getNumericValue(row, 'VALOR MAXIMO MES'), 0);
+
         return {
             totalCostoMes,
             lowerBound: totalCostoMes * 0.9,
@@ -273,7 +296,7 @@ const PgPsearchForm: React.FC = () => {
             }
             const data = await fetchAndParseSheetData(prestador.WEB);
             
-            const numericKeys: string[] = [
+            const numericKeys: (keyof PgpRow)[] = [
                 'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
                 'COSTO EVENTO MES', 'FRECUENCIA EVENTO DIA', 'FRECUENCIA MINIMA MES',
                 'FRECUENCIA MAXIMA MES', 'VALOR UNITARIO', 'COSTO EVENTO DIA',
@@ -285,21 +308,17 @@ const PgPsearchForm: React.FC = () => {
                  for (const key in row) {
                     const trimmedKey = key.trim();
                     if (!trimmedKey) continue;
-
-                    let value = (row[key] || '').trim();
                     
-                    const isNumeric = numericKeys.some(nk => nk.toUpperCase() === trimmedKey.toUpperCase());
-
-                    if (isNumeric) {
-                       newRow[trimmedKey as keyof PgpRow] = parseFloat(value.replace(/[$\s,]/g, '')) || 0;
-                    } else {
-                        newRow[trimmedKey as keyof PgpRow] = value;
-                    }
+                    newRow[trimmedKey as keyof PgpRow] = row[key];
                 }
                 // Rename CUPS column for consistency
                 if (newRow['CUPS']) {
                     newRow['CUP/CUM'] = newRow['CUPS'];
                     delete newRow['CUPS'];
+                }
+                 if (newRow['DESCRIPCION']) {
+                    newRow['DESCRIPCION CUPS'] = newRow['DESCRIPCION'];
+                    delete newRow['DESCRIPCION'];
                 }
                 return newRow as PgpRow;
             }).filter(item => item['CUP/CUM']);
@@ -311,7 +330,39 @@ const PgPsearchForm: React.FC = () => {
 
             // Fire off AI analysis
             try {
-                const analysisResult = await analyzePgpData(pgpRows.slice(0, 20)); // Analyze first 20 rows
+                // We need to convert the loaded data (which are mostly strings) into the schema expected by the AI
+                const analysisInput = pgpRows.slice(0, 20).map(row => {
+                     const getNumericValue = (key: keyof PgpRow) => {
+                        const value = row[key];
+                        if (value === null || value === undefined) return 0;
+                        const cleanValue = String(value).replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.');
+                        return parseFloat(cleanValue) || 0;
+                    };
+                    return {
+                        'SUBCATEGORIA': row.SUBCATEGORIA,
+                        'AMBITO': row.AMBITO,
+                        'ID RESOLUCION 3100': row['ID RESOLUCION 3100'],
+                        'DESCRIPCION ID RESOLUCION': row['DESCRIPCION ID RESOLUCION'],
+                        'CUP/CUM': row['CUP/CUM'],
+                        'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
+                        'FRECUENCIA AÑO SERVICIO': getNumericValue('FRECUENCIA AÑO SERVICIO'),
+                        'FRECUENCIA USO': getNumericValue('FRECUENCIA USO'),
+                        'FRECUENCIA EVENTOS MES': getNumericValue('FRECUENCIA EVENTOS MES'),
+                        'FRECUENCIA EVENTO DIA': getNumericValue('FRECUENCIA EVENTO DIA'),
+                        'COSTO EVENTO MES': getNumericValue('COSTO EVENTO MES'),
+                        'COSTO EVENTO DIA': getNumericValue('COSTO EVENTO DIA'),
+                        'FRECUENCIA MINIMA MES': getNumericValue('FRECUENCIA MINIMA MES'),
+                        'FRECUENCIA MAXIMA MES': getNumericValue('FRECUENCIA MAXIMA MES'),
+                        'VALOR UNITARIO': getNumericValue('VALOR UNITARIO'),
+                        'VALOR MINIMO MES': getNumericValue('VALOR MINIMO MES'),
+                        'VALOR MAXIMO MES': getNumericValue('VALOR MAXIMO MES'),
+                        'COSTO EVENTO MES (VALOR MES)': row['COSTO EVENTO MES (VALOR MES)'] !== undefined
+                            ? getNumericValue('COSTO EVENTO MES (VALOR MES)')
+                            : getNumericValue('COSTO EVENTO MES'),
+                        'OBSERVACIONES': row.OBSERVACIONES
+                    }
+                })
+                const analysisResult = await analyzePgpData(analysisInput);
                 setAnalysis(analysisResult);
             } catch (aiError: any) {
                  toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
@@ -421,3 +472,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    
