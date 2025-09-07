@@ -1,19 +1,17 @@
 
 import PgPsearchForm from '@/components/pgp-search/PgPsearchForm';
-import { CupCountsMap } from '@/app/page';
+import { ExecutionDataByMonth } from '@/app/page';
 
 interface PgpSearchPageProps {
-  unifiedSummary: any | null;
-  cupCounts: CupCountsMap;
+  executionDataByMonth: ExecutionDataByMonth;
   jsonPrestadorCode: string | null;
 }
 
-export default function PgpSearchPage({ unifiedSummary, cupCounts, jsonPrestadorCode }: PgpSearchPageProps) {
+export default function PgpSearchPage({ executionDataByMonth, jsonPrestadorCode }: PgpSearchPageProps) {
   return (
     <div className="w-full space-y-8 mt-4">
       <PgPsearchForm 
-        unifiedSummary={unifiedSummary} 
-        cupCounts={cupCounts} 
+        executionDataByMonth={executionDataByMonth}
         jsonPrestadorCode={jsonPrestadorCode} 
       />
     </div>

@@ -6,14 +6,13 @@ import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer, { calculateSummary } from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle, Users, Stethoscope, Microscope, Pill, Syringe, Calendar } from 'lucide-react';
+import { Terminal, Building, Loader2, RefreshCw, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
-import { CupCountsMap } from '@/app/page';
+import { CupCountsMap, ExecutionDataByMonth } from '@/app/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
 
 interface FileState {
     jsonData: any | null;
@@ -22,9 +21,13 @@ interface FileState {
     month: string;
 }
 
+export interface MonthlyExecutionData {
+  cupCounts: CupCountsMap;
+  summary: any;
+}
+
 interface JsonAnalyzerPageProps {
-  setUnifiedSummary: (summary: any | null) => void;
-  setCupCounts: (cupCounts: CupCountsMap) => void;
+  setExecutionData: (data: ExecutionDataByMonth) => void;
   setJsonPrestadorCode: (code: string | null) => void;
 }
 
@@ -47,67 +50,63 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     return map;
 }
 
-export const calculateCupCounts = (jsonData: any | any[]): CupCountsMap => {
+export const calculateCupCounts = (jsonData: any): CupCountsMap => {
     const counts: CupCountsMap = new Map();
-    const dataSources = Array.isArray(jsonData) ? jsonData : [jsonData];
+    if (!jsonData || !jsonData.usuarios) return counts;
 
-    for (const data of dataSources) {
-        if (!data || !data.usuarios) continue;
-
-        data.usuarios.forEach((user: any) => {
-            // Consultas
-            user.servicios?.consultas?.forEach((c: any) => {
-                if (c.codConsulta) {
-                    counts.set(c.codConsulta, (counts.get(c.codConsulta) || 0) + 1);
-                }
-            });
-            // Procedimientos
-            user.servicios?.procedimientos?.forEach((p: any) => {
-                if (p.codProcedimiento) {
-                    counts.set(p.codProcedimiento, (counts.get(p.codProcedimiento) || 0) + 1);
-                }
-            });
-            // Medicamentos
-            user.servicios?.medicamentos?.forEach((m: any) => {
-                if (m.codTecnologiaSalud) {
-                    const quantity = Number(m.cantidadMedicamento) || 0;
-                    counts.set(m.codTecnologiaSalud, (counts.get(m.codTecnologiaSalud) || 0) + quantity);
-                }
-            });
-            // Otros Servicios
-            user.servicios?.otrosServicios?.forEach((os: any) => {
-                if (os.codTecnologiaSalud) {
-                    const quantity = Number(os.cantidadOS) || 0;
-                    counts.set(os.codTecnologiaSalud, (counts.get(os.codTecnologiaSalud) || 0) + quantity);
-                }
-            });
+    jsonData.usuarios.forEach((user: any) => {
+        // Consultas
+        user.servicios?.consultas?.forEach((c: any) => {
+            if (c.codConsulta) {
+                counts.set(c.codConsulta, (counts.get(c.codConsulta) || 0) + 1);
+            }
         });
-    }
+        // Procedimientos
+        user.servicios?.procedimientos?.forEach((p: any) => {
+            if (p.codProcedimiento) {
+                counts.set(p.codProcedimiento, (counts.get(p.codProcedimiento) || 0) + 1);
+            }
+        });
+        // Medicamentos
+        user.servicios?.medicamentos?.forEach((m: any) => {
+            if (m.codTecnologiaSalud) {
+                const quantity = Number(m.cantidadMedicamento) || 0;
+                counts.set(m.codTecnologiaSalud, (counts.get(m.codTecnologiaSalud) || 0) + quantity);
+            }
+        });
+        // Otros Servicios
+        user.servicios?.otrosServicios?.forEach((os: any) => {
+            if (os.codTecnologiaSalud) {
+                const quantity = Number(os.cantidadOS) || 0;
+                counts.set(os.codTecnologiaSalud, (counts.get(os.codTecnologiaSalud) || 0) + quantity);
+            }
+        });
+    });
 
     return counts;
 };
 
-
-export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJsonPrestadorCode }: JsonAnalyzerPageProps) {
+export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCode }: JsonAnalyzerPageProps) {
   const [files, setFiles] = useState<FileState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
   const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(true);
-  const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
   
-  const filesPerMonth = files.reduce((acc, file) => {
-    acc[file.month] = (acc[file.month] || 0) + 1;
+  const filesByMonth = files.reduce((acc, file) => {
+    const monthFiles = acc.get(file.month) || [];
+    monthFiles.push(file);
+    acc.set(file.month, monthFiles);
     return acc;
-  }, {} as Record<string, number>);
+  }, new Map<string, FileState[]>());
 
-  const loadedMonthsCount = Object.keys(filesPerMonth).length;
-  const canUploadForCurrentMonth = (filesPerMonth[selectedMonth] || 0) < 2;
-  const canSelectNewMonth = loadedMonthsCount < 3;
-
+  const loadedMonthsCount = filesByMonth.size;
+  const filesInCurrentMonth = filesByMonth.get(selectedMonth)?.length || 0;
+  const canUploadForCurrentMonth = filesInCurrentMonth < 2;
+  const canSelectNewMonth = loadedMonthsCount < 3 || filesByMonth.has(selectedMonth);
 
   useEffect(() => {
     setIsClient(true);
@@ -123,7 +122,6 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
             throw new Error("No se encontraron datos de prestadores. Verifique la hoja de cálculo.");
         }
         setProviders(providersMap);
-        setIsProvidersDataLoaded(true);
         toast({ title: "Datos de Prestadores Cargados", description: `Se cargaron ${providersMap.size} registros.` });
     } catch (e: any) {
         const errorMessage = e instanceof Error ? e.message : 'Ocurrió un error inesperado.';
@@ -140,10 +138,19 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     }
   }, [isClient, handleLoadProviders]);
 
-
   const handleFileLoad = useCallback((loadedFiles: File[]) => {
     setError(null);
     setShowDuplicateAlert(false);
+
+    if (filesInCurrentMonth + loadedFiles.length > 2) {
+        toast({ title: 'Límite de archivos excedido', description: `Solo puedes cargar un máximo de 2 archivos por mes.`, variant: 'destructive' });
+        return;
+    }
+
+    if (loadedMonthsCount >= 3 && !filesByMonth.has(selectedMonth)) {
+        toast({ title: 'Límite de meses alcanzado', description: `Solo puedes cargar archivos para un máximo de 3 meses distintos.`, variant: 'destructive' });
+        return;
+    }
 
     const filePromises = loadedFiles.map(file => {
         return new Promise<FileState>((resolve, reject) => {
@@ -167,7 +174,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
 
                 } catch (err: any) {
                     const errorMessage = err instanceof Error ? `Error al parsear ${file.name}: ${err.message}`: `Error inesperado al parsear ${file.name}.`;
-                    setError(prev => prev ? `${prev}\\n${errorMessage}` : errorMessage);
+                    setError(prev => prev ? `${prev}\n${errorMessage}` : errorMessage);
                     toast({ title: "Error de Archivo", description: errorMessage, variant: "destructive" });
                     reject(err);
                 }
@@ -180,31 +187,40 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
         setFiles(prevFiles => [...prevFiles, ...processedFiles]);
     });
 
-  }, [providers, toast, selectedMonth]);
+  }, [providers, toast, selectedMonth, filesInCurrentMonth, loadedMonthsCount, filesByMonth]);
 
   useEffect(() => {
-    const loadedJsonData = files.map(f => f.jsonData).filter(Boolean);
+    const dataByMonth: ExecutionDataByMonth = new Map();
+    const allNits: string[] = [];
+
+    files.forEach(file => {
+      if (file.jsonData) {
+        allNits.push(file.jsonData.numDocumentoIdObligado);
+      }
+    });
+    const uniqueNits = new Set(allNits);
+    setShowDuplicateAlert(allNits.length > uniqueNits.size);
     
-    if (loadedJsonData.length > 0) {
-        setCupCounts(calculateCupCounts(loadedJsonData));
-
-        // Set prestador code from the first file
-        const firstPrestadorCode = loadedJsonData[0]?.codPrestador;
-        if (firstPrestadorCode) {
-            setJsonPrestadorCode(String(firstPrestadorCode).trim());
-        }
-
-        const nits = loadedJsonData.map(d => d.numDocumentoIdObligado).filter(Boolean);
-        const uniqueNits = new Set(nits);
-        setShowDuplicateAlert(nits.length > uniqueNits.size);
+    if (files.length > 0) {
+      const firstPrestadorCode = files[0].jsonData?.codPrestador;
+      if (firstPrestadorCode) {
+        setJsonPrestadorCode(String(firstPrestadorCode).trim());
+      }
     } else {
-        setCupCounts(new Map());
-        setJsonPrestadorCode(null);
+      setJsonPrestadorCode(null);
     }
+    
+    filesByMonth.forEach((monthFiles, month) => {
+        const monthCupCounts: CupCountsMap = new Map();
+        
+        const combinedSummary = monthFiles.reduce((acc, file) => {
+            const summary = calculateSummary(file.jsonData);
+            const fileCupCounts = calculateCupCounts(file.jsonData);
 
-    if (loadedJsonData.length > 1) {
-        const combinedSummary = loadedJsonData.reduce((acc, data) => {
-            const summary = calculateSummary(data);
+            fileCupCounts.forEach((count, cup) => {
+                monthCupCounts.set(cup, (monthCupCounts.get(cup) || 0) + count);
+            });
+
             acc.numUsuarios += summary.numUsuarios;
             acc.numConsultas += summary.numConsultas;
             acc.numProcedimientos += summary.numProcedimientos;
@@ -212,27 +228,30 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
             acc.totalOtrosServicios += summary.totalOtrosServicios;
             return acc;
         }, {
-            numFactura: 'Combinado',
+            numFactura: monthFiles.length > 1 ? `Combinado (${monthFiles.length} archivos)`: monthFiles[0].fileName,
             numUsuarios: 0,
             numConsultas: 0,
             numProcedimientos: 0,
             totalMedicamentos: 0,
             totalOtrosServicios: 0,
         });
-        setUnifiedSummary(combinedSummary);
-    } else if (loadedJsonData.length === 1) {
-        setUnifiedSummary(calculateSummary(loadedJsonData[0]));
-    } else {
-        setUnifiedSummary(null);
-    }
-  }, [files, setUnifiedSummary, setCupCounts, setJsonPrestadorCode]);
+
+        dataByMonth.set(month, {
+            cupCounts: monthCupCounts,
+            summary: combinedSummary
+        });
+    });
+
+    setExecutionData(dataByMonth);
+
+  }, [files, filesByMonth, setExecutionData, setJsonPrestadorCode]);
+
 
   const handleReset = () => {
     setFiles([]);
     setError(null);
     setShowDuplicateAlert(false);
-    setUnifiedSummary(null);
-    setCupCounts(new Map());
+    setExecutionData(new Map());
     setJsonPrestadorCode(null);
   };
   
@@ -245,11 +264,9 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     );
   }
   
-  const isUploadDisabled = isLoadingProviders || !isProvidersDataLoaded || !canUploadForCurrentMonth || (!canSelectNewMonth && !filesPerMonth[selectedMonth]);
-
+  const isUploadDisabled = isLoadingProviders || !canUploadForCurrentMonth || !canSelectNewMonth;
 
   const anyFileLoaded = files.length > 0;
-  const loadedFileNames = files.map(f => f.fileName).filter(Boolean) as string[];
 
   return (
     <div className="w-full space-y-8 mt-4">
@@ -263,7 +280,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
                     </CardDescription>
                 </div>
                  <div className="flex items-center gap-2">
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth} >
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!canSelectNewMonth}>
                         <SelectTrigger className="w-[180px]">
                             <Calendar className="mr-2 h-4 w-4" />
                             <SelectValue placeholder="Seleccionar mes..." />
@@ -295,8 +312,8 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
           <CardContent>
             <FileUpload 
                 onFileLoad={handleFileLoad} 
-                disabled={isUploadDisabled} 
-                loadedFileNames={files.filter(f => f.month === selectedMonth).map(f => f.fileName as string)}
+                disabled={isUploadDisabled}
+                loadedFileNames={filesByMonth.get(selectedMonth)?.map(f => f.fileName as string) || []}
                 maxFiles={2}
              />
           </CardContent>
@@ -349,5 +366,3 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     </div>
   );
 }
-
-    

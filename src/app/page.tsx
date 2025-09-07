@@ -2,14 +2,15 @@
 "use client";
 
 import { useState } from "react";
-import JsonAnalyzerPage from "@/components/app/JsonAnalyzerPage";
+import JsonAnalyzerPage, { type MonthlyExecutionData } from "@/components/app/JsonAnalyzerPage";
 import PgpSearchPage from "@/components/app/PgpSearchPage";
 
 export type CupCountsMap = Map<string, number>;
+export type ExecutionDataByMonth = Map<string, MonthlyExecutionData>;
+
 
 export default function Home() {
-  const [unifiedSummary, setUnifiedSummary] = useState<any | null>(null);
-  const [cupCounts, setCupCounts] = useState<CupCountsMap>(new Map());
+  const [executionData, setExecutionData] = useState<ExecutionDataByMonth>(new Map());
   const [jsonPrestadorCode, setJsonPrestadorCode] = useState<string | null>(null);
 
 
@@ -30,8 +31,7 @@ export default function Home() {
           <div className="space-y-6">
              <h2 className="text-2xl font-semibold text-center">Análisis de Datos Reales (JSON)</h2>
              <JsonAnalyzerPage 
-                setUnifiedSummary={setUnifiedSummary} 
-                setCupCounts={setCupCounts}
+                setExecutionData={setExecutionData} 
                 setJsonPrestadorCode={setJsonPrestadorCode}
               />
           </div>
@@ -40,8 +40,7 @@ export default function Home() {
           <div className="space-y-6">
              <h2 className="text-2xl font-semibold text-center">Análisis de Nota Técnica (PGP)</h2>
              <PgpSearchPage 
-                unifiedSummary={unifiedSummary} 
-                cupCounts={cupCounts} 
+                executionDataByMonth={executionData}
                 jsonPrestadorCode={jsonPrestadorCode}
               />
           </div>

@@ -13,12 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
-import StatCard from '@/components/shared/StatCard';
-import { CupCountsMap } from '@/app/page';
+import { CupCountsMap, ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard'; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-// Types moved from the server file to the client component
 interface PgpRow {
   SUBCATEGORIA?: string;
   AMBITO?: string;
@@ -57,26 +55,26 @@ interface SummaryData {
   totalAnual: number;
 }
 
-interface ComparisonData {
+interface MonthlyComparisonData {
     cup: string;
     description: string;
     expectedFrequency: number;
-    realFrequency: number;
-    difference: number;
+    realFrequencies: Map<string, number>; // month -> frequency
+    totalRealFrequency: number;
 }
+
 
 export interface ValueComparisonItem {
     cup: string;
     description: string;
     unitValue: number;
     expectedValue: number;
-    executedValue: number;
-    difference: number;
+    executedValues: Map<string, number>; // month -> value
+    totalExecutedValue: number;
 }
 
 interface PgPsearchFormProps {
-  unifiedSummary: any | null;
-  cupCounts: CupCountsMap;
+  executionDataByMonth: ExecutionDataByMonth;
   jsonPrestadorCode: string | null;
 }
 
@@ -95,7 +93,6 @@ export const getNumericValue = (value: any): number => {
     if (typeof value !== 'string') {
         value = String(value ?? '0');
     }
-    // Handles US-style from Google Sheets ("1,234.56")
     const cleanValue = value.replace(/[$,]/g, '').trim();
     const num = parseFloat(cleanValue);
     return isNaN(num) ? 0 : num;
@@ -224,8 +221,8 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
 };
 
 
-const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts: CupCountsMap }) => {
-    const comparisonData: ComparisonData[] = pgpData.map(row => {
+const ComparisonTable = ({ pgpData, executionDataByMonth, monthNames }: { pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth, monthNames: string[] }) => {
+    const comparisonData: MonthlyComparisonData[] = pgpData.map(row => {
         const findColumn = (possibleNames: string[]) => {
             for (const name of possibleNames) {
                 const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
@@ -236,18 +233,25 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
 
         const cup = findColumn(['cup/cum', 'cups']);
         const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
-        const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
-        const difference = realFrequency - expectedFrequency;
         const description = findColumn(['descripcion cups', 'descripcion']);
+
+        const realFrequencies = new Map<string, number>();
+        let totalRealFrequency = 0;
+
+        executionDataByMonth.forEach((data, month) => {
+            const realFrequency = cup ? data.cupCounts.get(cup) || 0 : 0;
+            realFrequencies.set(month, realFrequency);
+            totalRealFrequency += realFrequency;
+        });
 
         return {
             cup,
             description,
             expectedFrequency,
-            realFrequency,
-            difference,
+            realFrequencies,
+            totalRealFrequency,
         };
-    }).filter(item => item.cup && item.realFrequency > 0);
+    }).filter(item => item.cup && item.totalRealFrequency > 0);
 
     if (comparisonData.length === 0) {
         return (
@@ -276,8 +280,9 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
                                 <TableHead>CUPS / CUM</TableHead>
                                 <TableHead>Descripción</TableHead>
                                 <TableHead className="text-center">Frec. Esperada (Mes)</TableHead>
-                                <TableHead className="text-center">Frec. Real (JSON)</TableHead>
-                                <TableHead className="text-center">Diferencia</TableHead>
+                                {monthNames.map(month => (
+                                   <TableHead key={month} className="text-center">Frec. Real ({month})</TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -286,10 +291,15 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
                                     <TableCell className="font-mono">{item.cup}</TableCell>
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell className="text-center">{item.expectedFrequency.toLocaleString()}</TableCell>
-                                    <TableCell className="text-center font-semibold">{item.realFrequency.toLocaleString()}</TableCell>
-                                    <TableCell className={`text-center font-bold ${item.difference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {item.difference > 0 ? `+${item.difference.toLocaleString()}` : item.difference.toLocaleString()}
-                                    </TableCell>
+                                    {[...executionDataByMonth.keys()].map(monthKey => {
+                                        const realFrequency = item.realFrequencies.get(monthKey) || 0;
+                                        const difference = realFrequency - item.expectedFrequency;
+                                        return (
+                                           <TableCell key={monthKey} className={`text-center font-semibold ${difference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                {realFrequency.toLocaleString()}
+                                            </TableCell>
+                                        );
+                                    })}
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -301,7 +311,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
 };
 
 
-const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts, jsonPrestadorCode }) => {
+const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
     const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
@@ -314,7 +324,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
     const [valueComparison, setValueComparison] = useState<ValueComparisonItem[]>([]);
     const [totalExpectedValue, setTotalExpectedValue] = useState(0);
-    const [totalExecutedValue, setTotalExecutedValue] = useState(0);
+    const [totalExecutedValueByMonth, setTotalExecutedValueByMonth] = useState<Map<string, number>>(new Map());
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isAiEnabled, setIsAiEnabled] = useState(false);
@@ -428,9 +438,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
             const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
             setMismatchWarning(warningMsg);
-            setPrestadorToLoad(prestador); // Store the prestador to load, but don't load it yet
+            setPrestadorToLoad(prestador); 
         } else {
-            // If it matches, load it directly
             performLoadPrestador(prestador);
         }
     }, [jsonPrestadorCode, performLoadPrestador]);
@@ -481,9 +490,13 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         }
     }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, performLoadPrestador, toast]);
     
-    const calculateValueComparison = useCallback((pgpData: PgpRow[], cupCounts: CupCountsMap) => {
+    const calculateValueComparison = useCallback((pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth) => {
         let totalExpected = 0;
-        let totalExecuted = 0;
+        const totalExecutedByMonth = new Map<string, number>();
+
+        executionDataByMonth.forEach((_, month) => {
+            totalExecutedByMonth.set(month, 0);
+        });
         
         const comparisonData = pgpData.map(row => {
             const findColumn = (possibleNames: string[]) => {
@@ -498,39 +511,53 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
             const description = findColumn(['descripcion cups', 'descripcion']);
             const unitValue = getNumericValue(findColumn(['valor unitario']));
             const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
-            const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
 
             const expectedValue = unitValue * expectedFrequency;
-            const executedValue = unitValue * realFrequency;
-
             totalExpected += expectedValue;
-            totalExecuted += executedValue;
+            
+            const executedValues = new Map<string, number>();
+            let totalExecutedValue = 0;
+
+            executionDataByMonth.forEach((data, month) => {
+                 const realFrequency = cup ? data.cupCounts.get(cup) || 0 : 0;
+                 const executedValue = unitValue * realFrequency;
+                 executedValues.set(month, executedValue);
+                 totalExecutedValue += executedValue;
+                 totalExecutedByMonth.set(month, (totalExecutedByMonth.get(month) || 0) + executedValue);
+            });
+
 
             return {
                 cup,
                 description,
                 unitValue,
                 expectedValue,
-                executedValue,
-                difference: executedValue - expectedValue,
+                executedValues,
+                totalExecutedValue
             };
-        }).filter(item => item.cup && (item.executedValue > 0 || item.expectedValue > 0));
+        }).filter(item => item.cup && (item.totalExecutedValue > 0 || item.expectedValue > 0));
 
         setValueComparison(comparisonData);
         setTotalExpectedValue(totalExpected);
-        setTotalExecutedValue(totalExecuted);
+        setTotalExecutedValueByMonth(totalExecutedByMonth);
 
     }, []);
 
     useEffect(() => {
-        if (isDataLoaded && pgpData.length > 0 && cupCounts) {
-            calculateValueComparison(pgpData, cupCounts);
+        if (isDataLoaded && pgpData.length > 0 && executionDataByMonth.size > 0) {
+            calculateValueComparison(pgpData, executionDataByMonth);
         } else {
             setValueComparison([]);
             setTotalExpectedValue(0);
-            setTotalExecutedValue(0);
+            setTotalExecutedValueByMonth(new Map());
         }
-    }, [isDataLoaded, pgpData, cupCounts, calculateValueComparison]);
+    }, [isDataLoaded, pgpData, executionDataByMonth, calculateValueComparison]);
+
+    const getMonthName = (monthNumber: string) => {
+        const date = new Date();
+        date.setMonth(parseInt(monthNumber) - 1);
+        return date.toLocaleString('es-CO', { month: 'long' });
+    }
 
     if (!isClient) {
         return (
@@ -541,7 +568,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         );
     }
 
-    const showComparison = isDataLoaded && cupCounts && cupCounts.size > 0;
+    const showComparison = isDataLoaded && executionDataByMonth.size > 0;
+    const monthNames = [...executionDataByMonth.keys()].map(m => getMonthName(m));
+
 
     return (
         <Card>
@@ -602,11 +631,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                         
                         { showComparison && (
                             <>
-                                <ComparisonTable pgpData={pgpData} cupCounts={cupCounts} />
+                                <ComparisonTable 
+                                    pgpData={pgpData} 
+                                    executionDataByMonth={executionDataByMonth} 
+                                    monthNames={monthNames} 
+                                />
                                 <ValueComparisonCard 
                                     expectedValue={totalExpectedValue}
-                                    executedValue={totalExecutedValue}
+                                    executedValueByMonth={totalExecutedValueByMonth}
                                     comparisonData={valueComparison}
+                                    executionDataByMonth={executionDataByMonth}
+                                    monthNames={monthNames}
                                 />
                             </>
                         )}
@@ -618,5 +653,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
-
-    
