@@ -16,6 +16,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard'; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import FinancialSummaryMatrix from './FinancialSummaryMatrix';
 
 interface PgpRow {
   SUBCATEGORIA?: string;
@@ -48,7 +49,7 @@ interface AnalyzePgpDataOutput {
 
 type Prestador = PrestadorInfo;
 
-interface SummaryData {
+export interface SummaryData {
   totalCostoMes: number;
   totalAnual: number;
   costoMinimoMes: number;
@@ -89,20 +90,16 @@ export const formatCurrency = (value: number | null | undefined): string => {
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined) return 0;
     
-    // Convert to string and trim whitespace
     const strValue = String(value).trim();
 
-    // Check if the string is empty
     if (strValue === '') return 0;
 
-    // Handle US-style numbers from Google Sheets ("1,234.56")
     if (strValue.includes(',')) {
        const cleanValue = strValue.replace(/[$,]/g, '');
        const numericValue = parseFloat(cleanValue);
        return isNaN(numericValue) ? 0 : numericValue;
     }
 
-    // Handle simple decimals ("0.48467") or integers ("123")
     const numericValue = parseFloat(strValue);
     return isNaN(numericValue) ? 0 : numericValue;
 };
@@ -356,8 +353,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         setIsDataLoaded(false);
         setGlobalSummary(null);
         setAnalysis(null);
-        setMismatchWarning(null); // Clear warning once loading starts
-        setPrestadorToLoad(null); // Clear pending load
+        setMismatchWarning(null); 
+        setPrestadorToLoad(null); 
         toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
         try {
@@ -442,16 +439,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
     const handleSelectPrestador = useCallback((prestador: Prestador) => {
         setSelectedPrestador(prestador);
-        setMismatchWarning(null); // Clear previous warnings
-        setIsDataLoaded(false); // Hide old data while deciding
+        setMismatchWarning(null);
+        setIsDataLoaded(false); 
         
         const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
         if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
             const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
             setMismatchWarning(warningMsg);
-            setPrestadorToLoad(prestador); // Set the prestador to be loaded if the user confirms
+            setPrestadorToLoad(prestador); 
         } else {
-            performLoadPrestador(prestador); // If they match or no JSON is loaded, load directly
+            performLoadPrestador(prestador); 
         }
     }, [jsonPrestadorCode, performLoadPrestador]);
 
@@ -655,6 +652,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                                     executionDataByMonth={executionDataByMonth}
                                     monthNames={monthNames}
                                 />
+                                {[...totalExecutedValueByMonth.entries()].map(([month, executedValue]) => (
+                                    <FinancialSummaryMatrix
+                                        key={month}
+                                        summary={globalSummary}
+                                        executedValue={executedValue}
+                                        monthName={getMonthName(month)}
+                                    />
+                                ))}
                             </>
                         )}
                     </div>
@@ -665,5 +670,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    
