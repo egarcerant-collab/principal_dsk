@@ -231,6 +231,57 @@ export default function JsonAnalyzerPage() {
                 </AlertDescription>
             </Alert>
         )}
+
+        {anyFileLoaded && (
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {file1.jsonData && (
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Building className="h-5 w-5 text-primary" />
+                                Prestador Archivo 1
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {file1.prestadorInfo ? (
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file1.jsonData.numDocumentoIdObligado}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+                {file2.jsonData && (
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Building className="h-5 w-5 text-primary" />
+                                Prestador Archivo 2
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {file2.prestadorInfo ? (
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file2.jsonData.numDocumentoIdObligado}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+             </div>
+        )}
         
         {unifiedSummary && (
             <Card className="w-full shadow-lg border-primary/20">
@@ -256,30 +307,6 @@ export default function JsonAnalyzerPage() {
             {/* Visualizer 1 */}
             <div className="space-y-4">
                {file1.jsonData && (
-                <>
-                
-                    <Card className="shadow-lg">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <Building className="h-5 w-5 text-primary" />
-                                Prestador Archivo 1
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {file1.prestadorInfo ? (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file1.jsonData.numDocumentoIdObligado}</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                
                 <Card>
                     <CardHeader>
                     <CardTitle className="flex items-center justify-between">
@@ -290,37 +317,12 @@ export default function JsonAnalyzerPage() {
                         <DataVisualizer data={file1.jsonData} />
                     </CardContent>
                 </Card>
-                </>
                )}
             </div>
             
             {/* Visualizer 2 */}
             <div className="space-y-4">
                {file2.jsonData && (
-                <>
-                
-                    <Card className="shadow-lg">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-xl">
-                                <Building className="h-5 w-5 text-primary" />
-                                Prestador Archivo 2
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {file2.prestadorInfo ? (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col">
-                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
-                                    <p className="text-sm text-muted-foreground">NIT: {file2.jsonData.numDocumentoIdObligado}</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                
                 <Card>
                     <CardHeader>
                     <CardTitle className="flex items-center justify-between">
@@ -331,7 +333,6 @@ export default function JsonAnalyzerPage() {
                         <DataVisualizer data={file2.jsonData} />
                     </CardContent>
                 </Card>
-                </>
                )}
             </div>
         </div>
