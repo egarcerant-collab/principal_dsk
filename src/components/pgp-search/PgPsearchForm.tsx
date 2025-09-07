@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -33,7 +34,7 @@ interface PgpRow {
   'VALOR MAXIMO MES'?: number;
   'COSTO EVENTO MES (VALOR MES)'?: number;
   OBSERVACIONES?: string;
-  [key: string]: any; 
+  [key: string]: any;
 }
 
 interface AnalyzePgpDataOutput {
@@ -41,7 +42,6 @@ interface AnalyzePgpDataOutput {
     potentialRisks: string[];
     strategicRecommendations: string[];
 }
-
 
 interface Prestador {
     NIT: string;
@@ -168,14 +168,15 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
 }
 
 const getNumericValue = (value: any): number => {
-    if (value === null || value === undefined || typeof value !== 'string') return 0;
-    
-    // Remove '$' and whitespace. Then remove '.' as thousand separators. Then replace ',' with '.' for decimal.
-    const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-
+    if (typeof value !== 'string' || value.trim() === '') {
+        return 0;
+    }
+    // Remove '$', spaces, and '.' as thousand separators, then replace ',' with '.' for decimal
+    const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
     const number = parseFloat(cleanValue);
     return isNaN(number) ? 0 : number;
 };
+
 
 const PgPsearchForm: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
@@ -326,9 +327,9 @@ const PgPsearchForm: React.FC = () => {
             try {
                 const analysisInput = pgpRows.slice(0, 50).map(row => {
                     const getNumericAI = (value: any) => {
-                         if (value === null || value === undefined || typeof value !== 'string') return 0;
-                        const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
-                        return parseFloat(cleanValue) || 0;
+                         if (typeof value !== 'string' || value.trim() === '') return 0;
+                         const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                         return parseFloat(cleanValue) || 0;
                     };
                     return {
                         'SUBCATEGORIA': row.SUBCATEGORIA,
@@ -339,7 +340,7 @@ const PgPsearchForm: React.FC = () => {
                         'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
                         'FRECUENCIA AÑO SERVICIO': getNumericAI(row['FRECUENCIA AÑO SERVICIO']),
                         'FRECUENCIA USO': getNumericAI(row['FRECUENCIA USO']),
-                        'FRECUENCIA EVENTOS MES': getNumericAI(row['FRECUENCIA EVENTOS MES']),
+                        'FRECUencia EVENTOS MES': getNumericAI(row['FRECUENCIA EVENTOS MES']),
                         'FRECUENCIA EVENTO DIA': getNumericAI(row['FRECUENCIA EVENTO DIA']),
                         'COSTO EVENTO MES': getNumericAI(row['COSTO EVENTO MES']),
                         'COSTO EVENTO DIA': getNumericAI(row['COSTO EVENTO DIA']),
@@ -464,3 +465,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    
