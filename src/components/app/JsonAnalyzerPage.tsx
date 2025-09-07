@@ -19,6 +19,7 @@ interface FileState {
     jsonData: any | null;
     fileName: string | null;
     prestadorInfo: PrestadorInfo | null;
+    month: string;
 }
 
 interface JsonAnalyzerPageProps {
@@ -97,6 +98,16 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
   const [isClient, setIsClient] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
+  
+  const filesPerMonth = files.reduce((acc, file) => {
+    acc[file.month] = (acc[file.month] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const loadedMonthsCount = Object.keys(filesPerMonth).length;
+  const canUploadForCurrentMonth = (filesPerMonth[selectedMonth] || 0) < 2;
+  const canSelectNewMonth = loadedMonthsCount < 3;
+
 
   useEffect(() => {
     setIsClient(true);
@@ -134,8 +145,6 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     setError(null);
     setShowDuplicateAlert(false);
 
-    const newFiles: FileState[] = [];
-
     const filePromises = loadedFiles.map(file => {
         return new Promise<FileState>((resolve, reject) => {
             const reader = new FileReader();
@@ -153,6 +162,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
                         jsonData: parsedJson,
                         fileName: file.name,
                         prestadorInfo: prestadorInfo,
+                        month: selectedMonth
                     });
 
                 } catch (err: any) {
@@ -170,7 +180,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
         setFiles(prevFiles => [...prevFiles, ...processedFiles]);
     });
 
-  }, [providers, toast]);
+  }, [providers, toast, selectedMonth]);
 
   useEffect(() => {
     const loadedJsonData = files.map(f => f.jsonData).filter(Boolean);
@@ -234,6 +244,9 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
         </div>
     );
   }
+  
+  const isUploadDisabled = isLoadingProviders || !isProvidersDataLoaded || !canUploadForCurrentMonth || (!canSelectNewMonth && !filesPerMonth[selectedMonth]);
+
 
   const anyFileLoaded = files.length > 0;
   const loadedFileNames = files.map(f => f.fileName).filter(Boolean) as string[];
@@ -246,11 +259,11 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
                 <div>
                     <CardTitle>Carga tus Archivos JSON</CardTitle>
                     <CardDescription>
-                        Selecciona el mes y carga hasta 3 archivos JSON para analizarlos.
+                       Selecciona el mes y carga hasta 2 archivos JSON. Puedes añadir hasta 3 meses.
                     </CardDescription>
                 </div>
                  <div className="flex items-center gap-2">
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth} >
                         <SelectTrigger className="w-[180px]">
                             <Calendar className="mr-2 h-4 w-4" />
                             <SelectValue placeholder="Seleccionar mes..." />
@@ -282,8 +295,9 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
           <CardContent>
             <FileUpload 
                 onFileLoad={handleFileLoad} 
-                disabled={isLoadingProviders || !isProvidersDataLoaded || loadedFileNames.length >= 3} 
-                loadedFileNames={loadedFileNames}
+                disabled={isUploadDisabled} 
+                loadedFileNames={files.filter(f => f.month === selectedMonth).map(f => f.fileName as string)}
+                maxFiles={2}
              />
           </CardContent>
         </Card>
@@ -335,3 +349,5 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJ
     </div>
   );
 }
+
+    

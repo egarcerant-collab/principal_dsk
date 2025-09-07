@@ -11,9 +11,10 @@ interface FileUploadProps {
   onFileLoad: (files: File[]) => void;
   disabled?: boolean;
   loadedFileNames: string[];
+  maxFiles?: number;
 }
 
-export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: FileUploadProps) {
+export default function FileUpload({ onFileLoad, disabled, loadedFileNames, maxFiles = 2 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -31,6 +32,16 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
             invalidFiles.push(file.name);
         }
     });
+    
+    if (loadedFileNames.length + jsonFiles.length > maxFiles) {
+        toast({
+            title: 'Límite de archivos excedido',
+            description: `Solo puedes cargar un máximo de ${maxFiles} archivos por mes.`,
+            variant: 'destructive'
+        });
+        return;
+    }
+
 
     if (invalidFiles.length > 0) {
         toast({ 
@@ -112,13 +123,13 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
       {hasFiles ? (
         <div className="flex flex-col items-center justify-center gap-2 text-center">
             <FileJson className="h-10 w-10 text-green-600" />
-            <p className="font-medium text-green-800">Archivos cargados:</p>
+            <p className="font-medium text-green-800">Archivos cargados para este mes:</p>
             <ul className="text-sm text-green-700 list-none p-0 m-0">
             {loadedFileNames.map((name, index) => (
                  <li key={index} className="truncate max-w-xs">{name}</li>
             ))}
             </ul>
-             {loadedFileNames.length < 3 && !disabled && (
+             {loadedFileNames.length < maxFiles && !disabled && (
                  <Button type="button" variant="secondary" size="sm" className="mt-2">Añadir otro archivo</Button>
             )}
         </div>
@@ -126,7 +137,7 @@ export default function FileUpload({ onFileLoad, disabled, loadedFileNames }: Fi
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <UploadCloud className="h-12 w-12" />
             <p className="font-semibold text-foreground">
-            Arrastra o selecciona hasta 3 archivos
+             Arrastra o selecciona hasta {maxFiles} archivos
             </p>
             <p className="text-sm">o</p>
             <Button type="button" variant="secondary" size="sm" disabled={disabled}>
