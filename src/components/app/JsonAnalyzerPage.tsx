@@ -7,16 +7,10 @@ import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
-import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
-
-interface PrestadorInfo {
-  NIT: string;
-  PRESTADOR: string;
-  WEB: string;
-}
+import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 
 interface FileState {
     jsonData: any | null;
@@ -34,36 +28,20 @@ const initialFileState: FileState = {
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
-    // The gid=0 part of the URL is important to select the first sheet.
-    const url = PROVIDERS_SHEET_URL.replace('/edit?gid=0#gid=0', '/gviz/tq?tqx=out:csv&gid=0');
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error('No se pudo cargar la información de los prestadores.');
-    }
-    const csvText = await response.text();
-    return new Promise((resolve, reject) => {
-        Papa.parse<PrestadorInfo>(csvText, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const map = new Map<string, PrestadorInfo>();
-                results.data.forEach(row => {
-                    if (row.NIT) {
-                        const cleanNit = row.NIT.trim();
-                        map.set(cleanNit, {
-                            NIT: cleanNit,
-                            PRESTADOR: row.PRESTADOR ? row.PRESTADOR.trim() : 'Nombre no encontrado',
-                            WEB: row.WEB ? row.WEB.trim() : ''
-                        });
-                    }
-                });
-                resolve(map);
-            },
-            error: (error: Error) => {
-                reject(error);
-            }
-        });
+    const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
+    const map = new Map<string, PrestadorInfo>();
+    providersList.forEach(provider => {
+        if (provider.NIT) {
+            const cleanNit = String(provider.NIT).trim();
+            map.set(cleanNit, {
+                ...provider,
+                NIT: cleanNit,
+                PRESTADOR: provider.PRESTADOR ? String(provider.PRESTADOR).trim() : 'Nombre no encontrado',
+                WEB: provider.WEB ? String(provider.WEB).trim() : ''
+            });
+        }
     });
+    return map;
 }
 
 
@@ -88,6 +66,9 @@ export default function JsonAnalyzerPage() {
     toast({ title: "Accediendo a la Base de Datos de Prestadores...", description: "Espere un momento, por favor." });
     try {
         const providersMap = await fetchProvidersData();
+        if (providersMap.size === 0) {
+            throw new Error("No se encontraron datos de prestadores. Verifique la hoja de cálculo.");
+        }
         setProviders(providersMap);
         setIsProvidersDataLoaded(true);
         toast({ title: "Datos de Prestadores Cargados", description: `Se cargaron ${providersMap.size} registros.` });
@@ -320,5 +301,3 @@ export default function JsonAnalyzerPage() {
     </div>
   );
 }
-
-    

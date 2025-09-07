@@ -33,7 +33,7 @@ const PgpRowSchemaForAI = z.object({
 type PgpRowForAI = z.infer<typeof PgpRowSchemaForAI>;
 
 const AnalyzePgpDataInputSchema = z.object({
-  jsonData: z.string(),
+  jsonData: z.string().describe("Una cadena de texto en formato JSON que representa una muestra de los datos de la nota técnica."),
 });
 
 const AnalyzePgpDataOutputSchema = z.object({
@@ -43,6 +43,7 @@ const AnalyzePgpDataOutputSchema = z.object({
 });
 
 export async function analyzePgpData(input: PgpRowForAI[]): Promise<z.infer<typeof AnalyzePgpDataOutputSchema>> {
+  // Convert the array of objects into a JSON string before passing to the flow.
   const dataAsString = JSON.stringify(input, null, 2);
   return analyzePgpDataFlow({ jsonData: dataAsString });
 }
@@ -55,7 +56,7 @@ const prompt = ai.definePrompt({
   Analiza la siguiente muestra de datos de una nota técnica y proporciona un resumen conciso y profesional.
   Tu análisis debe ser estratégico y centrado en la toma de decisiones.
 
-  Datos de la Nota Técnica:
+  Datos de la Nota Técnica (en formato JSON):
   {{{jsonData}}}
 
   Basado en estos datos, por favor, genera:
@@ -80,5 +81,3 @@ const analyzePgpDataFlow = ai.defineFlow(
     return output;
   }
 );
-
-    

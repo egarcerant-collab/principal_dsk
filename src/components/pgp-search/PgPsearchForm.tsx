@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon } from "lucide-react";
-import Papa, { type ParseResult } from 'papaparse';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 
 // Types moved from the server file to the client component
 interface PgpRow {
@@ -43,12 +43,7 @@ interface AnalyzePgpDataOutput {
     strategicRecommendations: string[];
 }
 
-interface Prestador {
-    NIT: string;
-    PRESTADOR: string;
-    'ID DE ZONA': string;
-    WEB: string;
-}
+type Prestador = PrestadorInfo;
 
 interface SummaryData {
   totalCostoMes: number;
@@ -59,7 +54,7 @@ interface SummaryData {
   totalMaximoAnual: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?usp=sharing";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return '$0';
@@ -67,21 +62,22 @@ const formatCurrency = (value: number | null | undefined): string => {
 };
 
 const getNumericValue = (value: any): number => {
-    if (typeof value !== 'string' || value.trim() === '') {
-        return 0;
+    if (typeof value !== 'string') {
+      value = String(value ?? '0');
     }
-    const cleanValue = value.replace(/[$\s]/g, '');
-    
-    // Handle formats like "1.234,56" and "1,234.56"
+    const cleanValue = value.trim().replace(/\$/g, '');
+
+    // Case 1: "1.234,56" (mil-dot, decimal-comma)
     if (cleanValue.includes(',') && cleanValue.includes('.')) {
-        // Assuming '.' is thousand separator and ',' is decimal
         return parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
-    } else if (cleanValue.includes(',')) {
-         // Assuming ',' is decimal separator
+    }
+    // Case 2: "1234,56" (decimal-comma)
+    if (cleanValue.includes(',')) {
         return parseFloat(cleanValue.replace(',', '.'));
     }
-    // Assumes '.' is a decimal separator if it's the only one
-    return parseFloat(cleanValue);
+    // Case 3: "1234.56" or "1234" (decimal-dot or no decimal)
+    // parseFloat will handle this correctly.
+    return parseFloat(cleanValue) || 0;
 };
 
 
@@ -203,48 +199,6 @@ const PgPsearchForm: React.FC = () => {
         setIsClient(true);
     }, []);
 
-    const fetchAndParseSheetData = useCallback(async (url: string): Promise<any[]> => {
-        const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        if (!idMatch) throw new Error("URL de Google Sheets inválida.");
-        const sheetId = idMatch[1];
-        const gidMatch = url.match(/gid=(\d+)/);
-        const gid = gidMatch ? gidMatch[1] : '0';
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
-        
-        const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
-        const csvText = await response.text();
-
-        return new Promise((resolve, reject) => {
-            Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: 'greedy',
-                complete: (results: ParseResult<any>) => {
-                    if (results.errors.length) {
-                        const errorMsg = results.errors.map(e => e.message).join(', ');
-                        console.error("Error de parseo Papaparse:", errorMsg);
-                        return reject(new Error(errorMsg));
-                    }
-                     const cleanedData = results.data.map(row => {
-                        const cleanedRow: { [key: string]: any } = {};
-                        for (const key in row) {
-                            if (Object.prototype.hasOwnProperty.call(row, key)) {
-                                const trimmedKey = key.trim();
-                                cleanedRow[trimmedKey] = row[key];
-                            }
-                        }
-                        return cleanedRow;
-                    });
-                    resolve(cleanedData);
-                },
-                error: (error: Error) => {
-                    console.error("Error en Papaparse:", error.message);
-                    reject(new Error(`Error parseando CSV: ${error.message}`))
-                }
-            });
-        });
-    }, []);
-
     useEffect(() => {
         if (!isClient) return;
         
@@ -252,8 +206,8 @@ const PgPsearchForm: React.FC = () => {
             setLoadingPrestadores(true);
             toast({ title: "Cargando lista de prestadores..." });
             try {
-                const data = await fetchAndParseSheetData(PRESTADORES_SHEET_URL);
-                const typedData = data.map(item => item as Prestador).filter(p => p.PRESTADOR && p.PRESTADOR.trim() !== '');
+                const data = await fetchSheetData<Prestador>(PRESTADORES_SHEET_URL);
+                const typedData = data.filter(p => p.PRESTADOR && String(p.PRESTADOR).trim() !== '');
                 setPrestadores(typedData);
                  if (typedData.length > 0) {
                     toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
@@ -268,7 +222,7 @@ const PgPsearchForm: React.FC = () => {
             }
         };
         fetchPrestadores();
-    }, [isClient, toast, fetchAndParseSheetData]);
+    }, [isClient, toast]);
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
@@ -306,7 +260,7 @@ const PgPsearchForm: React.FC = () => {
             if (!prestador.WEB || prestador.WEB.trim() === '') {
                 throw new Error("La URL de la nota técnica no está definida para este prestador.");
             }
-            const data = await fetchAndParseSheetData(prestador.WEB);
+            const data = await fetchSheetData<PgpRow>(prestador.WEB);
             
             const pgpRows: PgpRow[] = data.map(row => {
                 const newRow: Partial<PgpRow> = {};
@@ -334,9 +288,6 @@ const PgPsearchForm: React.FC = () => {
 
             try {
                 const analysisInput = pgpRows.slice(0, 50).map(row => {
-                    const getNumericAI = (value: any) => {
-                        return getNumericValue(value);
-                    };
                     return {
                         'SUBCATEGORIA': row.SUBCATEGORIA,
                         'AMBITO': row.AMBITO,
@@ -344,20 +295,20 @@ const PgPsearchForm: React.FC = () => {
                         'DESCRIPCION ID RESOLUCION': row['DESCRIPCION ID RESOLUCION'],
                         'CUP/CUM': row['CUP/CUM'],
                         'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
-                        'FRECUENCIA AÑO SERVICIO': getNumericAI(row['FRECUENCIA AÑO SERVICIO']),
-                        'FRECUENCIA USO': getNumericAI(row['FRECUENCIA USO']),
-                        'FRECUENCIA EVENTOS MES': getNumericAI(row['FRECUENCIA EVENTOS MES']),
-                        'FRECUENCIA EVENTO DIA': getNumericAI(row['FRECUENCIA EVENTO DIA']),
-                        'COSTO EVENTO MES': getNumericAI(row['COSTO EVENTO MES']),
-                        'COSTO EVENTO DIA': getNumericAI(row['COSTO EVENTO DIA']),
-                        'FRECUENCIA MINIMA MES': getNumericAI(row['FRECUENCIA MINIMA MES']),
-                        'FRECUENCIA MAXIMA MES': getNumericAI(row['FRECUENCIA MAXIMA MES']),
-                        'VALOR UNITARIO': getNumericAI(row['VALOR UNITARIO']),
-                        'VALOR MINIMO MES': getNumericAI(row['VALOR MINIMO MES']),
-                        'VALOR MAXIMO MES': getNumericAI(row['VALOR MAXIMO MES']),
+                        'FRECUENCIA AÑO SERVICIO': getNumericValue(row['FRECUENCIA AÑO SERVICIO']),
+                        'FRECUENCIA USO': getNumericValue(row['FRECUENCIA USO']),
+                        'FRECUENCIA EVENTOS MES': getNumericValue(row['FRECUENCIA EVENTOS MES']),
+                        'FRECUENCIA EVENTO DIA': getNumericValue(row['FRECUENCIA EVENTO DIA']),
+                        'COSTO EVENTO MES': getNumericValue(row['COSTO EVENTO MES']),
+                        'COSTO EVENTO DIA': getNumericValue(row['COSTO EVENTO DIA']),
+                        'FRECUENCIA MINIMA MES': getNumericValue(row['FRECUENCIA MINIMA MES']),
+                        'FRECUENCIA MAXIMA MES': getNumericValue(row['FRECUENCIA MAXIMA MES']),
+                        'VALOR UNITARIO': getNumericValue(row['VALOR UNITARIO']),
+                        'VALOR MINIMO MES': getNumericValue(row['VALOR MINIMO MES']),
+                        'VALOR MAXIMO MES': getNumericValue(row['VALOR MAXIMO MES']),
                         'COSTO EVENTO MES (VALOR MES)': row['COSTO EVENTO MES (VALOR MES)'] !== undefined
-                            ? getNumericAI(row['COSTO EVENTO MES (VALOR MES)'])
-                            : getNumericAI(row['COSTO EVENTO MES']),
+                            ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
+                            : getNumericValue(row['COSTO EVENTO MES']),
                         'OBSERVACIONES': row.OBSERVACIONES
                     }
                 })
@@ -471,5 +422,3 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
-
-    
