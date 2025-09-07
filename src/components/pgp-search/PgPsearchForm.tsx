@@ -55,8 +55,6 @@ interface SummaryData {
   upperBound: number;
   lowerBound: number;
   totalAnual: number;
-  totalMinimoAnual: number;
-  totalMaximoAnual: number;
 }
 
 interface ComparisonData {
@@ -94,18 +92,20 @@ export const getNumericValue = (value: any): number => {
     if (typeof value === 'number') {
         return value;
     }
-    if (typeof value !== 'string') {
-        value = String(value ?? '0');
+    if (typeof value === 'string') {
+        // Standard US format from Google Sheets (e.g., "1,234.56" or "1234.56")
+        // Also handles currency symbols.
+        const cleanValue = value.replace(/[$,]/g, '').trim();
+        const num = parseFloat(cleanValue);
+        return isNaN(num) ? 0 : num;
     }
-
-    // Remove currency symbols, thousands separators (dots for COP), and whitespace
-    let cleanValue = value.replace(/[$.]/g, '').trim();
-
-    // Replace comma decimal separator with a dot
-    cleanValue = cleanValue.replace(',', '.');
-
+     if (value === null || value === undefined) {
+        return 0;
+    }
+    // For any other type, try converting to string and then parsing.
+    const stringValue = String(value);
+    const cleanValue = stringValue.replace(/[$,]/g, '').trim();
     const num = parseFloat(cleanValue);
-
     return isNaN(num) ? 0 : num;
 };
 
@@ -351,17 +351,12 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
             const costo = findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']);
             return acc + costo;
         }, 0);
-        
-        const totalMinimoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor minimo mes']), 0);
-        const totalMaximoMes = data.reduce((acc, row) => acc + findColumnValue(row, ['valor maximo mes']), 0);
 
         return {
             totalCostoMes,
             lowerBound: totalCostoMes * 0.9,
             upperBound: totalCostoMes * 1.1,
             totalAnual: totalCostoMes * 12,
-            totalMinimoAnual: totalMinimoMes * 12,
-            totalMaximoAnual: totalMaximoMes * 12,
         };
     }, []);
 
@@ -398,7 +393,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                 executedValue,
                 difference: executedValue - expectedValue,
             };
-        }).filter(item => item.cup && item.executedValue > 0);
+        }).filter(item => item.cup && (item.executedValue > 0 || item.expectedValue > 0));
 
         setValueComparison(comparisonData);
         setTotalExpectedValue(totalExpected);
@@ -407,7 +402,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     }, []);
 
     useEffect(() => {
-        if (isDataLoaded && pgpData.length > 0 && cupCounts && cupCounts.size > 0) {
+        if (isDataLoaded && pgpData.length > 0 && cupCounts) {
             calculateValueComparison(pgpData, cupCounts);
         } else {
             setValueComparison([]);
@@ -603,3 +598,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
+
+    
