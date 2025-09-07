@@ -520,7 +520,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
       {/* Matriz Adicional en Blanco */}
       <Card>
         <CardHeader>
-          <CardTitle>Matriz Adicional (En Blanco)</CardTitle>
+          <CardTitle>INFORME</CardTitle>
           <CardDescription>Plantilla para conceptos o proyecciones adicionales.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -560,4 +560,5 @@ export default function InformePGP({ data }: { data: ReportData }) {
     </div>
   );
 }
+
 
