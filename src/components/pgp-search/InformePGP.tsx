@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, AlertTriangle, FileText, Copy, Download, HelpCircle, ArrowRightLeft, Search, XCircle, CheckCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, Legend } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -57,6 +57,14 @@ export interface ComparisonSummary {
   unexpectedCups: string[];
 }
 
+export interface FinancialMatrixRow {
+    concepto: string;
+    autorizado: number;
+    ejecutado: number;
+    diferencia: number;
+    cumplimiento: number;
+}
+
 export interface ReportData {
   header: HeaderInfo;
   months: MonthExecution[];
@@ -66,6 +74,7 @@ export interface ReportData {
   descuentosCOP?: number;
   reconocimientosCOP?: number;
   objetivoTexto?: string;
+  financialMatrix?: FinancialMatrixRow[];
 }
 
 // ======= Utilidades =======
@@ -105,10 +114,10 @@ actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. `
   );
 
   const p2 = b.ok
-    ? `La ejecución trimestral se mantuvo dentro de la banda de control ${pct(band.minPct)}–${pct(band.maxPct)} ` +
+    ? `La ejecución trimestral se mantuvo dentro del rango de control ${pct(band.minPct)}–${pct(band.maxPct)} ` +
       `(rango: ${formatCOP(b.min)} – ${formatCOP(b.max)}), lo que indica estabilidad financiera ` +
       `y adherencia a la nota técnica.`
-    : `La ejecución trimestral quedó fuera de la banda de control ${pct(band.minPct)}–${pct(band.maxPct)} ` +
+    : `La ejecución trimestral quedó fuera del rango de control ${pct(band.minPct)}–${pct(band.maxPct)} ` +
       `(rango: ${formatCOP(b.min)} – ${formatCOP(b.max)}). Se recomienda revisar causas de ` +
       `${totalTrim < b.min ? "subejecución" : "sobre‑ejecución"} y ajustar la programación operativa.`;
 
@@ -143,7 +152,7 @@ actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. `
       "Profundizar auditoría concurrente sobre códigos de alto impacto financiero.",
     ]
     : [
-      "Ajustar metas operativas y redistribuir oferta para volver a la banda de control.",
+      "Ajustar metas operativas y redistribuir oferta para volver al rango de control.",
       "Revisar glosas/causales de no reconocimiento y trazabilidad de historias clínicas.",
       "Implementar micro‑planes de acceso para reducir variabilidad intermensual.",
     ];
@@ -151,71 +160,20 @@ actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. `
   return { paragraphs: [p0, p1, p2, p3, p4, p5], recomendaciones, totalTrim, totalCUPS, bandHit: b.ok, bandMin: b.min, bandMax: b.max };
 }
 
-// ======= Datos por defecto (Ejemplo Uribia – Trimestre 2) =======
-const defaultData: ReportData = {
-  header: {
-    informeNo: "INFORME Nº — FECHA 25/07/2025",
-    empresa: "DUSAKAWI EPSI",
-    nit: "901226064",
-    municipio: "URIBIA",
-    departamento: "LA GUAJIRA",
-    contrato: "44847_04_PGP",
-    vigencia: "01/01/2025–01/12/2025",
-    responsable: "Dirección Nacional del Riesgo en Salud",
-  },
-  months: [
-    { month: "ABRIL", cups: 4497, valueCOP: 410_494_560.21 },
-    { month: "MAYO", cups: 4609, valueCOP: 418_866_468.86 },
-    { month: "JUNIO", cups: 4567, valueCOP: 408_704_877.86 },
-  ],
-  band: {
-    estimateCOP: 1_303_666_575.25,
-    minPct: 0.90,
-    maxPct: 1.10,
-  },
-  anticipos: {
-    anticipado80COP: 695_288_840.14,
-    mes1_80COP: 347_644_420.07,
-    mes2_80COP: 347_644_420.07,
-    mes3_100COP: 434_555_525.08,
-  },
-  descuentosCOP: 0,
-  reconocimientosCOP: 0,
+const pctBadge = (ratio: number) => {
+  const p = isFinite(ratio) ? ratio * 100 : 0;
+  let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+  if (p > 105) variant = "destructive";
+  else if (p >= 95 && p <= 105) variant = "default";
+  return <Badge variant={variant}>{p.toFixed(2)}%</Badge>;
 };
 
-// ======= Tooltip recharts (dinámico en COP) =======
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="rounded-lg bg-white/95 p-3 shadow-lg text-sm text-gray-900">
-        <div className="font-semibold">{label}</div>
-        {payload.map((p: any, i: number) => (
-          <div key={i} className="flex justify-between gap-4">
-            <span>{p.name}:</span>
-            <span>{typeof p.value === "number" ? formatCOP(p.value) : p.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
 
 // ======= Componente principal =======
-export default function InformePGP({ data = defaultData }: { data?: ReportData }) {
+export default function InformePGP({ data }: { data: ReportData }) {
   const [copied, setCopied] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const summary = useMemo(() => generateNarrative(data), [data]);
-
-  const barData = useMemo(
-    () => data.months.map((m) => ({ Mes: m.month, "Valor ejecutado": m.valueCOP })),
-    [data.months]
-  );
-
-  const cupsData = useMemo(
-    () => data.months.map((m) => ({ Mes: m.month, CUPS: m.cups })),
-    [data.months]
-  );
 
   const header = data.header;
 
@@ -291,7 +249,7 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
+              <CardTitle className="text-xl">Análisis y Contabilidad PGP</CardTitle>
               <CardDescription>
                 {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
                 <br />
@@ -316,10 +274,9 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
                 <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Contabilidad y Coincidencias</CardTitle>
                 <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
-                <StatCard title="CUPS Coincidentes" value={data.comparisonSummary.matchingCups} icon={CheckCircle} />
-
+                
                 <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
                    <AccordionItem value="missing-cups" className="border rounded-lg bg-white">
                       <AccordionTrigger className="p-4 text-sm font-medium">
@@ -361,89 +318,48 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
               </CardContent>
             </Card>
           )}
-
-          {band.ok ? (
-            <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <AlertTitle>Ejecución dentro de Rango</AlertTitle>
-              <AlertDescription>
-                Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Ejecución fuera de Rango</AlertTitle>
-              <AlertDescription>
-                Total trimestral {formatCOP(summary.totalTrim)} fuera de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <section className="space-y-2">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Objetivo</h3>
-            <p className="leading-relaxed text-sm">{summary.paragraphs[0]}</p>
-          </section>
-
+          
           <Separator />
+          
+           {data.financialMatrix && data.financialMatrix.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Matriz de Resumen Financiero (Periodo)</CardTitle>
+                        <CardDescription>Análisis consolidado del rendimiento financiero del periodo.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>CONCEPTO</TableHead>
+                                    <TableHead className="text-right">VALOR AUTORIZADO</TableHead>
+                                    <TableHead className="text-right">EJECUCIÓN</TableHead>
+                                    <TableHead className="text-right">DIFERENCIA</TableHead>
+                                    <TableHead className="text-right">% CUMPLIMIENTO</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.financialMatrix.map(row => (
+                                <TableRow
+                                    key={row.concepto}
+                                    className={["TOTAL PGP CON AJUSTES", "TOTAL FACTURADO"].includes(row.concepto) ? "font-bold bg-muted/50" : ""}
+                                >
+                                    <TableCell>{row.concepto}</TableCell>
+                                    <TableCell className="text-right">{formatCOP(row.autorizado)}</TableCell>
+                                    <TableCell className="text-right">{formatCOP(row.ejecutado)}</TableCell>
+                                    <TableCell className={`text-right ${row.diferencia > 0 ? "text-red-600" : "text-green-600"}`}>
+                                    {formatCOP(row.diferencia)}
+                                    </TableCell>
+                                    <TableCell className="text-right">{pctBadge(row.cumplimiento)}</TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+           )}
 
-          <section className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Gráfico 1. Consolidado de ejecución (COP) por mes</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="Mes" />
-                    <YAxis tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 }).format(v)} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Bar dataKey="Valor ejecutado" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Gráfico 2. CUPS reportados por mes</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cupsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="Mes" />
-                    <YAxis />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Line type="monotone" dataKey="CUPS" stroke="#82ca9d" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-3">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Desarrollo del informe</h3>
-            {summary.paragraphs.slice(1).map((p, i) => (
-              <p key={i} className="leading-relaxed text-sm">{p}</p>
-            ))}
-          </section>
-
-          <Separator />
-
-          <section className="space-y-2">
-            <h3 className="text-base font-semibold">Recomendaciones</h3>
-            <ul className="list-disc pl-6 text-sm space-y-1">
-              {summary.recomendaciones.map((r, i) => (
-                <li key={i}>{r}</li>
-              ))}
-            </ul>
-          </section>
         </CardContent>
       </Card>
     </div>

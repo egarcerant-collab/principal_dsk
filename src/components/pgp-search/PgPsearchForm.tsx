@@ -15,7 +15,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary } from './InformePGP';
+import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow } from './InformePGP';
 
 
 interface PgpRow {
@@ -590,6 +590,29 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       setReportData(null);
       return;
     }
+    
+    const totalAutorizadoPeriodo = globalSummary.totalCostoMes * months.length;
+    const totalEjecutadoPeriodo = months.reduce((acc, m) => acc + m.valueCOP, 0);
+    const diferenciaPeriodo = totalEjecutadoPeriodo - totalAutorizadoPeriodo;
+    const cumplimientoPeriodo = totalAutorizadoPeriodo > 0 ? totalEjecutadoPeriodo / totalAutorizadoPeriodo : 0;
+
+    const financialMatrix: FinancialMatrixRow[] = [
+        {
+          concepto: `PGP MENSUAL (${months.length} ${months.length > 1 ? 'MESES' : 'MES'})`,
+          autorizado: totalAutorizadoPeriodo,
+          ejecutado: totalEjecutadoPeriodo,
+          diferencia: diferenciaPeriodo,
+          cumplimiento: cumplimientoPeriodo
+        },
+        {
+          concepto: "TOTAL FACTURADO",
+          autorizado: totalAutorizadoPeriodo,
+          ejecutado: totalEjecutadoPeriodo,
+          diferencia: diferenciaPeriodo,
+          cumplimiento: cumplimientoPeriodo
+        },
+    ];
+
 
     const monthKeys = [...executionDataByMonth.keys()].sort();
     const periodo = monthKeys.length > 0 ? `${getMonthName(monthKeys[0])} - ${getMonthName(monthKeys[monthKeys.length-1])}` : 'N/A';
@@ -623,6 +646,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       },
       anticipos: anticipos,
       comparisonSummary,
+      financialMatrix,
     };
     
     setReportData(dataForReport);
