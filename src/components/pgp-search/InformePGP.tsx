@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -431,7 +432,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         data={data.comparisonSummary.overExecutedCups}
                         variant="over"
                         onCupClick={handleCupClick}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.overExecutedCups || [], 'cups_sobrejecutados.csv')}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.overExecutedCups || [], 'cups_sobrejecutados.xls')}
                       />
                       
                       <DeviatedCupsAccordion
@@ -441,7 +442,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         data={data.comparisonSummary.underExecutedCups}
                         variant="under"
                         onCupClick={handleCupClick}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.underExecutedCups || [], 'cups_subejecutados.csv')}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.underExecutedCups || [], 'cups_subejecutados.xls')}
                       />
                       
                       <DiscrepancyAccordion
@@ -449,7 +450,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         icon={<XCircle className="h-5 w-5 text-red-500" />}
                         count={data.comparisonSummary.missingCups.length}
                         data={data.comparisonSummary.missingCups}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.missingCups.map(cup => ({ cup })) || [], 'cups_faltantes.csv')}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.missingCups.map(cup => ({ cup })) || [], 'cups_faltantes.xls')}
                       />
                       
                       <DiscrepancyAccordion
@@ -457,7 +458,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         icon={<HelpCircle className="h-5 w-5 text-yellow-600" />}
                         count={data.comparisonSummary.unexpectedCups.length}
                         data={data.comparisonSummary.unexpectedCups}
-                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.unexpectedCups.map(cup => ({ cup })) || [], 'cups_inesperados.csv')}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.unexpectedCups.map(cup => ({ cup })) || [], 'cups_inesperados.xls')}
                       />
 
                   </Accordion>
@@ -559,3 +560,5 @@ export default function InformePGP({ data }: { data: ReportData }) {
     </div>
   );
 }
+
+    
