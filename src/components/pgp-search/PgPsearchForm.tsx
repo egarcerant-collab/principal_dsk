@@ -551,21 +551,24 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
       executionDataByMonth.forEach((monthData, month) => {
         const real = monthData.cupCounts.get(cup) || 0;
-        if (real !== expected) {
-          const diff = real - expected;
-          const cupInfo: DeviatedCupInfo = {
-            cup,
-            description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']) ?? '',
-            month: getMonthName(month),
-            expected,
-            real,
-            diff,
-          };
-          if (diff < 0) {
-            underExecutedCups.push(cupInfo);
-          } else if (diff > 0) {
-            overExecutedCups.push(cupInfo);
-          }
+        const diff = real - expected;
+
+        if (diff !== 0) {
+            const cupInfo: DeviatedCupInfo = {
+                cup,
+                description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']) ?? '',
+                activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']) ?? '',
+                month: getMonthName(month),
+                expected,
+                real,
+                diff,
+            };
+
+            if (diff < 0) {
+                underExecutedCups.push(cupInfo);
+            } else if (real / expected > 1.11) { // Filter for > 111%
+                overExecutedCups.push(cupInfo);
+            }
         }
       });
     });

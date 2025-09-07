@@ -94,6 +94,7 @@ export interface HeaderInfo {
 export interface DeviatedCupInfo {
   cup: string;
   description: string;
+  activityDescription?: string;
   month: string;
   expected: number;
   real: number;
@@ -250,6 +251,7 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }
             <TableHeader>
               <TableRow>
                 <TableHead>CUP</TableHead>
+                <TableHead>Actividad</TableHead>
                 <TableHead>Mes</TableHead>
                 <TableHead className="text-right">Esperado</TableHead>
                 <TableHead className="text-right">Real</TableHead>
@@ -264,6 +266,7 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }
                       {c.cup}
                     </Button>
                   </TableCell>
+                  <TableCell className="text-xs">{c.activityDescription}</TableCell>
                   <TableCell>{c.month}</TableCell>
                   <TableCell className="text-right">{formatNumber(c.expected)}</TableCell>
                   <TableCell className="text-right">{formatNumber(c.real)}</TableCell>
@@ -400,7 +403,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                  <Accordion type="multiple" className="space-y-4">
 
                      <DeviatedCupsAccordion
-                        title="CUPS Sobreejecutados"
+                        title="CUPS Sobreejecutados (>111%)"
                         icon={<TrendingUp className="h-5 w-5 text-red-500" />}
                         count={data.comparisonSummary.overExecutedCups.length}
                         data={data.comparisonSummary.overExecutedCups}
