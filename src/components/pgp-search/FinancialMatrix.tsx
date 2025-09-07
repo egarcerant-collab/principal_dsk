@@ -57,12 +57,12 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, totalExpe
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
                     <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200">
                         <Landmark className="h-6 w-6 mx-auto text-blue-500 mb-1" />
-                        <p className="text-sm text-muted-foreground">Valor Total Esperado (Período)</p>
+                        <p className="text-sm text-muted-foreground">Valor Esperado (Meses Cargados)</p>
                         <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalExpectedValue)}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200">
                          <Wallet className="h-6 w-6 mx-auto text-green-500 mb-1" />
-                        <p className="text-sm text-muted-foreground">Valor Total Ejecutado (Período)</p>
+                        <p className="text-sm text-muted-foreground">Valor Ejecutado (Meses Cargados)</p>
                         <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalExecutedValue)}</p>
                     </div>
                 </div>
