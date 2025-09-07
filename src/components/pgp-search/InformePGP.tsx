@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useMemo, useState, useRef } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -99,10 +98,87 @@ const pctBadge = (ratio: number) => {
   return <Badge variant={variant}>{p.toFixed(2)}%</Badge>;
 };
 
+const DeviatedCupsAccordion = ({ title, icon, count, data, variant }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under' }) => {
+  if (count === 0) return null;
+  
+  const diffClass = variant === 'over' ? "font-bold text-red-500" : "font-bold text-yellow-600";
+  const diffPrefix = variant === 'over' ? "+" : "";
+
+  return (
+    <AccordionItem value={`${variant}-executed-cups`} className="border rounded-lg bg-white shadow-sm">
+      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline">
+        <div className="flex w-full items-center justify-between">
+          <div className="flex items-center gap-3">
+            {icon}
+            <span className="font-semibold">{count} {title}</span>
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="p-4 pt-0">
+        <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real {variant === 'over' ? 'mayor' : 'menor'} a la esperada.</p>
+        <ScrollArea className="h-48">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>CUP</TableHead>
+                <TableHead>Mes</TableHead>
+                <TableHead className="text-right">Esperado</TableHead>
+                <TableHead className="text-right">Real</TableHead>
+                <TableHead className="text-right">Diferencia</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((c, i) => (
+                <TableRow key={`${c.cup}-${i}`}>
+                  <TableCell className="font-mono text-xs">{c.cup}</TableCell>
+                  <TableCell>{c.month}</TableCell>
+                  <TableCell className="text-right">{c.expected}</TableCell>
+                  <TableCell className="text-right">{c.real}</TableCell>
+                  <TableCell className={diffClass + " text-right"}>{diffPrefix}{c.diff}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </AccordionContent>
+    </AccordionItem>
+  );
+};
+
+
+const DiscrepancyAccordion = ({ title, icon, count, data }: { title: string, icon: React.ReactNode, count: number, data: string[] }) => {
+  if (count === 0) return null;
+  
+  const description = title.includes("Faltantes") 
+    ? "CUPS de la nota técnica no encontrados en el JSON."
+    : "CUPS del JSON no encontrados en la nota técnica.";
+
+  return (
+    <AccordionItem value={`${title.toLowerCase().replace(' ', '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
+      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline">
+        <div className="flex w-full items-center justify-between">
+          <div className="flex items-center gap-3">
+            {icon}
+            <span className="font-semibold">{count} {title}</span>
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="p-4 pt-0">
+        <p className="text-xs text-muted-foreground mb-2">{description}</p>
+        <ScrollArea className="h-48">
+          <div className="text-xs font-mono space-y-1 p-2 bg-gray-50 rounded">
+            {data.map(cup => <div key={cup}>{cup}</div>)}
+          </div>
+        </ScrollArea>
+      </AccordionContent>
+    </AccordionItem>
+  );
+};
+
+
 // ======= Componente principal =======
 export default function InformePGP({ data }: { data: ReportData }) {
   const header = data.header;
-  const totalEjecutado = data.months.reduce((acc, m) => acc + m.valueCOP, 0);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
@@ -111,7 +187,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Análisis y Contabilidad PGP</CardTitle>
-               <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
                 <br />
                 Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
@@ -170,94 +246,43 @@ export default function InformePGP({ data }: { data: ReportData }) {
                 <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Análisis de Frecuencias y Desviaciones</CardTitle>
                 <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
-                
-                <Accordion type="single" collapsible>
-                   <AccordionItem value="over-executed-cups" className="border rounded-lg bg-white mb-2">
-                      <AccordionTrigger className="p-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                           <TrendingUp className="h-5 w-5 text-red-500" />
-                           <span>{data.comparisonSummary.overExecutedCups.length} CUPS Sobreejecutados</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 pt-0">
-                         <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real mayor a la esperada.</p>
-                         <ScrollArea className="h-40">
-                          <Table>
-                            <TableHeader>
-                              <TableRow><TableHead>CUP</TableHead><TableHead>Mes</TableHead><TableHead>Esp.</TableHead><TableHead>Real</TableHead><TableHead>Dif.</TableHead></TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {data.comparisonSummary.overExecutedCups.map((c, i) => <TableRow key={i}><TableCell>{c.cup}</TableCell><TableCell>{c.month}</TableCell><TableCell>{c.expected}</TableCell><TableCell>{c.real}</TableCell><TableCell className="font-bold text-red-500">+{c.diff}</TableCell></TableRow>)}
-                            </TableBody>
-                          </Table>
-                         </ScrollArea>
-                      </AccordionContent>
-                   </AccordionItem>
-                </Accordion>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
+                  <Accordion type="single" collapsible className="space-y-4">
 
-                 <Accordion type="single" collapsible>
-                   <AccordionItem value="under-executed-cups" className="border rounded-lg bg-white mb-2">
-                      <AccordionTrigger className="p-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                           <TrendingDown className="h-5 w-5 text-yellow-600" />
-                           <span>{data.comparisonSummary.underExecutedCups.length} CUPS Subejecutados</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 pt-0">
-                         <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real menor a la esperada.</p>
-                          <ScrollArea className="h-40">
-                          <Table>
-                            <TableHeader>
-                              <TableRow><TableHead>CUP</TableHead><TableHead>Mes</TableHead><TableHead>Esp.</TableHead><TableHead>Real</TableHead><TableHead>Dif.</TableHead></TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {data.comparisonSummary.underExecutedCups.map((c, i) => <TableRow key={i}><TableCell>{c.cup}</TableCell><TableCell>{c.month}</TableCell><TableCell>{c.expected}</TableCell><TableCell>{c.real}</TableCell><TableCell className="font-bold text-yellow-600">{c.diff}</TableCell></TableRow>)}
-                            </TableBody>
-                          </Table>
-                         </ScrollArea>
-                      </AccordionContent>
-                   </AccordionItem>
-                </Accordion>
-                
-                <Accordion type="single" collapsible>
-                   <AccordionItem value="missing-cups" className="border rounded-lg bg-white">
-                      <AccordionTrigger className="p-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                           <XCircle className="h-5 w-5 text-red-500" />
-                           <span>{data.comparisonSummary.missingCups.length} CUPS Faltantes</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 pt-0">
-                         <p className="text-xs text-muted-foreground mb-2">CUPS de la nota técnica no encontrados en el JSON.</p>
-                         <ScrollArea className="h-40">
-                          <div className="text-xs font-mono space-y-1">
-                            {data.comparisonSummary.missingCups.map(cup => <div key={cup}>{cup}</div>)}
-                          </div>
-                         </ScrollArea>
-                      </AccordionContent>
-                   </AccordionItem>
-                </Accordion>
-                
-                <Accordion type="single" collapsible>
-                   <AccordionItem value="unexpected-cups" className="border rounded-lg bg-white">
-                      <AccordionTrigger className="p-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          <HelpCircle className="h-5 w-5 text-yellow-600" />
-                          <span>{data.comparisonSummary.unexpectedCups.length} CUPS Inesperados</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 pt-0">
-                         <p className="text-xs text-muted-foreground mb-2">CUPS del JSON no encontrados en la nota técnica.</p>
-                         <ScrollArea className="h-40">
-                          <div className="text-xs font-mono space-y-1">
-                             {data.comparisonSummary.unexpectedCups.map(cup => <div key={cup}>{cup}</div>)}
-                          </div>
-                         </ScrollArea>
-                      </AccordionContent>
-                   </AccordionItem>
-                </Accordion>
+                     <DeviatedCupsAccordion
+                        title="CUPS Sobreejecutados"
+                        icon={<TrendingUp className="h-5 w-5 text-red-500" />}
+                        count={data.comparisonSummary.overExecutedCups.length}
+                        data={data.comparisonSummary.overExecutedCups}
+                        variant="over"
+                      />
+                      
+                      <DeviatedCupsAccordion
+                        title="CUPS Subejecutados"
+                        icon={<TrendingDown className="h-5 w-5 text-yellow-600" />}
+                        count={data.comparisonSummary.underExecutedCups.length}
+                        data={data.comparisonSummary.underExecutedCups}
+                        variant="under"
+                      />
+                      
+                      <DiscrepancyAccordion
+                        title="CUPS Faltantes"
+                        icon={<XCircle className="h-5 w-5 text-red-500" />}
+                        count={data.comparisonSummary.missingCups.length}
+                        data={data.comparisonSummary.missingCups}
+                      />
+                      
+                      <DiscrepancyAccordion
+                        title="CUPS Inesperados"
+                        icon={<HelpCircle className="h-5 w-5 text-yellow-600" />}
+                        count={data.comparisonSummary.unexpectedCups.length}
+                        data={data.comparisonSummary.unexpectedCups}
+                      />
+
+                  </Accordion>
+                </div>
               </CardContent>
             </Card>
           )}
