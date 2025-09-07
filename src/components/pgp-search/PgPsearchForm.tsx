@@ -1,17 +1,16 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon } from "lucide-react";
 import Papa, { type ParseResult } from 'papaparse';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { analyzePgpData, type AnalyzePgpDataOutput } from '@/ai/flows/analyze-pgp-flow';
+import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Prestador {
     NIT: string;
@@ -42,6 +41,13 @@ interface PgpRow {
   OBSERVACIONES?: string;
   [key: string]: any; // Allow other properties
 }
+
+interface AnalyzePgpDataOutput {
+    keyObservations: string[];
+    potentialRisks: string[];
+    strategicRecommendations: string[];
+}
+
 
 interface SummaryData {
   totalCostoMes: number;
@@ -246,7 +252,7 @@ const PgPsearchForm: React.FC = () => {
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
-        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || 0), 0);
+        const totalCostoMes = data.reduce((acc, row) => acc + (row['COSTO EVENTO MES (VALOR MES)'] || row['COSTO EVENTO MES'] || 0), 0);
         const totalMinimoMes = data.reduce((acc, row) => acc + (row['VALOR MINIMO MES'] || 0), 0);
         const totalMaximoMes = data.reduce((acc, row) => acc + (row['VALOR MAXIMO MES'] || 0), 0);
         return {
@@ -274,7 +280,7 @@ const PgPsearchForm: React.FC = () => {
             }
             const data = await fetchAndParseSheetData(prestador.WEB);
             
-            const numericKeys: (keyof PgpRow)[] = [
+            const numericKeys: string[] = [
                 'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
                 'COSTO EVENTO MES', 'FRECUENCIA EVENTO DIA', 'FRECUENCIA MINIMA MES',
                 'FRECUENCIA MAXIMA MES', 'VALOR UNITARIO', 'COSTO EVENTO DIA',
@@ -284,16 +290,16 @@ const PgPsearchForm: React.FC = () => {
             const pgpRows = data.map(row => {
                 const newRow: Partial<PgpRow> = {};
                  for (const key in row) {
-                    const trimmedKey = key.trim() as keyof PgpRow;
-                    const value = (row[key] || '').trim();
+                    const trimmedKey = key.trim();
+                    if (!trimmedKey) continue;
 
-                    if (trimmedKey) {
-                        const isNumeric = numericKeys.some(nk => String(nk).toUpperCase() === String(trimmedKey).toUpperCase());
-                        if (isNumeric) {
-                           (newRow as any)[trimmedKey] = parseFloat(value.replace(/[$\s,]/g, '')) || 0;
-                        } else {
-                            (newRow as any)[trimmedKey] = value;
-                        }
+                    let value = (row[key] || '').trim();
+                    const isNumeric = numericKeys.some(nk => nk.toUpperCase() === trimmedKey.toUpperCase());
+
+                    if (isNumeric) {
+                       newRow[trimmedKey as keyof PgpRow] = parseFloat(value.replace(/[$\s,]/g, '')) || 0;
+                    } else {
+                        newRow[trimmedKey as keyof PgpRow] = value;
                     }
                 }
                 // Rename CUPS column for consistency
@@ -371,7 +377,6 @@ const PgPsearchForm: React.FC = () => {
                 
                 {isDataLoaded && (
                     <div className="space-y-6">
-                        <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />
                         {globalSummary && (
                            <SummaryCard 
                                 summary={globalSummary} 
@@ -379,6 +384,7 @@ const PgPsearchForm: React.FC = () => {
                                 description="Cálculos basados en la totalidad de los datos cargados."
                            />
                         )}
+                        <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />
                          <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -403,7 +409,7 @@ const PgPsearchForm: React.FC = () => {
                                                 <TableRow key={index}>
                                                     <TableCell>{row['CUP/CUM']}</TableCell>
                                                     <TableCell>{row['DESCRIPCION CUPS']}</TableCell>
-                                                    <TableCell>{formatCurrency(row['COSTO EVENTO MES (VALOR MES)'])}</TableCell>
+                                                    <TableCell>{formatCurrency(row['COSTO EVENTO MES (VALOR MES)'] || row['COSTO EVENTO MES'])}</TableCell>
                                                     <TableCell>{formatCurrency(row['VALOR MINIMO MES'])}</TableCell>
                                                     <TableCell>{formatCurrency(row['VALOR MAXIMO MES'])}</TableCell>
                                                 </TableRow>
@@ -421,3 +427,5 @@ const PgPsearchForm: React.FC = () => {
 };
 
 export default PgPsearchForm;
+
+    
