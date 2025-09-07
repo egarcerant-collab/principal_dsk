@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import FileUpload from "@/components/json-analyzer/FileUpload";
-import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
+import DataVisualizer, { calculateSummary } from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle, Users, Stethoscope, Microscope, Pill, Syringe, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -23,7 +23,6 @@ const initialFileState: FileState = {
     fileName: null,
     prestadorInfo: null,
 };
-
 
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
@@ -44,6 +43,17 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     return map;
 }
 
+const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+);
 
 export default function JsonAnalyzerPage() {
   const [file1, setFile1] = useState<FileState>(initialFileState);
@@ -55,6 +65,8 @@ export default function JsonAnalyzerPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [unifiedSummary, setUnifiedSummary] = useState<any | null>(null);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -139,6 +151,21 @@ export default function JsonAnalyzerPage() {
         } else {
             setShowDuplicateAlert(false);
         }
+        
+        const summary1 = calculateSummary(file1.jsonData);
+        const summary2 = calculateSummary(file2.jsonData);
+        
+        setUnifiedSummary({
+            numFactura: 'Combinado',
+            numUsuarios: summary1.numUsuarios + summary2.numUsuarios,
+            numConsultas: summary1.numConsultas + summary2.numConsultas,
+            numProcedimientos: summary1.numProcedimientos + summary2.numProcedimientos,
+            totalMedicamentos: summary1.totalMedicamentos + summary2.totalMedicamentos,
+            totalOtrosServicios: summary1.totalOtrosServicios + summary2.totalOtrosServicios,
+        });
+
+    } else {
+        setUnifiedSummary(null);
     }
   }, [file1.jsonData, file2.jsonData]);
 
@@ -204,6 +231,25 @@ export default function JsonAnalyzerPage() {
                 </AlertDescription>
             </Alert>
         )}
+        
+        {unifiedSummary && (
+            <Card className="w-full shadow-lg border-primary/20">
+                <CardHeader>
+                    <CardTitle>Resumen Unificado</CardTitle>
+                    <CardDescription>Suma de las estadísticas de ambos archivos cargados.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
+                        <StatCard title="Total Usuarios" value={unifiedSummary.numUsuarios} icon={Users} />
+                        <StatCard title="Total Consultas" value={unifiedSummary.numConsultas} icon={Stethoscope} />
+                        <StatCard title="Total Procedimientos" value={unifiedSummary.numProcedimientos} icon={Microscope} />
+                        <StatCard title="Total Medicamentos" value={unifiedSummary.totalMedicamentos.toLocaleString()} icon={Pill} />
+                        <StatCard title="Total Otros Servicios" value={unifiedSummary.totalOtrosServicios.toLocaleString()} icon={Syringe} />
+                    </div>
+                </CardContent>
+            </Card>
+        )}
+
 
       {anyFileLoaded && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">

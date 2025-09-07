@@ -24,11 +24,53 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, Stethoscope, Microscope, Briefcase, Pill, Syringe, Loader2 } from "lucide-react";
+import { FileText, Users, Stethoscope, Microscope, Pill, Syringe, Loader2 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
 interface DataVisualizerProps {
   data: any;
+}
+
+export const calculateSummary = (data: any) => {
+    if (!data) {
+        return {
+            numFactura: 'N/A',
+            numDocumentoIdObligado: 'N/A',
+            numUsuarios: 0,
+            numConsultas: 0,
+            numProcedimientos: 0,
+            totalMedicamentos: 0,
+            totalOtrosServicios: 0
+        };
+    }
+    const usuarios = data.usuarios || [];
+    const numUsuarios = usuarios.length;
+    let numConsultas = 0;
+    let numProcedimientos = 0;
+    let totalMedicamentos = 0;
+    let totalOtrosServicios = 0;
+
+    usuarios.forEach((u: any) => {
+        numConsultas += u.servicios?.consultas?.length || 0;
+        numProcedimientos += u.servicios?.procedimientos?.length || 0;
+        
+        if (u.servicios?.medicamentos) {
+            totalMedicamentos += u.servicios.medicamentos.reduce((acc: number, med: any) => acc + (Number(med.cantidadMedicamento) || 0), 0);
+        }
+        if (u.servicios?.otrosServicios) {
+             totalOtrosServicios += u.servicios.otrosServicios.reduce((acc: number, os: any) => acc + (Number(os.cantidadOS) || 0), 0);
+        }
+    });
+
+    return {
+        numFactura: data.numFactura || 'N/A',
+        numDocumentoIdObligado: data.numDocumentoIdObligado || 'N/A',
+        numUsuarios,
+        numConsultas,
+        numProcedimientos,
+        totalMedicamentos,
+        totalOtrosServicios,
+    }
 }
 
 const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
@@ -132,47 +174,7 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
     setIsClient(true);
   }, []);
 
-  const summary = useMemo(() => {
-    if (!data) {
-        return {
-            numFactura: 'N/A',
-            numDocumentoIdObligado: 'N/A',
-            numUsuarios: 0,
-            numConsultas: 0,
-            numProcedimientos: 0,
-            totalMedicamentos: 0,
-            totalOtrosServicios: 0
-        };
-    }
-    const usuarios = data.usuarios || [];
-    const numUsuarios = usuarios.length;
-    let numConsultas = 0;
-    let numProcedimientos = 0;
-    let totalMedicamentos = 0;
-    let totalOtrosServicios = 0;
-
-    usuarios.forEach((u: any) => {
-        numConsultas += u.servicios?.consultas?.length || 0;
-        numProcedimientos += u.servicios?.procedimientos?.length || 0;
-        
-        if (u.servicios?.medicamentos) {
-            totalMedicamentos += u.servicios.medicamentos.reduce((acc: number, med: any) => acc + (Number(med.cantidadMedicamento) || 0), 0);
-        }
-        if (u.servicios?.otrosServicios) {
-             totalOtrosServicios += u.servicios.otrosServicios.reduce((acc: number, os: any) => acc + (Number(os.cantidadOS) || 0), 0);
-        }
-    });
-
-    return {
-        numFactura: data.numFactura || 'N/A',
-        numDocumentoIdObligado: data.numDocumentoIdObligado || 'N/A',
-        numUsuarios,
-        numConsultas,
-        numProcedimientos,
-        totalMedicamentos,
-        totalOtrosServicios,
-    }
-  }, [data]);
+  const summary = useMemo(() => calculateSummary(data), [data]);
   
   const usuarios = data?.usuarios || [];
 
