@@ -238,17 +238,17 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick, 
 
   return (
      <AccordionItem value={`${variant}-executed-cups`} className="border rounded-lg bg-white shadow-sm">
-      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-3">
-            {icon}
-            <span className="font-semibold">{count} {title}</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 mr-2">
-            <Download className="h-4 w-4" />
-          </Button>
+        <div className="flex w-full items-center justify-between p-4">
+            <AccordionTrigger className="p-0 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50 w-full">
+                <div className="flex items-center gap-3">
+                    {icon}
+                    <span className="font-semibold">{count} {title}</span>
+                </div>
+            </AccordionTrigger>
+             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 ml-2 shrink-0">
+                <Download className="h-4 w-4" />
+            </Button>
         </div>
-      </AccordionTrigger>
       <AccordionContent className="p-4 pt-0">
         <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real {variant === 'over' ? 'mayor' : 'menor'} a la esperada.</p>
         <ScrollArea className="h-48">
@@ -296,17 +296,17 @@ const DiscrepancyAccordion = ({ title, icon, count, data, onDownload }: { title:
 
   return (
     <AccordionItem value={`${title.toLowerCase().replace(/\s+/g, '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
-      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-3">
-            {icon}
-            <span className="font-semibold">{count} {title}</span>
-          </div>
-           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 mr-2">
-            <Download className="h-4 w-4" />
-          </Button>
+        <div className="flex w-full items-center justify-between p-4">
+            <AccordionTrigger className="p-0 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50 w-full">
+                <div className="flex items-center gap-3">
+                    {icon}
+                    <span className="font-semibold">{count} {title}</span>
+                </div>
+            </AccordionTrigger>
+            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 ml-2 shrink-0">
+                <Download className="h-4 w-4" />
+            </Button>
         </div>
-      </AccordionTrigger>
       <AccordionContent className="p-4 pt-0">
         <p className="text-xs text-muted-foreground mb-2">{description}</p>
         <ScrollArea className="h-48">
@@ -363,7 +363,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Análisis y Contabilidad PGP</CardTitle>
-              <div className="text-sm text-muted-foreground">
+               <div className="text-sm text-muted-foreground">
                 {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
                 <br />
                 Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
@@ -561,4 +561,3 @@ export default function InformePGP({ data }: { data: ReportData }) {
   );
 }
 
-    
