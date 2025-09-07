@@ -53,7 +53,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
   const [file2, setFile2] = useState<FileState>(initialFileState);
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
-  const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(true);
   const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -83,6 +83,12 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
         setIsLoadingProviders(false);
     }
   }, [toast]);
+  
+  useEffect(() => {
+    if(isClient) {
+      handleLoadProviders();
+    }
+  }, [isClient, handleLoadProviders]);
 
 
   const handleFileLoad = useCallback((files: File[]) => {
@@ -189,14 +195,10 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
                 <div>
                     <CardTitle>Carga tus Archivos JSON</CardTitle>
                     <CardDescription>
-                        Carga la base de prestadores y luego sube hasta dos archivos JSON para analizarlos.
+                        Carga hasta dos archivos JSON para analizarlos. La base de datos de prestadores se carga automáticamente.
                     </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={handleLoadProviders} disabled={isLoadingProviders || isProvidersDataLoaded} className={cn("w-full sm:w-auto", isProvidersDataLoaded && "bg-green-600 hover:bg-green-700")}>
-                        {isLoadingProviders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isProvidersDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
-                        {isLoadingProviders ? "Cargando..." : isProvidersDataLoaded ? "Prestadores Cargados" : "1. Cargar Prestadores"}
-                    </Button>
                      {anyFileLoaded && (
                         <Button onClick={handleReset} variant="outline">
                             <RefreshCw className="mr-2 h-4 w-4" />
@@ -209,7 +211,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
           <CardContent>
             <FileUpload 
                 onFileLoad={handleFileLoad} 
-                disabled={!isProvidersDataLoaded || loadedFileNames.length >= 2} 
+                disabled={isLoadingProviders || !isProvidersDataLoaded || loadedFileNames.length >= 2} 
                 loadedFileNames={loadedFileNames}
              />
           </CardContent>
