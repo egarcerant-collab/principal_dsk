@@ -554,6 +554,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     executionDataByMonth.forEach((_, month) => {
       totalExecutedByMonth.set(month, 0);
     });
+    
+    const totalExpectedFrequency = pgpData.reduce((acc, row) => {
+      const freq = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
+      return acc + freq;
+    }, 0) * executionDataByMonth.size; // Multiply by number of months
+    
+    let totalRealFrequency = 0;
+    executionDataByMonth.forEach(data => {
+        data.cupCounts.forEach(count => totalRealFrequency += count);
+    });
+
 
     const comparisonData = pgpData.map(row => {
       const cup = findColumnValue(row, ['cup/cum', 'cups']) ?? '';
@@ -598,14 +609,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
     const financialMatrix: FinancialMatrixRow[] = [
         {
-          concepto: `PGP MENSUAL (${months.length} ${months.length > 1 ? 'MESES' : 'MES'})`,
-          autorizado: totalAutorizadoPeriodo,
-          ejecutado: totalEjecutadoPeriodo,
-          diferencia: diferenciaPeriodo,
-          cumplimiento: cumplimientoPeriodo
-        },
-        {
-          concepto: "TOTAL FACTURADO",
+          concepto: `Valor Total del Periodo (${months.length > 1 ? `${months.length} meses` : '1 mes'})`,
           autorizado: totalAutorizadoPeriodo,
           ejecutado: totalEjecutadoPeriodo,
           diferencia: diferenciaPeriodo,
@@ -647,6 +651,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       anticipos: anticipos,
       comparisonSummary,
       financialMatrix,
+      totalExpectedFrequency,
+      totalRealFrequency,
     };
     
     setReportData(dataForReport);

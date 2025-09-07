@@ -71,10 +71,14 @@ export interface ReportData {
   reconocimientosCOP?: number;
   objetivoTexto?: string;
   financialMatrix?: FinancialMatrixRow[];
+  totalExpectedFrequency?: number;
+  totalRealFrequency?: number;
 }
 
 // ======= Utilidades =======
 const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 2 }).format(n);
+const formatNumber = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
+
 
 const pctBadge = (ratio: number) => {
   const p = isFinite(ratio) ? ratio * 100 : 0;
@@ -164,14 +168,14 @@ export default function InformePGP({ data }: { data: ReportData }) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Matriz de Resumen Financiero (Periodo)</CardTitle>
-                        <CardDescription>Análisis consolidado del rendimiento financiero del periodo.</CardDescription>
+                        <CardDescription>Análisis consolidado del rendimiento financiero y operativo del periodo.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>CONCEPTO</TableHead>
-                                    <TableHead className="text-right">VALOR AUTORIZADO</TableHead>
+                                    <TableHead className="text-right">VALOR/FRECUENCIA AUTORIZADO</TableHead>
                                     <TableHead className="text-right">EJECUCIÓN</TableHead>
                                     <TableHead className="text-right">DIFERENCIA</TableHead>
                                     <TableHead className="text-right">% CUMPLIMIENTO</TableHead>
@@ -181,7 +185,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                                 {data.financialMatrix.map(row => (
                                 <TableRow
                                     key={row.concepto}
-                                    className={["TOTAL PGP CON AJUSTES", "TOTAL FACTURADO"].includes(row.concepto) ? "font-bold bg-muted/50" : ""}
+                                    className={"font-bold bg-muted/50"}
                                 >
                                     <TableCell>{row.concepto}</TableCell>
                                     <TableCell className="text-right">{formatCOP(row.autorizado)}</TableCell>
@@ -192,6 +196,17 @@ export default function InformePGP({ data }: { data: ReportData }) {
                                     <TableCell className="text-right">{pctBadge(row.cumplimiento)}</TableCell>
                                 </TableRow>
                                 ))}
+                                 <TableRow>
+                                    <TableCell className="font-bold">Frecuencia de Actividades (CUPS)</TableCell>
+                                    <TableCell className="text-right">{formatNumber(data.totalExpectedFrequency || 0)}</TableCell>
+                                    <TableCell className="text-right">{formatNumber(data.totalRealFrequency || 0)}</TableCell>
+                                    <TableCell className={`text-right ${(data.totalRealFrequency || 0) > (data.totalExpectedFrequency || 0) ? "text-red-600" : "text-green-600"}`}>
+                                     {formatNumber((data.totalRealFrequency || 0) - (data.totalExpectedFrequency || 0))}
+                                    </TableCell>
+                                     <TableCell className="text-right">
+                                       {pctBadge((data.totalExpectedFrequency) ? (data.totalRealFrequency || 0) / data.totalExpectedFrequency : 0)}
+                                    </TableCell>
+                                </TableRow>
                             </TableBody>
                         </Table>
                     </CardContent>
