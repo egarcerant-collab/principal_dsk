@@ -108,6 +108,50 @@ export default function InformePGP({ data }: { data: ReportData }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          
+          {data.months.length > 0 && data.expectedMonthlyValue !== undefined && (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Detalle Mensual</CardTitle>
+                    <CardDescription>Comparación del valor esperado (nota técnica) vs. el ejecutado (JSON) para cada mes.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Mes</TableHead>
+                                <TableHead className="text-right">Valor Esperado</TableHead>
+                                <TableHead className="text-right">Valor Ejecutado</TableHead>
+                                <TableHead className="text-right">Diferencia</TableHead>
+                                <TableHead className="text-right">% Cumplimiento</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {data.months.map(month => {
+                            const expected = data.expectedMonthlyValue ?? 0;
+                            const executed = month.valueCOP;
+                            const diff = executed - expected;
+                            const ratio = expected > 0 ? executed / expected : 0;
+                            return (
+                              <TableRow key={month.month}>
+                                <TableCell className="font-medium">{month.month}</TableCell>
+                                <TableCell className="text-right">{formatCOP(expected)}</TableCell>
+                                <TableCell className="text-right">{formatCOP(executed)}</TableCell>
+                                <TableCell className={`text-right ${diff > 0 ? "text-red-600" : "text-green-600"}`}>
+                                    {formatCOP(diff)}
+                                </TableCell>
+                                <TableCell className="text-right">{pctBadge(ratio)}</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+             </Card>
+          )}
+
+          <Separator />
+
           {data.comparisonSummary && (
             <Card className="bg-gray-50">
               <CardHeader>
@@ -156,49 +200,6 @@ export default function InformePGP({ data }: { data: ReportData }) {
                 </Accordion>
               </CardContent>
             </Card>
-          )}
-          
-          <Separator />
-          
-          {data.months.length > 0 && data.expectedMonthlyValue !== undefined && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Detalle Mensual</CardTitle>
-                    <CardDescription>Comparación del valor esperado (nota técnica) vs. el ejecutado (JSON) para cada mes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Mes</TableHead>
-                                <TableHead className="text-right">Valor Esperado</TableHead>
-                                <TableHead className="text-right">Valor Ejecutado</TableHead>
-                                <TableHead className="text-right">Diferencia</TableHead>
-                                <TableHead className="text-right">% Cumplimiento</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {data.months.map(month => {
-                            const expected = data.expectedMonthlyValue ?? 0;
-                            const executed = month.valueCOP;
-                            const diff = executed - expected;
-                            const ratio = expected > 0 ? executed / expected : 0;
-                            return (
-                              <TableRow key={month.month}>
-                                <TableCell className="font-medium">{month.month}</TableCell>
-                                <TableCell className="text-right">{formatCOP(expected)}</TableCell>
-                                <TableCell className="text-right">{formatCOP(executed)}</TableCell>
-                                <TableCell className={`text-right ${diff > 0 ? "text-red-600" : "text-green-600"}`}>
-                                    {formatCOP(diff)}
-                                </TableCell>
-                                <TableCell className="text-right">{pctBadge(ratio)}</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-             </Card>
           )}
 
            {data.financialMatrix && data.financialMatrix.length > 0 && (
