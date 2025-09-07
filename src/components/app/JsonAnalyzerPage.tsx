@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer, { calculateSummary } from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -96,12 +96,14 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
   
-  const filesByMonth = files.reduce((acc, file) => {
-    const monthFiles = acc.get(file.month) || [];
-    monthFiles.push(file);
-    acc.set(file.month, monthFiles);
-    return acc;
-  }, new Map<string, FileState[]>());
+  const filesByMonth = useMemo(() => {
+    return files.reduce((acc, file) => {
+      const monthFiles = acc.get(file.month) || [];
+      monthFiles.push(file);
+      acc.set(file.month, monthFiles);
+      return acc;
+    }, new Map<string, FileState[]>());
+  }, [files]);
 
   const loadedMonthsCount = filesByMonth.size;
   const filesInCurrentMonth = filesByMonth.get(selectedMonth)?.length || 0;
@@ -366,3 +368,5 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
+
+    
