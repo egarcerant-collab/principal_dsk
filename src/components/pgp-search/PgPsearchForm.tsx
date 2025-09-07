@@ -15,7 +15,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import InformePGP, { type ReportData, type MonthKey, type MonthExecution } from './InformePGP';
+import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary } from './InformePGP';
 
 
 interface PgpRow {
@@ -94,31 +94,26 @@ export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     let v = String(value).trim();
     if (!v) return 0;
-  
-    // 1. Quitar símbolo de moneda y espacios
+
     v = v.replace(/\s+/g, '').replace(/\$/g, '');
-  
-    // 2. Determinar si el formato es US (1,234.56) o EU (1.234,56)
+
     const hasComma = v.includes(',');
     const hasDot = v.includes('.');
     
-    // Si tiene ambos, el último es el separador decimal
     if (hasComma && hasDot) {
       const lastComma = v.lastIndexOf(',');
       const lastDot = v.lastIndexOf('.');
-      // Formato EU: el punto es de miles, la coma es decimal. "1.234,56" -> "1234.56"
       if (lastComma > lastDot) {
         v = v.replace(/\./g, '').replace(',', '.');
       } else {
-        // Formato US: la coma es de miles, el punto es decimal. "1,234.56" -> "1234.56"
         v = v.replace(/,/g, '');
       }
-    } else if (hasComma) {
-      // Solo coma: es decimal en formato EU. "1234,56" -> "1234.56"
+    } else if (hasComma && !v.match(/^\d{1,3}(,\d{3})*$/)) {
       v = v.replace(',', '.');
+    } else if (hasComma) {
+        v = v.replace(/,/g, '');
     }
-    // Si solo tiene puntos (1.234) o no tiene separadores (1234), no se hace nada
-  
+
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
   };
@@ -365,7 +360,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     });
   }, []);
 
-  /** Cargar Nota Técnica del prestador (marca seleccionado SOLO cuando carga OK) */
   const performLoadPrestador = useCallback(async (prestador: Prestador) => {
     setLoading(true);
     if (isAiEnabled) {
@@ -404,7 +398,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       const summary = calculateSummary(pgpRows)
       setGlobalSummary(summary);
       setIsDataLoaded(true);
-      setSelectedPrestador(prestador); // ✅ sólo ahora marcamos como seleccionado
+      setSelectedPrestador(prestador);
       toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
 
       if (isAiEnabled && pgpRows.length > 0) {
@@ -446,18 +440,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     } catch (error: any) {
       toast({ title: "Error al Cargar Datos de la Nota Técnica", description: error.message, variant: "destructive" });
       setIsDataLoaded(false);
-      // No tocar selectedPrestador: así el header no se desincroniza con un intento fallido
     } finally {
       setLoading(false);
     }
   }, [isAiEnabled, toast]);
 
-  /** Selección desde el dropdown: validar ID vs JSON antes de cargar */
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
     setIsDataLoaded(false);
-
-    // no marcar aún como seleccionado
     setPrestadorToLoad(prestador);
 
     const pgpZoneId = prestador['ID DE ZONA'] ? normalizeDigits(prestador['ID DE ZONA']) : null;
@@ -466,9 +456,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     if (jsonId && pgpZoneId && jsonId !== pgpZoneId) {
       const warningMsg = `¡Advertencia! El código del JSON (${jsonId}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
       setMismatchWarning(warningMsg);
-      // El usuario decidirá si cargar de todos modos
     } else {
-      // Coinciden → cargamos directo
       performLoadPrestador(prestador);
     }
   }, [jsonPrestadorCode, performLoadPrestador]);
@@ -479,7 +467,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   };
 
-  /** Cargar lista de prestadores */
   useEffect(() => {
     if (!isClient) return;
 
@@ -516,7 +503,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     fetchPrestadores();
   }, [isClient, toast]);
 
-  /** Autocarga por código JSON si coincide con algún ID de zona */
   useEffect(() => {
     if (!jsonPrestadorCode || prestadores.length === 0 || loading || selectedPrestador) return;
 
@@ -539,12 +525,28 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return name.toUpperCase() as MonthKey;
   };
 
-  /** Cálculo de comparación y construcción de datos para el informe */
   useEffect(() => {
     if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary) {
       setReportData(null);
       return;
     }
+    
+    const pgpCups = new Set(pgpData.map(row => findColumnValue(row, ['cup/cum', 'cups'])).filter(Boolean));
+    const jsonCups = new Set<string>();
+    executionDataByMonth.forEach(monthData => {
+        monthData.cupCounts.forEach((_, cup) => jsonCups.add(cup));
+    });
+
+    const matchingCups = new Set([...pgpCups].filter(cup => jsonCups.has(cup)));
+    const missingCups = [...pgpCups].filter(cup => !jsonCups.has(cup));
+    const unexpectedCups = [...jsonCups].filter(cup => !pgpCups.has(cup));
+
+    const comparisonSummary: ComparisonSummary = {
+        totalPgpCups: pgpCups.size,
+        matchingCups: matchingCups.size,
+        missingCups,
+        unexpectedCups,
+    };
     
     let totalExpected = 0;
     const totalExecutedByMonth = new Map<string, number>();
@@ -574,7 +576,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       return { cup, unitValue, expectedValue, executedValues, totalExecutedValue };
     }).filter(item => item.cup);
     
-    // Construir el objeto ReportData
     const months: MonthExecution[] = Array.from(executionDataByMonth.entries()).map(([monthNum, monthData]) => {
       let totalCups = 0;
       monthData.cupCounts.forEach(count => totalCups += count);
@@ -605,10 +606,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
     const dataForReport: ReportData = {
       header: {
-        empresa: 'DUSAKAWI EPSI', // Hardcoded por ahora
+        empresa: 'DUSAKAWI EPSI',
         nit: selectedPrestador.NIT,
-        municipio: 'N/A', // Se necesita añadir a la hoja de prestadores
-        departamento: 'N/A', // Se necesita añadir a la hoja de prestadores
+        municipio: 'N/A',
+        departamento: 'N/A',
         contrato: `PGP-${normalizeDigits(selectedPrestador['ID DE ZONA'])}`,
         vigencia: `01/01/${new Date().getFullYear()} - 31/12/${new Date().getFullYear()}`,
         periodo: periodo,
@@ -621,6 +622,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         maxPct: 1.1,
       },
       anticipos: anticipos,
+      comparisonSummary,
     };
     
     setReportData(dataForReport);

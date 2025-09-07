@@ -1,79 +1,71 @@
 "use client";
 
 import React, { useMemo, useState, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, AlertTriangle, FileText, Copy, Download } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, Copy, Download, HelpCircle, ArrowRightLeft, Search, XCircle, CheckCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, Legend } from "recharts";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import StatCard from "../shared/StatCard";
 
-
-/**
- * InformePGP.tsx
- * ------------------------------------------------------------
- * Componente de React + TypeScript para generar un informe tipo
- * "Seguimiento Trimestral PGP" con:
- *  - Gráficas (valores ejecutados vs. meta) y (CUPS por mes)
- *  - Narrativa técnica "asistida por IA" (plantillas heurísticas)
- *  - Indicadores de banda de control (90%–110%)
- *  - Botón para copiar el informe textual
- *  - Diseño shadcn/ui + Tailwind (cards, alerts, badges)
- *
- * Cómo usarlo:
- *  <InformePGP data={data} />
- * Donde `data` cumple la interfaz ReportData (ver abajo).
- *
- * Si no pasas `data`, se renderiza un ejemplo con los valores del
- * reporte del Trimestre 2 (Uribia, GRUPO IMB) indicados por el usuario.
- */
 
 // ======= Tipos =======
 export type MonthKey = "ABRIL" | "MAYO" | "JUNIO" | "ENERO" | "FEBRERO" | "MARZO" | "JULIO" | "AGOSTO" | "SEPTIEMBRE" | "OCTUBRE" | "NOVIEMBRE" | "DICIEMBRE";
 
 export interface MonthExecution {
   month: MonthKey;
-  cups: number;          // Número de actividades/códigos reportados
-  valueCOP: number;      // Valor ejecutado en COP para el mes
+  cups: number;
+  valueCOP: number;
 }
 
 export interface ContractBand {
-  estimateCOP: number;   // Valor estimado (nota técnica) para el trimestre
-  minPct: number;        // p.ej. 0.90
-  maxPct: number;        // p.ej. 1.10
+  estimateCOP: number;
+  minPct: number;
+  maxPct: number;
 }
 
 export interface Anticipos80_20 {
-  anticipado80COP: number; // Total anticipado (80% de 2 meses)
-  mes1_80COP: number;      // 80% mes 1
-  mes2_80COP: number;      // 80% mes 2
-  mes3_100COP: number;     // 100% mes 3
+  anticipado80COP: number;
+  mes1_80COP: number;
+  mes2_80COP: number;
+  mes3_100COP: number;
 }
 
 export interface HeaderInfo {
   informeNo?: string;
-  fecha?: string;           // ISO o legible
-  empresa?: string;         // p.ej. "DUSAKAWI EPSI"
+  fecha?: string;
+  empresa?: string;
   nit?: string;
-  municipio?: string;       // p.ej. "URIBIA"
-  departamento?: string;    // p.ej. "LA GUAJIRA"
-  contrato?: string;        // p.ej. "44847_04_PGP"
-  vigencia?: string;        // p.ej. "01/01/2025-01/12/2025"
-  responsable?: string;     // p.ej. "Dirección Nacional del Riesgo en Salud"
+  municipio?: string;
+  departamento?: string;
+  contrato?: string;
+  vigencia?: string;
+  responsable?: string;
   periodo?: string;
+}
+
+export interface ComparisonSummary {
+  totalPgpCups: number;
+  matchingCups: number;
+  missingCups: string[];
+  unexpectedCups: string[];
 }
 
 export interface ReportData {
   header: HeaderInfo;
-  months: MonthExecution[];       // 3 meses del trimestre
-  band: ContractBand;             // banda 90%-110%
-  anticipos: Anticipos80_20;      // esquema 80/20
-  descuentosCOP?: number;         // opcional (si hubo descuentos)
-  reconocimientosCOP?: number;    // opcional (si hubo reconocimiento adicional)
-  objetivoTexto?: string;         // si se quiere sobreescribir el objetivo estándar
+  months: MonthExecution[];
+  band: ContractBand;
+  anticipos: Anticipos80_20;
+  comparisonSummary?: ComparisonSummary;
+  descuentosCOP?: number;
+  reconocimientosCOP?: number;
+  objetivoTexto?: string;
 }
 
 // ======= Utilidades =======
@@ -87,10 +79,6 @@ function withinBand(total: number, band: ContractBand) {
 }
 
 // ======= Narrativa "asistida" =======
-/**
- * Genera párrafos técnicos en español según los datos.
- * (Heurística: plantillas + umbrales, evita lenguaje florido.)
- */
 function generateNarrative(data: ReportData) {
   const { months, band, descuentosCOP = 0, reconocimientosCOP = 0 } = data;
   const totalTrim = months.reduce((s, m) => s + m.valueCOP, 0);
@@ -111,8 +99,8 @@ reconocimientos y/o descuentos, y estabilidad operativa del prestador durante el
 actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. ` +
     `Los valores mensuales fueron: ` +
     months
-      .map((m) => `${m.month}: ${formatCOP(m.valueCOP)} (${m.cups.toLocaleString("es-CO")} CUPS)`) 
-      .join("; ") + 
+      .map((m) => `${m.month}: ${formatCOP(m.valueCOP)} (${m.cups.toLocaleString("es-CO")} CUPS)`)
+      .join("; ") +
     "."
   );
 
@@ -139,7 +127,6 @@ actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. `
     `y el pago del tercer mes por ${formatCOP(data.anticipos.mes3_100COP)} (100%).`
   );
 
-  // Hallazgos simples: detectar mes pico de CUPS y de valor
   const peakCups = months.reduce((a, b) => (b.cups > a.cups ? b : a));
   const peakVal = months.reduce((a, b) => (b.valueCOP > a.valueCOP ? b : a));
 
@@ -151,15 +138,15 @@ actividades (CUPS) y un valor ejecutado trimestral de ${formatCOP(totalTrim)}. `
 
   const recomendaciones = b.ok
     ? [
-        "Mantener la disciplina operativa y el seguimiento a indicadores trazadores.",
-        "Consolidar la planeación de oferta según demanda observada y estacionalidad local.",
-        "Profundizar auditoría concurrente sobre códigos de alto impacto financiero.",
-      ]
+      "Mantener la disciplina operativa y el seguimiento a indicadores trazadores.",
+      "Consolidar la planeación de oferta según demanda observada y estacionalidad local.",
+      "Profundizar auditoría concurrente sobre códigos de alto impacto financiero.",
+    ]
     : [
-        "Ajustar metas operativas y redistribuir oferta para volver a la banda de control.",
-        "Revisar glosas/causales de no reconocimiento y trazabilidad de historias clínicas.",
-        "Implementar micro‑planes de acceso para reducir variabilidad intermensual.",
-      ];
+      "Ajustar metas operativas y redistribuir oferta para volver a la banda de control.",
+      "Revisar glosas/causales de no reconocimiento y trazabilidad de historias clínicas.",
+      "Implementar micro‑planes de acceso para reducir variabilidad intermensual.",
+    ];
 
   return { paragraphs: [p0, p1, p2, p3, p4, p5], recomendaciones, totalTrim, totalCUPS, bandHit: b.ok, bandMin: b.min, bandMax: b.max };
 }
@@ -182,7 +169,7 @@ const defaultData: ReportData = {
     { month: "JUNIO", cups: 4567, valueCOP: 408_704_877.86 },
   ],
   band: {
-    estimateCOP: 1_303_666_575.25, // valor de 3 meses
+    estimateCOP: 1_303_666_575.25,
     minPct: 0.90,
     maxPct: 1.10,
   },
@@ -255,13 +242,13 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  
+
   const handleDownloadPdf = async () => {
     const reportElement = reportRef.current;
     if (!reportElement) return;
 
     const canvas = await html2canvas(reportElement, {
-      scale: 2, // Mejora la resolución
+      scale: 2,
     });
 
     const imgData = canvas.toDataURL('image/png');
@@ -276,41 +263,40 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const ratio = canvasWidth / canvasHeight;
-    
-    const imgWidth = pdfWidth - 40; // Margen de 20pt por lado
+
+    const imgWidth = pdfWidth - 40;
     const imgHeight = imgWidth / ratio;
-    
+
     let heightLeft = imgHeight;
-    let position = 20; // Margen superior
+    let position = 20;
 
     pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
     heightLeft -= (pdfHeight - 40);
 
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight; 
+      position = heightLeft - imgHeight;
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
       heightLeft -= (pdfHeight - 40);
     }
-    
+
     pdf.save(`informe_pgp_${(header.empresa || 'reporte').replace(/\s/g, '_')}.pdf`);
   };
 
   const band = withinBand(summary.totalTrim, data.band);
 
   return (
-    <div ref={reportRef} className="mx-auto max-w-6xl space-y-6 p-4">
-      <Card className="shadow-xl">
+    <div ref={reportRef} className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
+      <Card className="shadow-xl print:shadow-none print:border-none">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
-              <div className="text-sm text-muted-foreground">
+              <CardDescription>
                 {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
-              </div>
-              <div className="text-sm text-muted-foreground">
+                <br />
                 Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
-              </div>
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2 print:hidden">
               <Button onClick={handleCopy} variant="default" className="gap-2">
@@ -323,10 +309,62 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Estado de banda de control */}
+
+          {data.comparisonSummary && (
+            <Card className="bg-gray-50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Contabilidad y Coincidencias</CardTitle>
+                <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
+                <StatCard title="CUPS Coincidentes" value={data.comparisonSummary.matchingCups} icon={CheckCircle} />
+
+                <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
+                   <AccordionItem value="missing-cups" className="border rounded-lg bg-white">
+                      <AccordionTrigger className="p-4 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                           <XCircle className="h-5 w-5 text-red-500" />
+                           <span>{data.comparisonSummary.missingCups.length} CUPS Faltantes</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 pt-0">
+                         <p className="text-xs text-muted-foreground mb-2">CUPS de la nota técnica no encontrados en el JSON.</p>
+                         <ScrollArea className="h-40">
+                          <div className="text-xs font-mono space-y-1">
+                            {data.comparisonSummary.missingCups.map(cup => <div key={cup}>{cup}</div>)}
+                          </div>
+                         </ScrollArea>
+                      </AccordionContent>
+                   </AccordionItem>
+                </Accordion>
+                
+                <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
+                   <AccordionItem value="unexpected-cups" className="border rounded-lg bg-white">
+                      <AccordionTrigger className="p-4 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <HelpCircle className="h-5 w-5 text-yellow-600" />
+                          <span>{data.comparisonSummary.unexpectedCups.length} CUPS Inesperados</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 pt-0">
+                         <p className="text-xs text-muted-foreground mb-2">CUPS del JSON no encontrados en la nota técnica.</p>
+                         <ScrollArea className="h-40">
+                          <div className="text-xs font-mono space-y-1">
+                             {data.comparisonSummary.unexpectedCups.map(cup => <div key={cup}>{cup}</div>)}
+                          </div>
+                         </ScrollArea>
+                      </AccordionContent>
+                   </AccordionItem>
+                </Accordion>
+                
+              </CardContent>
+            </Card>
+          )}
+
           {band.ok ? (
-            <Alert className="border-emerald-300">
-              <CheckCircle2 className="h-4 w-4" />
+            <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <AlertTitle>Ejecución dentro de Rango</AlertTitle>
               <AlertDescription>
                 Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
@@ -343,8 +381,8 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
           )}
 
           <section className="space-y-2">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Objetivo</h3>
-            <p className="leading-relaxed text-sm">{generateNarrative(data).paragraphs[0]}</p>
+            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Objetivo</h3>
+            <p className="leading-relaxed text-sm">{summary.paragraphs[0]}</p>
           </section>
 
           <Separator />
@@ -390,8 +428,8 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
           <Separator />
 
           <section className="space-y-3">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Desarrollo del informe</h3>
-            {generateNarrative(data).paragraphs.slice(1).map((p, i) => (
+            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Desarrollo del informe</h3>
+            {summary.paragraphs.slice(1).map((p, i) => (
               <p key={i} className="leading-relaxed text-sm">{p}</p>
             ))}
           </section>
@@ -401,7 +439,7 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
           <section className="space-y-2">
             <h3 className="text-base font-semibold">Recomendaciones</h3>
             <ul className="list-disc pl-6 text-sm space-y-1">
-              {generateNarrative(data).recomendaciones.map((r, i) => (
+              {summary.recomendaciones.map((r, i) => (
                 <li key={i}>{r}</li>
               ))}
             </ul>
