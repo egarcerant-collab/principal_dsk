@@ -15,7 +15,8 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import QuarterlyFinancialReport, { type MonthInput, type ReportHeader } from './QuarterlyFinancialReport';
+import InformePGP, { type ReportData, type MonthKey, type MonthExecution } from './InformePGP';
+
 
 interface PgpRow {
   SUBCATEGORIA?: string;
@@ -81,6 +82,12 @@ const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4l
 
 /** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
+const normalizeDigits = (v: unknown): string => {
+  return String(v ?? "")
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/\D/g, ""); // deja solo dígitos
+};
 
 /** Parser numérico robusto para formatos es-CO y en-US */
 export const getNumericValue = (value: any): number => {
@@ -349,6 +356,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isClient, setIsClient] = useState(false);
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -393,7 +401,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       });
 
       setPgpData(pgpRows);
-      setGlobalSummary(calculateSummary(pgpRows));
+      const summary = calculateSummary(pgpRows)
+      setGlobalSummary(summary);
       setIsDataLoaded(true);
       setSelectedPrestador(prestador); // ✅ sólo ahora marcamos como seleccionado
       toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
@@ -446,19 +455,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   /** Selección desde el dropdown: validar ID vs JSON antes de cargar */
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
-    setIsDataLoaded(false); // Reset data loaded state on new selection
+    setIsDataLoaded(false);
 
+    // no marcar aún como seleccionado
     setPrestadorToLoad(prestador);
 
-    const pgpZoneId = normalizeString(prestador['ID DE ZONA']);
-    const jsonId = normalizeString(jsonPrestadorCode);
+    const pgpZoneId = prestador['ID DE ZONA'] ? normalizeDigits(prestador['ID DE ZONA']) : null;
+    const jsonId = jsonPrestadorCode ? normalizeDigits(jsonPrestadorCode) : null;
 
     if (jsonId && pgpZoneId && jsonId !== pgpZoneId) {
       const warningMsg = `¡Advertencia! El código del JSON (${jsonId}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
       setMismatchWarning(warningMsg);
-      // Stop here and wait for user to force load
+      // El usuario decidirá si cargar de todos modos
     } else {
-      // Coinciden o no hay JSON cargado → cargamos directo
+      // Coinciden → cargamos directo
       performLoadPrestador(prestador);
     }
   }, [jsonPrestadorCode, performLoadPrestador]);
@@ -510,8 +520,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   useEffect(() => {
     if (!jsonPrestadorCode || prestadores.length === 0 || loading || selectedPrestador) return;
 
-    const normalizedJsonCode = normalizeString(jsonPrestadorCode);
-    const matchById = prestadores.find(p => normalizeString(p['ID DE ZONA']) === normalizedJsonCode);
+    const normalizedJsonCode = normalizeDigits(jsonPrestadorCode);
+    const matchById = prestadores.find(p => normalizeDigits(p['ID DE ZONA']) === normalizedJsonCode);
     
     if (matchById) {
       toast({
@@ -522,8 +532,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleSelectPrestador, toast]);
 
-  /** Cálculo de comparación de valores */
-  const calculateValueComparison = useCallback((pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth) => {
+  const getMonthName = (monthNumber: string): MonthKey => {
+    const date = new Date();
+    date.setMonth(parseInt(monthNumber, 10) - 1);
+    const name = date.toLocaleString('es-CO', { month: 'long' });
+    return name.toUpperCase() as MonthKey;
+  };
+
+  /** Cálculo de comparación y construcción de datos para el informe */
+  useEffect(() => {
+    if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary) {
+      setReportData(null);
+      return;
+    }
+    
     let totalExpected = 0;
     const totalExecutedByMonth = new Map<string, number>();
 
@@ -533,10 +555,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
     const comparisonData = pgpData.map(row => {
       const cup = findColumnValue(row, ['cup/cum', 'cups']) ?? '';
-      const description = findColumnValue(row, ['descripcion cups', 'descripcion']) ?? '';
       const unitValue = getNumericValue(findColumnValue(row, ['valor unitario']));
       const expectedFrequency = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
-
       const expectedValue = unitValue * expectedFrequency;
       totalExpected += expectedValue;
 
@@ -550,39 +570,65 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         totalExecutedValue += executedValue;
         totalExecutedByMonth.set(month, (totalExecutedByMonth.get(month) || 0) + executedValue);
       });
-
+      
+      return { cup, unitValue, expectedValue, executedValues, totalExecutedValue };
+    }).filter(item => item.cup);
+    
+    // Construir el objeto ReportData
+    const months: MonthExecution[] = Array.from(executionDataByMonth.entries()).map(([monthNum, monthData]) => {
+      let totalCups = 0;
+      monthData.cupCounts.forEach(count => totalCups += count);
       return {
-        cup,
-        description,
-        unitValue,
-        expectedValue,
-        executedValues,
-        totalExecutedValue
+        month: getMonthName(monthNum),
+        cups: totalCups,
+        valueCOP: totalExecutedByMonth.get(monthNum) ?? 0,
       };
-    }).filter(item => item.cup && (item.totalExecutedValue > 0 || item.expectedValue > 0));
+    });
 
-    setValueComparison(comparisonData);
+    if (months.length === 0) {
+      setReportData(null);
+      return;
+    }
+
+    const monthKeys = [...executionDataByMonth.keys()].sort();
+    const periodo = monthKeys.length > 0 ? `${getMonthName(monthKeys[0])} - ${getMonthName(monthKeys[monthKeys.length-1])}` : 'N/A';
+
+    const pgpMensual = globalSummary.totalCostoMes;
+    const estimacionTrimestral = pgpMensual * months.length;
+
+    const anticipos = {
+      mes1_80COP: months.length > 0 ? pgpMensual * 0.8 : 0,
+      mes2_80COP: months.length > 1 ? pgpMensual * 0.8 : 0,
+      mes3_100COP: months.length > 2 ? pgpMensual : 0,
+    };
+    anticipos.anticipado80COP = anticipos.mes1_80COP + anticipos.mes2_80COP;
+
+    const dataForReport: ReportData = {
+      header: {
+        empresa: 'DUSAKAWI EPSI', // Hardcoded por ahora
+        nit: selectedPrestador.NIT,
+        municipio: 'N/A', // Se necesita añadir a la hoja de prestadores
+        departamento: 'N/A', // Se necesita añadir a la hoja de prestadores
+        contrato: `PGP-${normalizeDigits(selectedPrestador['ID DE ZONA'])}`,
+        vigencia: `01/01/${new Date().getFullYear()} - 31/12/${new Date().getFullYear()}`,
+        periodo: periodo,
+        responsable: 'Dirección Nacional del Riesgo en Salud',
+      },
+      months: months,
+      band: {
+        estimateCOP: estimacionTrimestral,
+        minPct: 0.9,
+        maxPct: 1.1,
+      },
+      anticipos: anticipos,
+    };
+    
+    setReportData(dataForReport);
+    setValueComparison(comparisonData as any[]);
     setTotalExpectedValue(totalExpected);
     setTotalExecutedValueByMonth(totalExecutedByMonth);
 
-  }, []);
-
-  useEffect(() => {
-    if (isDataLoaded && pgpData.length > 0 && executionDataByMonth.size > 0) {
-      calculateValueComparison(pgpData, executionDataByMonth);
-    } else {
-      setValueComparison([]);
-      setTotalExpectedValue(0);
-      setTotalExecutedValueByMonth(new Map());
-    }
-  }, [isDataLoaded, pgpData, executionDataByMonth, calculateValueComparison]);
-
-  const getMonthName = (monthNumber: string) => {
-    const date = new Date();
-    date.setMonth(parseInt(monthNumber) - 1);
-    const name = date.toLocaleString('es-CO', { month: 'long' });
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  };
+  }, [isDataLoaded, pgpData, executionDataByMonth, globalSummary, selectedPrestador]);
 
   if (!isClient) {
     return (
@@ -595,23 +641,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
   
-  const reportMonths: MonthInput[] = [...executionDataByMonth.entries()].map(([month, data]) => ({
-    monthName: getMonthName(month),
-    summary: globalSummary, // El PGP mensual es el mismo para todos los meses del mismo contrato
-    executedValue: totalExecutedValueByMonth.get(month) || 0
-  }));
-  
-  const monthNames = reportMonths.map(m => m.monthName);
-
-
-  const reportHeader: ReportHeader = {
-    empresa: selectedPrestador?.PRESTADOR ?? "—",
-    nit: selectedPrestador?.NIT ?? "—",
-    contrato: selectedPrestador?.['ID DE ZONA']
-      ? `PGP-${normalizeString(selectedPrestador['ID DE ZONA'])}`
-      : "PGP-—",
-    periodo: monthNames.length ? monthNames.join(' - ') : "—"
-  };
+  const monthNames = [...executionDataByMonth.keys()].map(m => getMonthName(m));
 
   return (
     <Card>
@@ -670,26 +700,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             />
 
             {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
+            
+            {showComparison && reportData && (
+              <InformePGP data={reportData} />
+            )}
 
-            {showComparison && (
-              <>
-                <ComparisonTable
-                  pgpData={pgpData}
-                  executionDataByMonth={executionDataByMonth}
-                  monthNames={monthNames}
-                />
-                <ValueComparisonCard
-                  expectedValue={totalExpectedValue}
-                  executedValueByMonth={totalExecutedValueByMonth}
-                  comparisonData={valueComparison}
-                  executionDataByMonth={executionDataByMonth}
-                  monthNames={monthNames}
-                />
-                <QuarterlyFinancialReport
-                  header={reportHeader}
-                  months={reportMonths}
-                />
-              </>
+            {showComparison && !reportData && (
+               <Card>
+                <CardHeader><CardTitle>Esperando datos completos...</CardTitle></CardHeader>
+                <CardContent><p>El informe se generará en cuanto se disponga de todos los datos necesarios (JSON y Nota Técnica).</p></CardContent>
+              </Card>
             )}
           </div>
         )}
