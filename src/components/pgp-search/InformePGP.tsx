@@ -11,7 +11,8 @@ import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-import { getNumericValue, findColumnValue, formatCurrency, type ComparisonSummary, type DeviatedCupInfo, type MatrixRow } from './PgPsearchForm';
+import { findColumnValue, formatCurrency, type ComparisonSummary } from './PgPsearchForm';
+import type { DeviatedCupInfo, MatrixRow } from './PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 
@@ -266,97 +267,6 @@ const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo:
   );
 };
 
-const ExecutionMatrixAccordion = ({ title, icon, data, onDownload }: {
-    title: string;
-    icon: React.ElementType;
-    data: MatrixRow[];
-    onDownload: (data: any[], filename: string) => void;
-}) => {
-    const Icon = icon;
-    if (!data || data.length === 0) {
-        return (
-             <Card className="bg-gray-50 dark:bg-gray-800/20">
-                <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <div className='flex items-center'>
-                        <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
-                        <CardTitle className="text-base font-medium">{title}</CardTitle>
-                    </div>
-                    <Badge variant="secondary">0</Badge>
-                </CardHeader>
-            </Card>
-        )
-    }
-
-    const getRowClass = (classification: string) => {
-        switch (classification) {
-            case "Sobre-ejecutado": return "text-red-600";
-            case "Sub-ejecutado": return "text-blue-600";
-            case "Faltante": return "text-yellow-600";
-            default: return "";
-        }
-    };
-
-    return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
-            <AccordionItem value="item-1" className="border-0">
-                 <div className="flex items-center justify-between p-4">
-                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-                        <div className="flex items-center">
-                            <Icon className="h-6 w-6 mr-3 text-purple-600" />
-                            <h3 className="text-base font-medium text-left">{title}</h3>
-                        </div>
-                    </AccordionTrigger>
-                    <div className='flex items-center gap-4 pl-4'>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
-                            }}
-                            className="h-7 w-7"
-                            aria-label={`Descargar ${title}`}
-                        >
-                            <Download className="h-4 w-4" />
-                        </Button>
-                        <Badge variant="secondary">{data.length}</Badge>
-                    </div>
-                </div>
-                <AccordionContent className="px-4 pb-4">
-                    <ScrollArea className="h-96">
-                        <Table>
-                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                                <TableRow>
-                                    <TableHead>Mes</TableHead>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead className="text-center">Cant. Esperada</TableHead>
-                                    <TableHead className="text-center">Cant. Ejecutada</TableHead>
-                                    <TableHead className="text-center">Diferencia</TableHead>
-                                    <TableHead className="text-center">% Ejecución</TableHead>
-                                    <TableHead>Clasificación</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.map((row, index) => (
-                                    <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                                        <TableCell className="text-xs">{row.Mes}</TableCell>
-                                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                                        <TableCell className="text-center">{row.Cantidad_Esperada}</TableCell>
-                                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                                        <TableCell className="text-center font-semibold">{row.Diferencia}</TableCell>
-                                        <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
-                                        <TableCell className="font-medium">{row.Clasificacion}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-    );
-};
-
 
 export default function InformePGP({ comparisonSummary, pgpData }: {
     comparisonSummary: ComparisonSummary | null;
@@ -425,7 +335,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: {
                         onDownload={handleDownloadXls}
                     />
                     <DeviatedCupsAccordion
-                        title="CUPS Subejecutados"
+                        title="CUPS Subejecutados (<90%)"
                         icon={TrendingDown}
                         data={comparisonSummary.underExecutedCups}
                         badgeVariant="default"
@@ -453,13 +363,6 @@ export default function InformePGP({ comparisonSummary, pgpData }: {
                 </CardContent>
             </Card>
 
-             <ExecutionMatrixAccordion
-                title="Matriz Detallada: Ejecución vs. Esperado"
-                icon={TableIcon}
-                data={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
-                onDownload={handleDownloadXls}
-            />
-
             <CupDetailsModal
                 cupData={selectedCupData}
                 open={isCupModalOpen}
@@ -472,19 +375,6 @@ export default function InformePGP({ comparisonSummary, pgpData }: {
                 onOpenChange={setIsLookupModalOpen}
                 isLoading={isLookupLoading}
             />
-
-             <Card className="bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
-                <CardHeader>
-                    <CardTitle>INFORME</CardTitle>
-                     <CardDescription>
-                       Matriz de resumen y análisis financiero.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <p className="text-muted-foreground">Esta sección está en construcción.</p>
-                </CardContent>
-            </Card>
-
         </div>
     );
 }

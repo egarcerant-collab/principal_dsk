@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -13,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import InformePGP from './InformePGP';
+import FinancialMatrix from './FinancialMatrix';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -74,6 +76,9 @@ export interface MatrixRow {
     Diferencia: number;
     '%_Ejecucion': string;
     Clasificacion: string;
+    Valor_Unitario: number;
+    Valor_Esperado: number;
+    Valor_Ejecutado: number;
 }
 
 export interface ComparisonSummary {
@@ -82,6 +87,8 @@ export interface ComparisonSummary {
     missingCups: DeviatedCupInfo[];
     unexpectedCups: { cup: string, realFrequency: number }[];
     Matriz_Ejecucion_vs_Esperado: MatrixRow[];
+    totalValorEsperado: number;
+    totalValorEjecutado: number;
 }
 
 
@@ -277,6 +284,9 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: { cup: string, realFrequency: number }[] = [];
   const executionMatrix: MatrixRow[] = [];
+  let totalValorEsperado = 0;
+  let totalValorEjecutado = 0;
+
 
   const pgpCupsMap = new Map<string, PgpRow>();
   pgpData.forEach(row => {
@@ -306,15 +316,18 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         const realFrequency = monthData.cupCounts.get(cup) || 0;
         const difference = realFrequency - expectedFrequency;
         const percentage = expectedFrequency > 0 ? (realFrequency / expectedFrequency) * 100 : (realFrequency > 0 ? Infinity : 0);
+        const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+        const valorEsperado = expectedFrequency * unitValue;
+        const valorEjecutado = realFrequency * unitValue;
 
         let classification = "Ejecución Normal";
-        if (!pgpRow) {
+        if (!pgpRow && realFrequency > 0) {
             classification = "Inesperado";
         } else if (realFrequency === 0 && expectedFrequency > 0) {
             classification = "Faltante";
         } else if (percentage > 111) {
             classification = "Sobre-ejecutado";
-        } else if (percentage < 90) {
+        } else if (percentage < 90 && expectedFrequency > 0) {
             classification = "Sub-ejecutado";
         }
 
@@ -325,7 +338,10 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Cantidad_Ejecutada: realFrequency,
             Diferencia: difference,
             '%_Ejecucion': expectedFrequency > 0 ? `${percentage.toFixed(0)}%` : 'N/A',
-            Clasificacion: classification
+            Clasificacion: classification,
+            Valor_Unitario: unitValue,
+            Valor_Esperado: valorEsperado,
+            Valor_Ejecutado: valorEjecutado,
         });
     });
   });
@@ -357,7 +373,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         
         if (percentage > 1.11) {
             overExecutedCups.push(cupInfo);
-        } else if (totalRealFrequency < totalExpectedFrequency) { // No percentage check needed, it's just less.
+        } else if (totalRealFrequency < totalExpectedFrequency * 0.90) { 
             underExecutedCups.push(cupInfo);
         }
       } else if (totalExpectedFrequency > 0) {
@@ -377,6 +393,11 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       });
     }
   });
+
+  executionMatrix.forEach(row => {
+    totalValorEsperado += row.Valor_Esperado;
+    totalValorEjecutado += row.Valor_Ejecutado;
+  });
   
   overExecutedCups.sort((a, b) => b.deviation - a.deviation);
   underExecutedCups.sort((a, b) => a.deviation - b.deviation);
@@ -387,7 +408,9 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     underExecutedCups,
     missingCups,
     unexpectedCups,
-    Matriz_Ejecucion_vs_Esperado: executionMatrix
+    Matriz_Ejecucion_vs_Esperado: executionMatrix,
+    totalValorEsperado,
+    totalValorEjecutado,
   };
 };
 
@@ -651,10 +674,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
             
             {showComparison && (
+              <>
                 <InformePGP 
                     comparisonSummary={comparisonSummary}
                     pgpData={pgpData}
                 />
+                <FinancialMatrix 
+                    matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
+                    totalExpectedValue={comparisonSummary.totalValorEsperado}
+                    totalExecutedValue={comparisonSummary.totalValorEjecutado}
+                />
+              </>
             )}
           </div>
         )}
