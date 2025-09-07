@@ -3,8 +3,6 @@
  * @fileOverview A PGP data analysis AI agent.
  *
  * - analyzePgpData - A function that handles the PGP data analysis process.
- * - AnalyzePgpDataInput - The input type for the analyzePgpData function.
- * - AnalyzePgpDataOutput - The return type for the analyzePgpData function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -35,15 +33,13 @@ type PgpRow = z.infer<typeof PgpRowSchema>;
 
 const AnalyzePgpDataInputSchema = z.array(PgpRowSchema);
 
-
 const AnalyzePgpDataOutputSchema = z.object({
     keyObservations: z.array(z.string()).describe("Una lista de 3 a 5 observaciones clave y concisas sobre los datos."),
     potentialRisks: z.array(z.string()).describe("Una lista de 2 a 3 riesgos potenciales identificados en los datos."),
     strategicRecommendations: z.array(z.string()).describe("Una lista de 2 a 3 recomendaciones estratégicas basadas en el análisis.")
 });
-export type AnalyzePgpDataOutput = z.infer<typeof AnalyzePgpDataOutputSchema>;
 
-export async function analyzePgpData(input: PgpRow[]): Promise<AnalyzePgpDataOutput> {
+export async function analyzePgpData(input: PgpRow[]): Promise<z.infer<typeof AnalyzePgpDataOutputSchema>> {
   return analyzePgpDataFlow(input);
 }
 
