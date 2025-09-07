@@ -16,7 +16,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard'; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import QuarterlyFinancialReport, { type MonthInput, type ReportHeader } from './FinancialSummaryMatrix';
+import QuarterlyFinancialReport, { type MonthInput, type ReportHeader } from './QuarterlyFinancialReport';
 
 interface PgpRow {
   SUBCATEGORIA?: string;

@@ -37,8 +37,7 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
     const map = new Map<string, PrestadorInfo>();
     providersList.forEach(provider => {
-        // Use ID DE ZONA as the primary key if it exists, otherwise fallback to NIT
-        const key = provider['ID DE ZONA'] ? String(provider['ID DE ZONA']).trim() : String(provider.NIT).trim();
+        const key = provider['ID DE ZONA'] ? String(provider['ID DE ZONA']).trim() : null;
         if (key) {
             map.set(key, {
                 ...provider,
@@ -166,8 +165,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                     const content = e.target.result as string;
                     const parsedJson = JSON.parse(content);
                     
-                    const prestadorCode = parsedJson?.codPrestador;
-                    const prestadorInfo = (prestadorCode && providers?.get(String(prestadorCode).trim())) || null;
+                    const prestadorCode = parsedJson?.codPrestador ? String(parsedJson.codPrestador).trim() : null;
+                    const prestadorInfo = (prestadorCode && providers?.get(prestadorCode)) || null;
 
                     resolve({
                         jsonData: parsedJson,
@@ -379,5 +378,3 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
-
-    

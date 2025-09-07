@@ -31,8 +31,7 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
         Papa.parse<T>(csvText, {
             header: true,
             skipEmptyLines: 'greedy',
-            // This is crucial to handle potential BOM characters from Google Sheets CSV export
-            transformHeader: (header) => header.trim().replace(/^\ufeff/g, ''),
+            transformHeader: (header) => header.trim().replace(/\uFEFF/g, ''),
             complete: (results: ParseResult<T>) => {
                 if (results.errors.length) {
                     const errorMsg = results.errors.map(e => e.message).join(', ');
@@ -40,13 +39,14 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
                     return reject(new Error(`Error parseando CSV: ${errorMsg}`));
                 }
                 
-                // Clean up keys in each data object as well, just in case
                  const cleanedData = results.data.map(row => {
                     const cleanedRow: { [key: string]: any } = {};
                     for (const key in row) {
                         if (Object.prototype.hasOwnProperty.call(row, key)) {
-                            const trimmedKey = key.trim();
-                            cleanedRow[trimmedKey] = (row as any)[key];
+                            const trimmedKey = key.trim().replace(/\uFEFF/g, '');
+                            if (trimmedKey) {
+                                cleanedRow[trimmedKey] = (row as any)[key];
+                            }
                         }
                     }
                     return cleanedRow as T;
