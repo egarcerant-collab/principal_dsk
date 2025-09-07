@@ -195,27 +195,6 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
     )
 };
 
-
-const StatsSummaryCard = ({ stats }: { stats: PgpStats | null }) => {
-    if (!stats) return null;
-
-    return (
-        <Card className="w-full shadow-lg">
-            <CardHeader>
-                <CardTitle>Estadísticas Clave de la Nota Técnica</CardTitle>
-                <CardDescription>Métricas calculadas a partir de los servicios definidos en el contrato.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-                    <StatCard title="Total de Códigos (CUPS/CUMs)" value={stats.totalCodes.toLocaleString()} icon={Hash} />
-                    <StatCard title="Eventos Esperados por Mes" value={stats.totalMonthlyEvents.toLocaleString()} icon={BarChart} />
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
-
 const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
@@ -225,13 +204,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
     const [selectedPrestador, setSelectedPrestador] = useState<Prestador | null>(null);
     const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
     const [globalSummary, setGlobalSummary] = useState<SummaryData | null>(null);
-    const [pgpStats, setPgpStats] = useState<PgpStats | null>(null);
     const [analysis, setAnalysis] = useState<AnalyzePgpDataOutput | null>(null);
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
+    const [isAiEnabled, setIsAiEnabled] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
+        // Check for API key presence on the client-side
+        fetch('/api/check-env').then(res => res.json()).then(data => {
+            setIsAiEnabled(data.isAiEnabled);
+        });
     }, []);
 
     useEffect(() => {
@@ -282,25 +265,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
         };
     }, []);
 
-    const calculatePgpStats = useCallback((data: PgpRow[]): PgpStats | null => {
-        if (data.length === 0) return null;
-
-        const totalCodes = new Set(data.map(row => row['CUP/CUM'])).size;
-        const totalMonthlyEvents = data.reduce((acc, row) => acc + getNumericValue(row['FRECUENCIA EVENTOS MES']), 0);
-
-        return {
-            totalCodes,
-            totalMonthlyEvents,
-        };
-    }, []);
-
     const handleSelectPrestador = async (prestador: Prestador) => {
         setSelectedPrestador(prestador);
         setLoading(true);
-        setLoadingAnalysis(true);
+        if (isAiEnabled) {
+          setLoadingAnalysis(true);
+        }
         setIsDataLoaded(false);
         setGlobalSummary(null);
-        setPgpStats(null);
         setAnalysis(null);
         toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
         
@@ -331,41 +303,44 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
 
             setPgpData(pgpRows);
             setGlobalSummary(calculateSummary(pgpRows));
-            setPgpStats(calculatePgpStats(pgpRows));
             setIsDataLoaded(true);
             toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
 
-            try {
-                const analysisInput = pgpRows.slice(0, 50).map(row => {
-                    return {
-                        'SUBCATEGORIA': row.SUBCATEGORIA,
-                        'AMBITO': row.AMBITO,
-                        'ID RESOLUCION 3100': row['ID RESOLUCION 3100'],
-                        'DESCRIPCION ID RESOLUCION': row['DESCRIPCION ID RESOLUCION'],
-                        'CUP/CUM': row['CUP/CUM'],
-                        'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
-                        'FRECUENCIA AÑO SERVICIO': getNumericValue(row['FRECUENCIA AÑO SERVICIO']),
-                        'FRECUENCIA USO': getNumericValue(row['FRECUENCIA USO']),
-                        'FRECUENCIA EVENTOS MES': getNumericValue(row['FRECUENCIA EVENTOS MES']),
-                        'FRECUENCIA EVENTO DIA': getNumericValue(row['FRECUENCIA EVENTO DIA']),
-                        'COSTO EVENTO MES': getNumericValue(row['COSTO EVENTO MES']),
-                        'COSTO EVENTO DIA': getNumericValue(row['COSTO EVENTO DIA']),
-                        'FRECUENCIA MINIMA MES': getNumericValue(row['FRECUENCIA MINIMA MES']),
-                        'FRECUENCIA MAXIMA MES': getNumericValue(row['FRECUENCIA MAXIMA MES']),
-                        'VALOR UNITARIO': getNumericValue(row['VALOR UNITARIO']),
-                        'VALOR MINIMO MES': getNumericValue(row['VALOR MINIMO MES']),
-                        'VALOR MAXIMO MES': getNumericValue(row['VALOR MAXIMO MES']),
-                        'COSTO EVENTO MES (VALOR MES)': row['COSTO EVENTO MES (VALOR MES)'] !== undefined
-                            ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
-                            : getNumericValue(row['COSTO EVENTO MES']),
-                        'OBSERVACIONES': row.OBSERVACIONES
-                    }
-                })
-                const analysisResult = await analyzePgpData(analysisInput);
-                setAnalysis(analysisResult);
-            } catch (aiError: any) {
-                 toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
-                 setAnalysis(null);
+            if (isAiEnabled) {
+                try {
+                    const analysisInput = pgpRows.slice(0, 50).map(row => {
+                        return {
+                            'SUBCATEGORIA': row.SUBCATEGORIA,
+                            'AMBITO': row.AMBITO,
+                            'ID RESOLUCION 3100': row['ID RESOLUCION 3100'],
+                            'DESCRIPCION ID RESOLUCION': row['DESCRIPCION ID RESOLUCION'],
+                            'CUP/CUM': row['CUP/CUM'],
+                            'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
+                            'FRECUENCIA AÑO SERVICIO': getNumericValue(row['FRECUENCIA AÑO SERVICIO']),
+                            'FRECUENCIA USO': getNumericValue(row['FRECUencia uso']),
+                            'FRECUENCIA EVENTOS MES': getNumericValue(row['FRECUENCIA EVENTOS MES']),
+                            'FRECUENCIA EVENTO DIA': getNumericValue(row['FRECUENCIA EVENTO DIA']),
+                            'COSTO EVENTO MES': getNumericValue(row['COSTO EVENTO MES']),
+                            'COSTO EVENTO DIA': getNumericValue(row['COSTO EVENTO DIA']),
+                            'FRECUENCIA MINIMA MES': getNumericValue(row['FRECUENCIA MINIMA MES']),
+                            'FRECUENCIA MAXIMA MES': getNumericValue(row['FRECUENCIA MAXIMA MES']),
+                            'VALOR UNITARIO': getNumericValue(row['VALOR UNITARIO']),
+                            'VALOR MINIMO MES': getNumericValue(row['VALOR MINIMO MES']),
+                            'VALOR MAXIMO MES': getNumericValue(row['VALOR MAXIMO MES']),
+                            'COSTO EVENTO MES (VALOR MES)': row['COSTO EVENTO MES (VALOR MES)'] !== undefined
+                                ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
+                                : getNumericValue(row['COSTO EVENTO MES']),
+                            'OBSERVACIONES': row.OBSERVACIONES
+                        }
+                    })
+                    const analysisResult = await analyzePgpData(analysisInput);
+                    setAnalysis(analysisResult);
+                } catch (aiError: any) {
+                     toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
+                     setAnalysis(null);
+                } finally {
+                    setLoadingAnalysis(false);
+                }
             }
 
 
@@ -375,7 +350,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
             setIsDataLoaded(false);
         } finally {
             setLoading(false);
-            setLoadingAnalysis(false);
         }
     };
     
@@ -446,8 +420,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
                                 description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
                            />
                         )}
-                        <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />
-                        <StatsSummaryCard stats={pgpStats} />
+                        { isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} /> }
                          <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -490,3 +463,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
 };
 
 export default PgPsearchForm;
+
+    
