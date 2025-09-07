@@ -154,6 +154,8 @@ export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPage
             totalOtrosServicios: summary1.totalOtrosServicios + summary2.totalOtrosServicios,
         });
 
+    } else if (file1.jsonData) {
+        setUnifiedSummary(calculateSummary(file1.jsonData));
     } else {
         setUnifiedSummary(null);
     }
