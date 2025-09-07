@@ -54,20 +54,25 @@ const ValueComparisonCard: React.FC<ValueComparisonCardProps> = ({
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
-                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 lg:col-span-1">
-                         <h3 className="text-sm font-medium text-blue-600 dark:text-blue-400">Valor Total Esperado (Mes)</h3>
-                         <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{formatCurrency(expectedValue)}</p>
-                         <p className="text-xs text-muted-foreground">Basado en Nota Técnica</p>
-                    </div>
+                <div className="space-y-4">
                     {[...executedValueByMonth.entries()].map(([month, value]) => (
-                        <div key={month} className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                            <h3 className="text-sm font-medium text-green-600 dark:text-green-400">Valor Ejecutado ({getMonthName(month)})</h3>
-                            <p className="text-2xl font-bold text-green-800 dark:text-green-300">{formatCurrency(value)}</p>
-                            <p className="text-xs text-muted-foreground">Basado en Archivos JSON</p>
+                        <div key={month} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                            {/* Expected Value Card (Left) */}
+                            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                                 <h3 className="text-sm font-medium text-blue-600 dark:text-blue-400">Valor Total Esperado (Mes)</h3>
+                                 <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{formatCurrency(expectedValue)}</p>
+                                 <p className="text-xs text-muted-foreground">Basado en Nota Técnica</p>
+                            </div>
+                            {/* Executed Value Card (Right) */}
+                            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+                                <h3 className="text-sm font-medium text-green-600 dark:text-green-400">Valor Ejecutado ({getMonthName(month)})</h3>
+                                <p className="text-2xl font-bold text-green-800 dark:text-green-300">{formatCurrency(value)}</p>
+                                <p className="text-xs text-muted-foreground">Basado en Archivos JSON</p>
+                            </div>
                         </div>
                     ))}
                 </div>
+
 
                 <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="value-details">
