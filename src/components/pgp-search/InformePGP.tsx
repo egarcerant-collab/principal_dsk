@@ -7,34 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2, TableIcon } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-import { getNumericValue, findColumnValue, formatCurrency } from './PgPsearchForm';
+import { getNumericValue, findColumnValue, formatCurrency, type ComparisonSummary, type DeviatedCupInfo, type MatrixRow } from './PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 
-export interface DeviatedCupInfo {
-    cup: string;
-    description?: string;
-    activityDescription?: string;
-    expectedFrequency: number;
-    realFrequency: number;
-    deviation: number;
-}
-
-export interface ComparisonSummary {
-    overExecutedCups: DeviatedCupInfo[];
-    underExecutedCups: DeviatedCupInfo[];
-    missingCups: DeviatedCupInfo[];
-    unexpectedCups: { cup: string, realFrequency: number }[];
-}
-
-interface InformePGPProps {
-    comparisonSummary: ComparisonSummary | null;
-    pgpData: any[]; // Todos los datos de la nota técnica
-}
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const csv = Papa.unparse(data);
@@ -77,7 +57,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                <div className="flex items-center justify-between p-4">
+                 <div className="flex items-center justify-between p-4">
                     <AccordionTrigger className="p-0 flex-1 hover:no-underline">
                         <div className="flex items-center">
                             <Icon className={`h-6 w-6 mr-3 ${badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500'}`} />
@@ -90,7 +70,11 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
                             size="icon"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
+                                const downloadData = data.map(item => ({
+                                    ...item,
+                                    deviation: item.deviation.toFixed(0) // Ensure deviation is formatted
+                                }));
+                                onDownload(downloadData, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
                             }}
                             className="h-7 w-7"
                             aria-label={`Descargar ${title}`}
@@ -167,7 +151,7 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                <div className="flex items-center justify-between p-4">
+                 <div className="flex items-center justify-between p-4">
                     <AccordionTrigger className="p-0 flex-1 hover:no-underline">
                         <div className="flex items-center">
                             <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
@@ -282,8 +266,102 @@ const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo:
   );
 };
 
+const ExecutionMatrixAccordion = ({ title, icon, data, onDownload }: {
+    title: string;
+    icon: React.ElementType;
+    data: MatrixRow[];
+    onDownload: (data: any[], filename: string) => void;
+}) => {
+    const Icon = icon;
+    if (!data || data.length === 0) {
+        return (
+             <Card className="bg-gray-50 dark:bg-gray-800/20">
+                <CardHeader className="flex flex-row items-center justify-between p-4">
+                    <div className='flex items-center'>
+                        <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
+                        <CardTitle className="text-base font-medium">{title}</CardTitle>
+                    </div>
+                    <Badge variant="secondary">0</Badge>
+                </CardHeader>
+            </Card>
+        )
+    }
 
-export default function InformePGP({ comparisonSummary, pgpData }: InformePGPProps) {
+    const getRowClass = (classification: string) => {
+        switch (classification) {
+            case "Sobre-ejecutado": return "text-red-600";
+            case "Sub-ejecutado": return "text-blue-600";
+            case "Faltante": return "text-yellow-600";
+            default: return "";
+        }
+    };
+
+    return (
+        <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
+            <AccordionItem value="item-1" className="border-0">
+                 <div className="flex items-center justify-between p-4">
+                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+                        <div className="flex items-center">
+                            <Icon className="h-6 w-6 mr-3 text-purple-600" />
+                            <h3 className="text-base font-medium text-left">{title}</h3>
+                        </div>
+                    </AccordionTrigger>
+                    <div className='flex items-center gap-4 pl-4'>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
+                            }}
+                            className="h-7 w-7"
+                            aria-label={`Descargar ${title}`}
+                        >
+                            <Download className="h-4 w-4" />
+                        </Button>
+                        <Badge variant="secondary">{data.length}</Badge>
+                    </div>
+                </div>
+                <AccordionContent className="px-4 pb-4">
+                    <ScrollArea className="h-96">
+                        <Table>
+                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                                <TableRow>
+                                    <TableHead>Mes</TableHead>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead className="text-center">Cant. Esperada</TableHead>
+                                    <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                                    <TableHead className="text-center">Diferencia</TableHead>
+                                    <TableHead className="text-center">% Ejecución</TableHead>
+                                    <TableHead>Clasificación</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.map((row, index) => (
+                                    <TableRow key={index} className={getRowClass(row.Clasificacion)}>
+                                        <TableCell className="text-xs">{row.Mes}</TableCell>
+                                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                                        <TableCell className="text-center">{row.Cantidad_Esperada}</TableCell>
+                                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                                        <TableCell className="text-center font-semibold">{row.Diferencia}</TableCell>
+                                        <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
+                                        <TableCell className="font-medium">{row.Clasificacion}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
+    );
+};
+
+
+export default function InformePGP({ comparisonSummary, pgpData }: {
+    comparisonSummary: ComparisonSummary | null;
+    pgpData: any[];
+}) {
     const [selectedCupData, setSelectedCupData] = useState<any | null>(null);
     const [isCupModalOpen, setIsCupModalOpen] = useState(false);
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
@@ -295,7 +373,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>ANÁLISIS DE FRECUENCIAS Y DESVIACIONES</CardTitle>
+                    <CardTitle className="uppercase">Análisis de Frecuencias y Desviaciones</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">No hay datos de ejecución cargados para comparar.</p>
@@ -331,7 +409,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>ANÁLISIS DE FRECUENCIAS Y DESVIACIONES</CardTitle>
+                    <CardTitle className="uppercase">Análisis de Frecuencias y Desviaciones</CardTitle>
                     <CardDescription>
                         Comparación entre la frecuencia de servicios esperada (nota técnica) y la real (archivos JSON).
                     </CardDescription>
@@ -375,6 +453,13 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
                 </CardContent>
             </Card>
 
+             <ExecutionMatrixAccordion
+                title="Matriz Detallada: Ejecución vs. Esperado"
+                icon={TableIcon}
+                data={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
+                onDownload={handleDownloadXls}
+            />
+
             <CupDetailsModal
                 cupData={selectedCupData}
                 open={isCupModalOpen}
@@ -403,5 +488,3 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
         </div>
     );
 }
-
-    

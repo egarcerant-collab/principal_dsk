@@ -12,7 +12,7 @@ import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
-import InformePGP, { type ComparisonSummary, type DeviatedCupInfo } from './InformePGP';
+import InformePGP from './InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -55,6 +55,33 @@ export interface SummaryData {
 
 interface PgpRow {
   [key: string]: any;
+}
+
+export interface DeviatedCupInfo {
+    cup: string;
+    description?: string;
+    activityDescription?: string;
+    expectedFrequency: number;
+    realFrequency: number;
+    deviation: number;
+}
+
+export interface MatrixRow {
+    Mes: string;
+    CUPS: string;
+    Cantidad_Esperada: number;
+    Cantidad_Ejecutada: number;
+    Diferencia: number;
+    '%_Ejecucion': string;
+    Clasificacion: string;
+}
+
+export interface ComparisonSummary {
+    overExecutedCups: DeviatedCupInfo[];
+    underExecutedCups: DeviatedCupInfo[];
+    missingCups: DeviatedCupInfo[];
+    unexpectedCups: { cup: string, realFrequency: number }[];
+    Matriz_Ejecucion_vs_Esperado: MatrixRow[];
 }
 
 
@@ -236,49 +263,104 @@ export const formatCurrency = (value: number | null | undefined): string => {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 };
 
+const getMonthName = (monthNumber: string) => {
+    const date = new Date();
+    date.setMonth(parseInt(monthNumber) - 1);
+    const name = date.toLocaleString('es-CO', { month: 'long' });
+    return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+
 const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth): ComparisonSummary => {
   const overExecutedCups: DeviatedCupInfo[] = [];
   const underExecutedCups: DeviatedCupInfo[] = [];
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: { cup: string, realFrequency: number }[] = [];
+  const executionMatrix: MatrixRow[] = [];
 
-  const pgpCups = new Set(pgpData.map(row => findColumnValue(row, ['cup/cum', 'cups'])).filter(Boolean));
-  const executedCups = new Set<string>();
-  executionDataByMonth.forEach(monthData => {
-    monthData.cupCounts.forEach((_, cup) => executedCups.add(cup));
+  const pgpCupsMap = new Map<string, PgpRow>();
+  pgpData.forEach(row => {
+      const cup = findColumnValue(row, ['cup/cum', 'cups']);
+      if(cup) pgpCupsMap.set(cup, row);
   });
 
-  const allRelevantCups = new Set([...pgpCups, ...executedCups]);
+  const executedCupsSet = new Set<string>();
+  executionDataByMonth.forEach(monthData => {
+    monthData.cupCounts.forEach((_, cup) => executedCupsSet.add(cup));
+  });
 
+  const allRelevantCups = new Set([...pgpCupsMap.keys(), ...executedCupsSet]);
+  
+  let totalExpectedFrequencyForPeriod = 0;
+  let totalRealFrequencyForPeriod = 0;
+
+
+  // Populate Execution Matrix first, month by month
+  executionDataByMonth.forEach((monthData, monthKey) => {
+    const monthName = getMonthName(monthKey);
+    const relevantCupsForMonth = new Set([...pgpCupsMap.keys(), ...monthData.cupCounts.keys()]);
+    
+    relevantCupsForMonth.forEach(cup => {
+        const pgpRow = pgpCupsMap.get(cup);
+        const expectedFrequency = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
+        const realFrequency = monthData.cupCounts.get(cup) || 0;
+        const difference = realFrequency - expectedFrequency;
+        const percentage = expectedFrequency > 0 ? (realFrequency / expectedFrequency) * 100 : (realFrequency > 0 ? Infinity : 0);
+
+        let classification = "Ejecución Normal";
+        if (!pgpRow) {
+            classification = "Inesperado";
+        } else if (realFrequency === 0 && expectedFrequency > 0) {
+            classification = "Faltante";
+        } else if (percentage > 111) {
+            classification = "Sobre-ejecutado";
+        } else if (percentage < 90) {
+            classification = "Sub-ejecutado";
+        }
+
+        executionMatrix.push({
+            Mes: monthName,
+            CUPS: cup,
+            Cantidad_Esperada: expectedFrequency,
+            Cantidad_Ejecutada: realFrequency,
+            Diferencia: difference,
+            '%_Ejecucion': expectedFrequency > 0 ? `${percentage.toFixed(0)}%` : 'N/A',
+            Clasificacion: classification
+        });
+    });
+  });
+
+  // Calculate summaries (over, under, etc.) based on totals
   allRelevantCups.forEach(cup => {
-    const pgpRow = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
+    const pgpRow = pgpCupsMap.get(cup);
     let totalRealFrequency = 0;
     executionDataByMonth.forEach(monthData => {
       totalRealFrequency += monthData.cupCounts.get(cup) || 0;
     });
 
     if (pgpRow) {
-      const expectedFrequency = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
-      const totalExpectedFrequency = expectedFrequency * executionDataByMonth.size;
+      const expectedFrequencyPerMonth = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
+      const totalExpectedFrequency = expectedFrequencyPerMonth * executionDataByMonth.size;
 
       if (totalRealFrequency > 0) {
+        const deviation = totalRealFrequency - totalExpectedFrequency;
+        const percentage = totalExpectedFrequency > 0 ? (totalRealFrequency / totalExpectedFrequency) : Infinity;
+        
         const cupInfo: DeviatedCupInfo = {
           cup,
           description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
           activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']),
           expectedFrequency: totalExpectedFrequency,
           realFrequency: totalRealFrequency,
-          deviation: totalRealFrequency - totalExpectedFrequency,
+          deviation: deviation,
         };
         
-        // **Filtro de >111% aplicado aquí**
-        if (totalExpectedFrequency > 0 && (totalRealFrequency / totalExpectedFrequency) > 1.11) {
+        if (percentage > 1.11) {
             overExecutedCups.push(cupInfo);
-        } else if (totalRealFrequency < totalExpectedFrequency) {
+        } else if (totalRealFrequency < totalExpectedFrequency) { // No percentage check needed, it's just less.
             underExecutedCups.push(cupInfo);
         }
-      } else {
-        // CUPS en nota técnica pero no ejecutados
+      } else if (totalExpectedFrequency > 0) {
         missingCups.push({
           cup,
           description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
@@ -289,7 +371,6 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         });
       }
     } else if (totalRealFrequency > 0) {
-      // CUPS ejecutados pero no en nota técnica
       unexpectedCups.push({
         cup,
         realFrequency: totalRealFrequency,
@@ -306,6 +387,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     underExecutedCups,
     missingCups,
     unexpectedCups,
+    Matriz_Ejecucion_vs_Esperado: executionMatrix
   };
 };
 
@@ -582,5 +664,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    
