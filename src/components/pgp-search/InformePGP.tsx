@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Papa from 'papaparse';
 import {
   Card,
   CardContent,
@@ -14,9 +15,9 @@ import {
   ArrowRightLeft,
   XCircle,
   HelpCircle,
-  FileText,
   TrendingDown,
   TrendingUp,
+  Download,
 } from "lucide-react";
 import {
   Table,
@@ -228,7 +229,7 @@ const CupDetailModal = ({ cup, isOpen, onClose }: { cup: PgpRow | null, isOpen: 
     )
 }
 
-const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under', onCupClick: (cup: string) => void }) => {
+const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick, onDownload }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under', onCupClick: (cup: string) => void, onDownload: () => void }) => {
   if (count === 0) return null;
   
   const diffClass = variant === 'over' ? "font-bold text-red-500" : "font-bold text-yellow-600";
@@ -242,6 +243,9 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }
             {icon}
             <span className="font-semibold">{count} {title}</span>
           </div>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 mr-2">
+            <Download className="h-4 w-4" />
+          </Button>
         </div>
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0">
@@ -282,7 +286,7 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }
 };
 
 
-const DiscrepancyAccordion = ({ title, icon, count, data }: { title: string, icon: React.ReactNode, count: number, data: string[] }) => {
+const DiscrepancyAccordion = ({ title, icon, count, data, onDownload }: { title: string, icon: React.ReactNode, count: number, data: string[], onDownload: () => void }) => {
   if (count === 0) return null;
   
   const description = title.includes("Faltantes") 
@@ -297,6 +301,9 @@ const DiscrepancyAccordion = ({ title, icon, count, data }: { title: string, ico
             {icon}
             <span className="font-semibold">{count} {title}</span>
           </div>
+           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDownload(); }} className="h-7 w-7 mr-2">
+            <Download className="h-4 w-4" />
+          </Button>
         </div>
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0">
@@ -332,6 +339,21 @@ export default function InformePGP({ data }: { data: ReportData }) {
   };
 
   const closeModal = () => setIsModalOpen(false);
+  
+  const handleDownloadCsv = (dataToDownload: any[], filename: string) => {
+    const csv = Papa.unparse(dataToDownload);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
@@ -403,12 +425,13 @@ export default function InformePGP({ data }: { data: ReportData }) {
                  <Accordion type="multiple" className="space-y-4">
 
                      <DeviatedCupsAccordion
-                        title="CUPS Sobreejecutados (>111%)"
+                        title={`CUPS Sobreejecutados (>111%)`}
                         icon={<TrendingUp className="h-5 w-5 text-red-500" />}
                         count={data.comparisonSummary.overExecutedCups.length}
                         data={data.comparisonSummary.overExecutedCups}
                         variant="over"
                         onCupClick={handleCupClick}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.overExecutedCups || [], 'cups_sobrejecutados.csv')}
                       />
                       
                       <DeviatedCupsAccordion
@@ -418,6 +441,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         data={data.comparisonSummary.underExecutedCups}
                         variant="under"
                         onCupClick={handleCupClick}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.underExecutedCups || [], 'cups_subejecutados.csv')}
                       />
                       
                       <DiscrepancyAccordion
@@ -425,6 +449,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         icon={<XCircle className="h-5 w-5 text-red-500" />}
                         count={data.comparisonSummary.missingCups.length}
                         data={data.comparisonSummary.missingCups}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.missingCups.map(cup => ({ cup })) || [], 'cups_faltantes.csv')}
                       />
                       
                       <DiscrepancyAccordion
@@ -432,6 +457,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         icon={<HelpCircle className="h-5 w-5 text-yellow-600" />}
                         count={data.comparisonSummary.unexpectedCups.length}
                         data={data.comparisonSummary.unexpectedCups}
+                        onDownload={() => handleDownloadCsv(data.comparisonSummary?.unexpectedCups.map(cup => ({ cup })) || [], 'cups_inesperados.csv')}
                       />
 
                   </Accordion>
