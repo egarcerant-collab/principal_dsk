@@ -9,7 +9,7 @@ import Papa, { type ParseResult } from 'papaparse';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Separator } from '@/components/ui/separator';
+import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Types moved from the server file to the client component
@@ -167,6 +167,16 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
     )
 }
 
+const getNumericValue = (value: any): number => {
+    if (value === null || value === undefined || typeof value !== 'string') return 0;
+    
+    // Remove '$' and whitespace. Then remove '.' as thousand separators. Then replace ',' with '.' for decimal.
+    const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
+
+    const number = parseFloat(cleanValue);
+    return isNaN(number) ? 0 : number;
+};
+
 const PgPsearchForm: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
@@ -250,21 +260,15 @@ const PgPsearchForm: React.FC = () => {
         };
         fetchPrestadores();
     }, [isClient, toast, fetchAndParseSheetData]);
-
-    const getNumericValue = (value: any): number => {
-        if (value === null || value === undefined || typeof value !== 'string') return 0;
-        const cleanValue = value.replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.');
-        return parseFloat(cleanValue) || 0;
-    };
     
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
         
         const totalCostoMes = data.reduce((acc, row) => {
-            const costo = row['COSTO EVENTO MES (VALOR MES)'] !== undefined 
-                ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
-                : getNumericValue(row['COSTO EVENTO MES']);
-            return acc + costo;
+            const costColumnKey = row['COSTO EVENTO MES (VALOR MES)'] !== undefined 
+                ? 'COSTO EVENTO MES (VALOR MES)' 
+                : 'COSTO EVENTO MES';
+            return acc + getNumericValue(row[costColumnKey]);
         }, 0);
         
         const totalMinimoMes = data.reduce((acc, row) => acc + getNumericValue(row['VALOR MINIMO MES']), 0);
@@ -322,8 +326,8 @@ const PgPsearchForm: React.FC = () => {
             try {
                 const analysisInput = pgpRows.slice(0, 50).map(row => {
                     const getNumericAI = (value: any) => {
-                         if (value === null || value === undefined) return 0;
-                        const cleanValue = String(value).replace(/\$/g, '').replace(/\./g, '').replace(/,/g, '.');
+                         if (value === null || value === undefined || typeof value !== 'string') return 0;
+                        const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
                         return parseFloat(cleanValue) || 0;
                     };
                     return {
