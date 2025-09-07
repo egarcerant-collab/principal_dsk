@@ -269,6 +269,13 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   const isUploadDisabled = isLoadingProviders || !canUploadForCurrentMonth || !canSelectNewMonth;
 
   const anyFileLoaded = files.length > 0;
+  
+  const getMonthName = (monthNumber: string) => {
+    const date = new Date();
+    date.setMonth(parseInt(monthNumber) - 1);
+    const name = date.toLocaleString('es-CO', { month: 'long' });
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
 
   return (
     <div className="w-full space-y-8 mt-4">
@@ -344,7 +351,9 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                                         <Building className="inline-block mr-2 h-5 w-5 text-primary" />
                                         {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : 'Nombre no encontrado'}
                                     </h4>
-                                    <p className="text-sm text-muted-foreground">NIT: {file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      NIT: {file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName} | Mes: {getMonthName(file.month)}
+                                    </p>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
