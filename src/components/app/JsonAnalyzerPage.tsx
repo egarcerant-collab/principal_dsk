@@ -49,8 +49,9 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
                 const map = new Map<string, PrestadorInfo>();
                 results.data.forEach(row => {
                     if (row.NIT) {
-                        map.set(row.NIT.trim(), {
-                            NIT: row.NIT.trim(),
+                        const cleanNit = row.NIT.trim();
+                        map.set(cleanNit, {
+                            NIT: cleanNit,
                             PRESTADOR: row.PRESTADOR ? row.PRESTADOR.trim() : 'Nombre no encontrado',
                             WEB: row.WEB ? row.WEB.trim() : ''
                         });
