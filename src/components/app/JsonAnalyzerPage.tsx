@@ -24,6 +24,7 @@ interface FileState {
 interface JsonAnalyzerPageProps {
   setUnifiedSummary: (summary: any | null) => void;
   setCupCounts: (cupCounts: CupCountsMap) => void;
+  setJsonPrestadorCode: (code: string | null) => void;
 }
 
 const initialFileState: FileState = {
@@ -92,7 +93,7 @@ export const calculateCupCounts = (jsonData: any | any[]): CupCountsMap => {
 };
 
 
-export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts }: JsonAnalyzerPageProps) {
+export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts, setJsonPrestadorCode }: JsonAnalyzerPageProps) {
   const [file1, setFile1] = useState<FileState>(initialFileState);
   const [file2, setFile2] = useState<FileState>(initialFileState);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +149,13 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts }: Js
                 const content = e.target.result as string;
                 const parsedJson = JSON.parse(content);
 
+                // This is the new logic to extract codPrestador
+                const prestadorCode = parsedJson?.codPrestador;
+                if (prestadorCode) {
+                    setJsonPrestadorCode(String(prestadorCode).trim());
+                }
+
+
                 const nit = parsedJson?.numDocumentoIdObligado;
                 let prestadorInfo: PrestadorInfo | null = null;
                 if (nit && providers) {
@@ -180,7 +188,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts }: Js
         processFile(filesToProcess.shift()!, setFile2);
     }
 
-  }, [providers, toast, file1.jsonData, file2.jsonData]);
+  }, [providers, toast, file1.jsonData, file2.jsonData, setJsonPrestadorCode]);
 
   useEffect(() => {
     const loadedFiles = [file1.jsonData, file2.jsonData].filter(Boolean);
@@ -226,6 +234,7 @@ export default function JsonAnalyzerPage({ setUnifiedSummary, setCupCounts }: Js
     setShowDuplicateAlert(false);
     setUnifiedSummary(null);
     setCupCounts(new Map());
+    setJsonPrestadorCode(null);
   };
   
   if (!isClient) {

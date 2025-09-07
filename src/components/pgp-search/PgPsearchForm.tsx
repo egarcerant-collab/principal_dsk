@@ -4,8 +4,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart, Users, Stethoscope, Microscope, Pill, Syringe, AlertCircle } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart, Users, Stethoscope, Microscope, Pill, Syringe, AlertCircle, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -67,6 +68,7 @@ interface ComparisonData {
 interface PgPsearchFormProps {
   unifiedSummary: any | null;
   cupCounts: CupCountsMap;
+  jsonPrestadorCode: string | null;
 }
 
 
@@ -78,22 +80,18 @@ const formatCurrency = (value: number | null | undefined): string => {
 };
 
 const getNumericValue = (value: any): number => {
+    if (typeof value === 'number') {
+        return value;
+    }
     if (typeof value !== 'string') {
       value = String(value ?? '0');
     }
-    // First, remove currency symbols and trim whitespace
-    let cleanValue = value.replace(/\$/g, '').trim();
-
-    // Standardize to use dot as decimal separator
-    // Handles "1.234,56" -> "1234.56"
-    if (cleanValue.includes(',') && cleanValue.includes('.')) {
-        cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
-    } 
-    // Handles "1234,56" -> "1234.56"
-    else if (cleanValue.includes(',')) {
-        cleanValue = cleanValue.replace(',', '.');
-    }
+    // First, remove currency symbols, thousands separators (dot), and trim whitespace
+    let cleanValue = value.replace(/[$.]/g, '').trim();
     
+    // Then, replace the comma decimal separator with a dot
+    cleanValue = cleanValue.replace(',', '.');
+
     const num = parseFloat(cleanValue);
     return isNaN(num) ? 0 : num;
 };
@@ -207,19 +205,26 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
 
 const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts: CupCountsMap }) => {
     const comparisonData: ComparisonData[] = pgpData.map(row => {
-        const cup = row['CUP/CUM'] || row['CUPS'] || '';
-        const expectedFrequency = getNumericValue(row['FRECUENCIA EVENTOS MES'] || row['Frecuencia Eventos Mes']);
-        const realFrequency = cupCounts.get(cup) || 0;
+        const cupKey = Object.keys(row).find(k => k.toLowerCase() === 'cup/cum' || k.toLowerCase() === 'cups');
+        const cup = cupKey ? row[cupKey] : '';
+        
+        const freqKey = Object.keys(row).find(k => k.toLowerCase() === 'frecuencia eventos mes');
+        const expectedFrequency = freqKey ? getNumericValue(row[freqKey]) : 0;
+        
+        const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
         const difference = realFrequency - expectedFrequency;
+        
+        const descKey = Object.keys(row).find(k => k.toLowerCase().startsWith('descripcion'));
+        const description = descKey ? row[descKey] : 'N/A';
 
         return {
             cup,
-            description: row['DESCRIPCION CUPS'] || row['DESCRIPCION'] || 'N/A',
+            description,
             expectedFrequency,
             realFrequency,
             difference,
         };
-    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows without a CUP code or with 0 real frequency
+    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows without a CUP or with 0 real frequency
 
     if (comparisonData.length === 0) {
         return (
@@ -253,14 +258,14 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {comparisonData.map((item) => (
-                                <TableRow key={item.cup}>
+                            {comparisonData.map((item, index) => (
+                                <TableRow key={`${item.cup}-${index}`}>
                                     <TableCell className="font-mono">{item.cup}</TableCell>
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell className="text-center">{item.expectedFrequency.toLocaleString()}</TableCell>
                                     <TableCell className="text-center font-semibold">{item.realFrequency.toLocaleString()}</TableCell>
                                     <TableCell className={`text-center font-bold ${item.difference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {item.difference.toLocaleString()}
+                                        {item.difference > 0 ? `+${item.difference.toLocaleString()}` : item.difference.toLocaleString()}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -273,7 +278,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
 };
 
 
-const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts }) => {
+const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts, jsonPrestadorCode }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
     const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
@@ -286,10 +291,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isAiEnabled, setIsAiEnabled] = useState(false);
+    const [mismatchError, setMismatchError] = useState<string | null>(null);
+
 
     useEffect(() => {
         setIsClient(true);
-        // Check for API key presence on the client-side
         fetch('/api/check-env').then(res => res.json()).then(data => {
             setIsAiEnabled(data.isAiEnabled);
         });
@@ -323,13 +329,28 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
         
+        const findColumn = (row: PgpRow, possibleNames: string[]) => {
+            for (const name of possibleNames) {
+                const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+                if (key) return row[key];
+            }
+            return 0;
+        };
+
         const totalCostoMes = data.reduce((acc, row) => {
-            const cost = row['COSTO EVENTO MES (VALOR MES)'] ?? row['COSTO EVENTO MES'];
+            const cost = findColumn(row, ['costo evento mes (valor mes)', 'costo evento mes']);
             return acc + getNumericValue(cost);
         }, 0);
-        
-        const totalMinimoMes = data.reduce((acc, row) => acc + getNumericValue(row['VALOR MINIMO MES']), 0);
-        const totalMaximoMes = data.reduce((acc, row) => acc + getNumericValue(row['VALOR MAXIMO MES']), 0);
+
+        const totalMinimoMes = data.reduce((acc, row) => {
+            const cost = findColumn(row, ['valor minimo mes']);
+            return acc + getNumericValue(cost);
+        }, 0);
+
+        const totalMaximoMes = data.reduce((acc, row) => {
+            const cost = findColumn(row, ['valor maximo mes']);
+            return acc + getNumericValue(cost);
+        }, 0);
 
         return {
             totalCostoMes,
@@ -342,7 +363,27 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     }, []);
 
     const handleSelectPrestador = async (prestador: Prestador) => {
+        setMismatchError(null);
         setSelectedPrestador(prestador);
+
+        const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
+        
+        if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
+            const errorMsg = `El código del prestador del JSON (${jsonPrestadorCode}) no coincide con el ID DE ZONA de la nota técnica (${pgpZoneId}).`;
+            setMismatchError(errorMsg);
+            toast({
+                title: "Error de Coincidencia de Prestador",
+                description: errorMsg,
+                variant: "destructive",
+                duration: 5000,
+            });
+            setIsDataLoaded(false);
+            setPgpData([]);
+            setGlobalSummary(null);
+            setAnalysis(null);
+            return;
+        }
+
         setLoading(true);
         if (isAiEnabled) {
           setLoadingAnalysis(true);
@@ -366,53 +407,47 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                     
                     newRow[trimmedKey as keyof PgpRow] = row[key];
                 }
-                if (newRow['CUPS']) {
-                    newRow['CUP/CUM'] = newRow['CUPS'];
-                    delete newRow['CUPS'];
-                }
-                 if (newRow['DESCRIPCION']) {
-                    newRow['DESCRIPCION CUPS'] = newRow['DESCRIPCION'];
-                    delete newRow['DESCRIPCION'];
-                }
                 return newRow as PgpRow;
-            }).filter(item => item['CUP/CUM'] || item['CUPS']);
+            }).filter(item => {
+                 const cupKey = Object.keys(item).find(k => k.toLowerCase() === 'cup/cum' || k.toLowerCase() === 'cups');
+                 return !!(cupKey && item[cupKey]);
+            });
 
             setPgpData(pgpRows);
             setGlobalSummary(calculateSummary(pgpRows));
             setIsDataLoaded(true);
             toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
 
-            if (isAiEnabled) {
+            if (isAiEnabled && pgpRows.length > 0) {
                 try {
-                    // Try to find the frequency column, accommodating for case variations
-                    const freqKey = Object.keys(pgpRows[0] || {}).find(k => k.toLowerCase() === 'frecuencia uso');
-
                     const analysisInput = pgpRows.slice(0, 50).map(row => {
-                         const freqUso = freqKey ? row[freqKey] : row['FRECUENCIA USO'];
-                         const costoMes = row['COSTO EVENTO MES (VALOR MES)'] !== undefined
-                                ? getNumericValue(row['COSTO EVENTO MES (VALOR MES)'])
-                                : getNumericValue(row['COSTO EVENTO MES']);
-
+                        const findColumn = (possibleNames: string[]) => {
+                             for (const name of possibleNames) {
+                                const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+                                if (key) return row[key];
+                            }
+                            return undefined;
+                        };
                         return {
-                            'SUBCATEGORIA': row.SUBCATEGORIA,
-                            'AMBITO': row.AMBITO,
-                            'ID RESOLUCION 3100': row['ID RESOLUCION 3100'],
-                            'DESCRIPCION ID RESOLUCION': row['DESCRIPCION ID RESOLUCION'],
-                            'CUP/CUM': row['CUP/CUM'],
-                            'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
-                            'FRECUENCIA AÑO SERVICIO': getNumericValue(row['FRECUENCIA AÑO SERVICIO']),
-                            'FRECUENCIA USO': getNumericValue(freqUso),
-                            'FRECUENCIA EVENTOS MES': getNumericValue(row['FRECUENCIA EVENTOS MES']),
-                            'FRECUENCIA EVENTO DIA': getNumericValue(row['FRECUENCIA EVENTO DIA']),
-                            'COSTO EVENTO MES': getNumericValue(row['COSTO EVENTO MES']),
-                            'COSTO EVENTO DIA': getNumericValue(row['COSTO EVENTO DIA']),
-                            'FRECUENCIA MINIMA MES': getNumericValue(row['FRECUENCIA MINIMA MES']),
-                            'FRECUENCIA MAXIMA MES': getNumericValue(row['FRECUENCIA MAXIMA MES']),
-                            'VALOR UNITARIO': getNumericValue(row['VALOR UNITARIO']),
-                            'VALOR MINIMO MES': getNumericValue(row['VALOR MINIMO MES']),
-                            'VALOR MAXIMO MES': getNumericValue(row['VALOR MAXIMO MES']),
-                            'COSTO EVENTO MES (VALOR MES)': costoMes,
-                            'OBSERVACIONES': row.OBSERVACIONES
+                            'SUBCATEGORIA': findColumn(['subcategoria']),
+                            'AMBITO': findColumn(['ambito']),
+                            'ID RESOLUCION 3100': findColumn(['id resolucion 3100']),
+                            'DESCRIPCION ID RESOLUCION': findColumn(['descripcion id resolucion']),
+                            'CUP/CUM': findColumn(['cup/cum', 'cups']),
+                            'DESCRIPCION CUPS': findColumn(['descripcion cups', 'descripcion']),
+                            'FRECUENCIA AÑO SERVICIO': getNumericValue(findColumn(['frecuencia año servicio'])),
+                            'FRECUENCIA USO': getNumericValue(findColumn(['frecuencia uso'])),
+                            'FRECUENCIA EVENTOS MES': getNumericValue(findColumn(['frecuencia eventos mes'])),
+                            'FRECUENCIA EVENTO DIA': getNumericValue(findColumn(['frecuencia evento dia'])),
+                            'COSTO EVENTO MES': getNumericValue(findColumn(['costo evento mes'])),
+                            'COSTO EVENTO DIA': getNumericValue(findColumn(['costo evento dia'])),
+                            'FRECUENCIA MINIMA MES': getNumericValue(findColumn(['frecuencia minima mes'])),
+                            'FRECUENCIA MAXIMA MES': getNumericValue(findColumn(['frecuencia maxima mes'])),
+                            'VALOR UNITARIO': getNumericValue(findColumn(['valor unitario'])),
+                            'VALOR MINIMO MES': getNumericValue(findColumn(['valor minimo mes'])),
+                            'VALOR MAXIMO MES': getNumericValue(findColumn(['valor maximo mes'])),
+                            'COSTO EVENTO MES (VALOR MES)': getNumericValue(findColumn(['costo evento mes (valor mes)', 'costo evento mes'])),
+                            'OBSERVACIONES': findColumn(['observaciones'])
                         }
                     })
                     const analysisResult = await analyzePgpData(analysisInput);
@@ -423,6 +458,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                 } finally {
                     setLoadingAnalysis(false);
                 }
+            } else {
+                 setLoadingAnalysis(false);
             }
 
 
@@ -469,6 +506,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
+
+                 {mismatchError && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error de Coincidencia</AlertTitle>
+                        <AlertDescription>{mismatchError}</AlertDescription>
+                    </Alert>
+                )}
                 
                 {loading && (
                     <div className="flex items-center justify-center py-6">
@@ -513,5 +558,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
-
-    

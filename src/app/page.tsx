@@ -10,6 +10,8 @@ export type CupCountsMap = Map<string, number>;
 export default function Home() {
   const [unifiedSummary, setUnifiedSummary] = useState<any | null>(null);
   const [cupCounts, setCupCounts] = useState<CupCountsMap>(new Map());
+  const [jsonPrestadorCode, setJsonPrestadorCode] = useState<string | null>(null);
+
 
   return (
     <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-background">
@@ -27,13 +29,21 @@ export default function Home() {
           {/* Columna Izquierda: Analizador JSON */}
           <div className="space-y-6">
              <h2 className="text-2xl font-semibold text-center">Análisis de Datos Reales (JSON)</h2>
-             <JsonAnalyzerPage setUnifiedSummary={setUnifiedSummary} setCupCounts={setCupCounts} />
+             <JsonAnalyzerPage 
+                setUnifiedSummary={setUnifiedSummary} 
+                setCupCounts={setCupCounts}
+                setJsonPrestadorCode={setJsonPrestadorCode}
+              />
           </div>
 
           {/* Columna Derecha: Buscador PGP */}
           <div className="space-y-6">
              <h2 className="text-2xl font-semibold text-center">Análisis de Nota Técnica (PGP)</h2>
-             <PgpSearchPage unifiedSummary={unifiedSummary} cupCounts={cupCounts} />
+             <PgpSearchPage 
+                unifiedSummary={unifiedSummary} 
+                cupCounts={cupCounts} 
+                jsonPrestadorCode={jsonPrestadorCode}
+              />
           </div>
         </div>
       </div>
