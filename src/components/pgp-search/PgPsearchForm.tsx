@@ -293,7 +293,7 @@ const PgPsearchForm: React.FC = () => {
             }
             const data = await fetchAndParseSheetData(prestador.WEB);
             const numericKeys: (keyof PgpRow)[] = [
-                'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO',
+                'FRECUENCIA AÑO SERVICIO', 'FRECUENCIA USO', 'FRECUENCIA EVENTOS MES',
                 'COSTO EVENTO MES', 'FRECUENCIA EVENTO DIA', 'FRECUENCIA MINIMA MES',
                 'FRECUENCIA MAXIMA MES', 'VALOR UNITARIO', 'COSTO EVENTO DIA',
                 'VALOR MINIMO MES', 'VALOR MAXIMO MES'

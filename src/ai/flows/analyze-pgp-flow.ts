@@ -3,7 +3,6 @@
  * @fileOverview A PGP data analysis AI agent.
  *
  * - analyzePgpData - A function that handles the PGP data analysis process.
- * - PgpRow - The input type for a single row of PGP data.
  * - AnalyzePgpDataInput - The input type for the analyzePgpData function.
  * - AnalyzePgpDataOutput - The return type for the analyzePgpData function.
  */
@@ -16,8 +15,8 @@ const PgpRowSchema = z.object({
   AMBITO: z.string().optional(),
   'ID RESOLUCION 3100': z.string().optional(),
   'DESCRIPCION ID RESOLUCION': z.string().optional(),
-  'CUP/CUM': z.string().describe("El código del servicio o procedimiento."),
-  'DESCRIPCION CUPS': z.string().describe("La descripción del servicio o procedimiento."),
+  'CUP/CUM': z.string().optional().describe("El código del servicio o procedimiento."),
+  'DESCRIPCION CUPS': z.string().optional().describe("La descripción del servicio o procedimiento."),
   'FRECUENCIA AÑO SERVICIO': z.number().optional(),
   'FRECUENCIA USO': z.number().optional(),
   'FRECUENCIA EVENTOS MES': z.number().optional().describe("La frecuencia con la que se espera que ocurra el evento en un mes."),
@@ -29,21 +28,22 @@ const PgpRowSchema = z.object({
   'VALOR UNITARIO': z.number().optional(),
   'VALOR MINIMO MES': z.number().optional().describe("El costo mínimo aceptable para el evento en un mes."),
   'VALOR MAXIMO MES': z.number().optional().describe("El costo máximo aceptable para el evento en un mes."),
+  'COSTO EVENTO MES (VALOR MES)': z.number().optional().describe('El costo total estimado del evento para un mes.'),
   OBSERVACIONES: z.string().optional(),
 });
 type PgpRow = z.infer<typeof PgpRowSchema>;
 
 const AnalyzePgpDataInputSchema = z.array(PgpRowSchema);
-type AnalyzePgpDataInput = z.infer<typeof AnalyzePgpDataInputSchema>;
+
 
 const AnalyzePgpDataOutputSchema = z.object({
     keyObservations: z.array(z.string()).describe("Una lista de 3 a 5 observaciones clave y concisas sobre los datos."),
     potentialRisks: z.array(z.string()).describe("Una lista de 2 a 3 riesgos potenciales identificados en los datos."),
     strategicRecommendations: z.array(z.string()).describe("Una lista de 2 a 3 recomendaciones estratégicas basadas en el análisis.")
 });
-type AnalyzePgpDataOutput = z.infer<typeof AnalyzePgpDataOutputSchema>;
+export type AnalyzePgpDataOutput = z.infer<typeof AnalyzePgpDataOutputSchema>;
 
-export async function analyzePgpData(input: AnalyzePgpDataInput): Promise<AnalyzePgpDataOutput> {
+export async function analyzePgpData(input: PgpRow[]): Promise<AnalyzePgpDataOutput> {
   return analyzePgpDataFlow(input);
 }
 
@@ -72,8 +72,11 @@ const analyzePgpDataFlow = ai.defineFlow(
     inputSchema: AnalyzePgpDataInputSchema,
     outputSchema: AnalyzePgpDataOutputSchema,
   },
-  async input => {
+  async (input) => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('El análisis de IA no pudo generar un resultado.');
+    }
+    return output;
   }
 );
