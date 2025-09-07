@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, TableIcon, Wallet, Landmark } from "lucide-react";
+import { Download, TableIcon, Wallet, Landmark, Calendar } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { formatCurrency, type MatrixRow } from './PgPsearchForm';
 
@@ -24,13 +24,18 @@ const handleDownloadXls = (data: any[], filename: string) => {
     document.body.removeChild(link);
 };
 
-interface FinancialMatrixProps {
-  matrixData: MatrixRow[];
-  totalExpectedValue: number;
-  totalExecutedValue: number;
+export interface MonthlyFinancialSummary {
+    month: string;
+    totalValorEsperado: number;
+    totalValorEjecutado: number;
 }
 
-const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, totalExpectedValue, totalExecutedValue }) => {
+interface FinancialMatrixProps {
+  matrixData: MatrixRow[];
+  monthlyFinancials: MonthlyFinancialSummary[];
+}
+
+const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFinancials }) => {
     if (!matrixData || matrixData.length === 0) {
         return null;
     }
@@ -53,19 +58,30 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, totalExpe
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200">
-                        <Landmark className="h-6 w-6 mx-auto text-blue-500 mb-1" />
-                        <p className="text-sm text-muted-foreground">Valor Esperado (Meses Cargados)</p>
-                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalExpectedValue)}</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200">
-                         <Wallet className="h-6 w-6 mx-auto text-green-500 mb-1" />
-                        <p className="text-sm text-muted-foreground">Valor Ejecutado (Meses Cargados)</p>
-                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(totalExecutedValue)}</p>
-                    </div>
+                {/* Monthly Summary Cards */}
+                <div className="space-y-4">
+                    {monthlyFinancials.map(summary => (
+                         <div key={summary.month} className="p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/20">
+                            <h4 className="text-lg font-semibold mb-3 flex items-center">
+                                <Calendar className="h-5 w-5 mr-2 text-muted-foreground"/>
+                                {summary.month}
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200">
+                                    <Landmark className="h-6 w-6 mx-auto text-blue-500 mb-1" />
+                                    <p className="text-sm text-muted-foreground">Valor Esperado</p>
+                                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(summary.totalValorEsperado)}</p>
+                                </div>
+                                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200">
+                                    <Wallet className="h-6 w-6 mx-auto text-green-500 mb-1" />
+                                    <p className="text-sm text-muted-foreground">Valor Ejecutado</p>
+                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.totalValorEjecutado)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
+
 
                 {/* Accordion for Detailed Table */}
                 <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>

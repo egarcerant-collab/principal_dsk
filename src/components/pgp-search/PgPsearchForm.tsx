@@ -1,5 +1,6 @@
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -14,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import InformePGP from './InformePGP';
-import FinancialMatrix from './FinancialMatrix';
+import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -87,8 +88,7 @@ export interface ComparisonSummary {
     missingCups: DeviatedCupInfo[];
     unexpectedCups: { cup: string, realFrequency: number }[];
     Matriz_Ejecucion_vs_Esperado: MatrixRow[];
-    totalValorEsperado: number;
-    totalValorEjecutado: number;
+    monthlyFinancials: MonthlyFinancialSummary[];
 }
 
 
@@ -284,8 +284,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: { cup: string, realFrequency: number }[] = [];
   const executionMatrix: MatrixRow[] = [];
-  let totalValorEsperado = 0;
-  let totalValorEjecutado = 0;
+  const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number }>();
 
 
   const pgpCupsMap = new Map<string, PgpRow>();
@@ -301,15 +300,14 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
 
   const allRelevantCups = new Set([...pgpCupsMap.keys(), ...executedCupsSet]);
   
-  let totalExpectedFrequencyForPeriod = 0;
-  let totalRealFrequencyForPeriod = 0;
-
-
   // Populate Execution Matrix first, month by month
   executionDataByMonth.forEach((monthData, monthKey) => {
     const monthName = getMonthName(monthKey);
     const relevantCupsForMonth = new Set([...pgpCupsMap.keys(), ...monthData.cupCounts.keys()]);
     
+    let monthTotalExpected = 0;
+    let monthTotalExecuted = 0;
+
     relevantCupsForMonth.forEach(cup => {
         const pgpRow = pgpCupsMap.get(cup);
         const expectedFrequency = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
@@ -319,6 +317,9 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
         const valorEsperado = expectedFrequency * unitValue;
         const valorEjecutado = realFrequency * unitValue;
+
+        monthTotalExpected += valorEsperado;
+        monthTotalExecuted += valorEjecutado;
 
         let classification = "Ejecución Normal";
         if (!pgpRow && realFrequency > 0) {
@@ -344,7 +345,10 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Valor_Ejecutado: valorEjecutado,
         });
     });
+    monthlyFinancialsMap.set(monthName, { totalValorEsperado: monthTotalExpected, totalValorEjecutado: monthTotalExecuted });
   });
+
+  const monthlyFinancials = Array.from(monthlyFinancialsMap, ([month, data]) => ({ month, ...data }));
 
   // Calculate summaries (over, under, etc.) based on totals
   allRelevantCups.forEach(cup => {
@@ -393,11 +397,6 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       });
     }
   });
-
-  executionMatrix.forEach(row => {
-    totalValorEsperado += row.Valor_Esperado;
-    totalValorEjecutado += row.Valor_Ejecutado;
-  });
   
   overExecutedCups.sort((a, b) => b.deviation - a.deviation);
   underExecutedCups.sort((a, b) => a.deviation - b.deviation);
@@ -409,8 +408,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     missingCups,
     unexpectedCups,
     Matriz_Ejecucion_vs_Esperado: executionMatrix,
-    totalValorEsperado,
-    totalValorEjecutado,
+    monthlyFinancials,
   };
 };
 
@@ -681,8 +679,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 />
                 <FinancialMatrix 
                     matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
-                    totalExpectedValue={comparisonSummary.totalValorEsperado}
-                    totalExecutedValue={comparisonSummary.totalValorEjecutado}
+                    monthlyFinancials={comparisonSummary.monthlyFinancials}
                 />
               </>
             )}
