@@ -6,6 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import {
   Accordion,
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Users, Stethoscope, Microscope, Briefcase, Loader2 } from "lucide-react";
+import { FileText, Users, Stethoscope, Microscope, Briefcase, Pill, Syringe, Loader2 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 
 interface DataVisualizerProps {
@@ -138,17 +139,28 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
             numDocumentoIdObligado: 'N/A',
             numUsuarios: 0,
             numConsultas: 0,
-            numProcedimientos: 0
+            numProcedimientos: 0,
+            totalMedicamentos: 0,
+            totalOtrosServicios: 0
         };
     }
     const usuarios = data.usuarios || [];
     const numUsuarios = usuarios.length;
     let numConsultas = 0;
     let numProcedimientos = 0;
+    let totalMedicamentos = 0;
+    let totalOtrosServicios = 0;
 
     usuarios.forEach((u: any) => {
         numConsultas += u.servicios?.consultas?.length || 0;
         numProcedimientos += u.servicios?.procedimientos?.length || 0;
+        
+        if (u.servicios?.medicamentos) {
+            totalMedicamentos += u.servicios.medicamentos.reduce((acc: number, med: any) => acc + (Number(med.cantidadMedicamento) || 0), 0);
+        }
+        if (u.servicios?.otrosServicios) {
+             totalOtrosServicios += u.servicios.otrosServicios.reduce((acc: number, os: any) => acc + (Number(os.cantidadOS) || 0), 0);
+        }
     });
 
     return {
@@ -156,7 +168,9 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
         numDocumentoIdObligado: data.numDocumentoIdObligado || 'N/A',
         numUsuarios,
         numConsultas,
-        numProcedimientos
+        numProcedimientos,
+        totalMedicamentos,
+        totalOtrosServicios,
     }
   }, [data]);
   
@@ -173,62 +187,71 @@ export default function DataVisualizer({ data }: DataVisualizerProps) {
 
   return (
     <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-            <StatCard title="NIT Prestador" value={summary.numDocumentoIdObligado} icon={Briefcase} />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             <StatCard title="Factura" value={summary.numFactura} icon={FileText} />
-            <StatCard title="Usuarios" value={summary.numUsuarios} icon={Users} />
-            <StatCard title="Consultas" value={summary.numConsultas} icon={Stethoscope} />
-            <StatCard title="Procedimientos" value={summary.numProcedimientos} icon={Microscope} />
+            <StatCard title="Total Usuarios" value={summary.numUsuarios} icon={Users} />
+            <StatCard title="Total Consultas" value={summary.numConsultas} icon={Stethoscope} />
+            <StatCard title="Total Procedimientos" value={summary.numProcedimientos} icon={Microscope} />
+            <StatCard title="Total Medicamentos" value={summary.totalMedicamentos.toLocaleString()} icon={Pill} />
+            <StatCard title="Total Otros Servicios" value={summary.totalOtrosServicios.toLocaleString()} icon={Syringe} />
         </div>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Detalle por Usuario</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                    {usuarios.map((user: any) => (
-                        <AccordionItem value={`user-${user.consecutivo}`} key={user.consecutivo}>
-                            <AccordionTrigger>
-                                <div className="flex items-center gap-4">
-                                    <span className="font-semibold">Usuario #{user.consecutivo}</span>
-                                    <span className="text-muted-foreground">{user.tipoDocumentoIdentificacion} {user.numDocumentoIdentificacion}</span>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                                <UserDetails user={user} />
-                                <Tabs defaultValue="consultations" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="consultations">
-                                            <Stethoscope className="w-4 h-4 mr-2" />
-                                            Consultas ({user.servicios?.consultas?.length || 0})
-                                        </TabsTrigger>
-                                        <TabsTrigger value="procedures">
-                                            <Microscope className="w-4 h-4 mr-2" />
-                                            Procedimientos ({user.servicios?.procedimientos?.length || 0})
-                                        </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="consultations">
-                                        {user.servicios?.consultas?.length > 0 ? (
-                                            <ConsultationsTable consultations={user.servicios.consultas} />
-                                        ) : (
-                                            <p className="text-muted-foreground text-center p-4">No hay consultas para este usuario.</p>
-                                        )}
-                                    </TabsContent>
-                                    <TabsContent value="procedures">
-                                        {user.servicios?.procedimientos?.length > 0 ? (
-                                             <ProceduresTable procedures={user.servicios.procedimientos} />
-                                        ) : (
-                                            <p className="text-muted-foreground text-center p-4">No hay procedimientos para este usuario.</p>
-                                        )}
-                                    </TabsContent>
-                                </Tabs>
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-            </CardContent>
-        </Card>
+        <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="full-details">
+                <AccordionTrigger>Ver Detalle Completo por Usuario</AccordionTrigger>
+                <AccordionContent>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Detalle por Usuario</CardTitle>
+                             <CardDescription>Análisis individual de cada usuario en el archivo.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Accordion type="single" collapsible className="w-full">
+                                {usuarios.map((user: any) => (
+                                    <AccordionItem value={`user-${user.consecutivo}`} key={user.consecutivo}>
+                                        <AccordionTrigger>
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-semibold">Usuario #{user.consecutivo}</span>
+                                                <span className="text-muted-foreground">{user.tipoDocumentoIdentificacion} {user.numDocumentoIdentificacion}</span>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="space-y-4">
+                                            <UserDetails user={user} />
+                                            <Tabs defaultValue="consultations" className="w-full">
+                                                <TabsList className="grid w-full grid-cols-2">
+                                                    <TabsTrigger value="consultations">
+                                                        <Stethoscope className="w-4 h-4 mr-2" />
+                                                        Consultas ({user.servicios?.consultas?.length || 0})
+                                                    </TabsTrigger>
+                                                    <TabsTrigger value="procedures">
+                                                        <Microscope className="w-4 h-4 mr-2" />
+                                                        Procedimientos ({user.servicios?.procedimientos?.length || 0})
+                                                    </TabsTrigger>
+                                                </TabsList>
+                                                <TabsContent value="consultations">
+                                                    {user.servicios?.consultas?.length > 0 ? (
+                                                        <ConsultationsTable consultations={user.servicios.consultas} />
+                                                    ) : (
+                                                        <p className="text-muted-foreground text-center p-4">No hay consultas para este usuario.</p>
+                                                    )}
+                                                </TabsContent>
+                                                <TabsContent value="procedures">
+                                                    {user.servicios?.procedimientos?.length > 0 ? (
+                                                        <ProceduresTable procedures={user.servicios.procedimientos} />
+                                                    ) : (
+                                                        <p className="text-muted-foreground text-center p-4">No hay procedimientos para este usuario.</p>
+                                                    )}
+                                                </TabsContent>
+                                            </Tabs>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
     </div>
   );
 }

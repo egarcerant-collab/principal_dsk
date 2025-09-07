@@ -6,7 +6,7 @@ import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw } from 'lucide-react';
+import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,7 @@ export default function JsonAnalyzerPage() {
   const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -99,8 +100,9 @@ export default function JsonAnalyzerPage() {
 
   const handleFileLoad = useCallback((files: File[]) => {
     setError(null);
+    setShowDuplicateAlert(false);
     
-    files.forEach((file, index) => {
+    const processFile = (file: File, fileSetter: React.Dispatch<React.SetStateAction<FileState>>) => {
         const reader = new FileReader();
         reader.onload = (e: ProgressEvent<FileReader>) => {
             if (!e.target?.result) return;
@@ -121,12 +123,7 @@ export default function JsonAnalyzerPage() {
                     prestadorInfo: prestadorInfo,
                 };
                 
-                // Assign to file1 if it's empty, otherwise to file2
-                if (!file1.jsonData) {
-                    setFile1(newState);
-                } else {
-                    setFile2(newState);
-                }
+                fileSetter(newState);
 
             } catch (err: any) {
                 const errorMessage = err instanceof Error ? `Error al parsear ${file.name}: ${err.message}`: `Error inesperado al parsear ${file.name}.`;
@@ -135,14 +132,37 @@ export default function JsonAnalyzerPage() {
             }
         };
         reader.readAsText(file);
-    });
+    };
 
+    if (files.length > 0) {
+        if (!file1.jsonData) {
+            processFile(files[0], setFile1);
+            if (files.length > 1) {
+                 processFile(files[1], setFile2);
+            }
+        } else if (!file2.jsonData) {
+            processFile(files[0], setFile2);
+        }
+    }
   }, [providers, toast, file1.jsonData]);
+
+  useEffect(() => {
+    if (file1.jsonData && file2.jsonData) {
+        const nit1 = file1.jsonData.numDocumentoIdObligado;
+        const nit2 = file2.jsonData.numDocumentoIdObligado;
+        if (nit1 && nit2 && nit1 === nit2) {
+            setShowDuplicateAlert(true);
+        } else {
+            setShowDuplicateAlert(false);
+        }
+    }
+  }, [file1.jsonData, file2.jsonData]);
 
   const handleReset = () => {
     setFile1(initialFileState);
     setFile2(initialFileState);
     setError(null);
+    setShowDuplicateAlert(false);
   };
   
   if (!isClient) {
@@ -191,6 +211,15 @@ export default function JsonAnalyzerPage() {
           </CardContent>
         </Card>
       
+        {showDuplicateAlert && (
+             <Alert variant="destructive" className="bg-yellow-50 border-yellow-400 text-yellow-800 [&>svg]:text-yellow-800">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Alerta de Archivo Duplicado</AlertTitle>
+                <AlertDescription>
+                   Has cargado dos archivos que pertenecen al mismo prestador (NIT: {file1.jsonData.numDocumentoIdObligado}). El análisis comparativo podría no ser útil.
+                </AlertDescription>
+            </Alert>
+        )}
 
       {anyFileLoaded && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -274,5 +303,3 @@ export default function JsonAnalyzerPage() {
     </div>
   );
 }
-
-    
