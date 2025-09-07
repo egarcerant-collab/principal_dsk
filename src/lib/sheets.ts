@@ -9,6 +9,13 @@ export interface PrestadorInfo {
   [key: string]: any;
 }
 
+const normalizeValue = (value: unknown): string => {
+    return String(value ?? "").trim();
+};
+
+const normalizeKey = (key: string): string => {
+    return normalizeValue(key).replace(/\uFEFF/g, ''); // Remove BOM character
+}
 
 /**
  * Fetches data from a Google Sheet URL and parses it as a CSV.
@@ -31,7 +38,7 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
         Papa.parse<T>(csvText, {
             header: true,
             skipEmptyLines: 'greedy',
-            transformHeader: (header) => header.trim().replace(/\uFEFF/g, ''),
+            transformHeader: (header) => normalizeKey(header),
             complete: (results: ParseResult<T>) => {
                 if (results.errors.length) {
                     const errorMsg = results.errors.map(e => e.message).join(', ');
@@ -43,14 +50,15 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
                     const cleanedRow: { [key: string]: any } = {};
                     for (const key in row) {
                         if (Object.prototype.hasOwnProperty.call(row, key)) {
-                            const trimmedKey = key.trim().replace(/\uFEFF/g, '');
+                            const trimmedKey = normalizeKey(key);
                             if (trimmedKey) {
-                                cleanedRow[trimmedKey] = (row as any)[key];
+                                cleanedRow[trimmedKey] = normalizeValue((row as any)[key]);
                             }
                         }
                     }
                     return cleanedRow as T;
-                });
+                }).filter(row => Object.values(row).some(val => val !== '')); // Filter out completely empty rows
+                
                 resolve(cleanedData);
             },
             error: (error: Error) => {

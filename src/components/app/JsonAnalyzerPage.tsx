@@ -33,18 +33,23 @@ interface JsonAnalyzerPageProps {
 
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
+const normalizeString = (v: unknown): string => String(v ?? "").trim();
+
 async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
     const map = new Map<string, PrestadorInfo>();
     providersList.forEach(provider => {
-        const key = provider['ID DE ZONA'] ? String(provider['ID DE ZONA']).trim() : null;
+        // Use a cleaned, consistent key for the map
+        const key = normalizeString(provider['ID DE ZONA']);
         if (key) {
-            map.set(key, {
-                ...provider,
-                NIT: String(provider.NIT).trim(),
-                PRESTADOR: provider.PRESTADOR ? String(provider.PRESTADOR).trim() : 'Nombre no encontrado',
-                WEB: provider.WEB ? String(provider.WEB).trim() : ''
-            });
+            // Ensure all data in the stored object is also cleaned
+            const cleanedProvider: PrestadorInfo = {
+                'NIT': normalizeString(provider.NIT),
+                'PRESTADOR': normalizeString(provider.PRESTADOR),
+                'ID DE ZONA': key,
+                'WEB': normalizeString(provider.WEB)
+            };
+            map.set(key, cleanedProvider);
         }
     });
     return map;
@@ -165,7 +170,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                     const content = e.target.result as string;
                     const parsedJson = JSON.parse(content);
                     
-                    const prestadorCode = parsedJson?.codPrestador ? String(parsedJson.codPrestador).trim() : null;
+                    const prestadorCode = normalizeString(parsedJson?.codPrestador);
                     const prestadorInfo = (prestadorCode && providers?.get(prestadorCode)) || null;
 
                     resolve({
@@ -207,7 +212,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     if (files.length > 0) {
       const firstPrestadorCode = files[0].jsonData?.codPrestador;
       if (firstPrestadorCode) {
-        setJsonPrestadorCode(String(firstPrestadorCode).trim());
+        setJsonPrestadorCode(normalizeString(firstPrestadorCode));
       }
     } else {
       setJsonPrestadorCode(null);

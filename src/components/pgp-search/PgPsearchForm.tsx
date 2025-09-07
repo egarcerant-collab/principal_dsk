@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -80,15 +81,7 @@ interface PgPsearchFormProps {
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 /** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
-const normalizeDigits = (v: unknown): string => {
-  return String(v ?? "")
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/\D/g, ""); // deja solo dígitos
-};
-
-const normalizeText = (v: unknown): string =>
-  String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+const normalizeString = (v: unknown): string => String(v ?? "").trim();
 
 /** Parser numérico robusto para formatos es-CO y en-US */
 export const getNumericValue = (value: any): number => {
@@ -448,20 +441,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   /** Selección desde el dropdown: validar ID vs JSON antes de cargar */
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
-    setIsDataLoaded(false);
+    setIsDataLoaded(false); // Reset data loaded state on new selection
 
-    // no marcar aún como seleccionado
+    setSelectedPrestador(prestador);
     setPrestadorToLoad(prestador);
 
-    const pgpZoneId = prestador['ID DE ZONA'] ? normalizeDigits(prestador['ID DE ZONA']) : null;
-    const jsonId = jsonPrestadorCode ? normalizeDigits(jsonPrestadorCode) : null;
+    const pgpZoneId = normalizeString(prestador['ID DE ZONA']);
+    const jsonId = normalizeString(jsonPrestadorCode);
 
     if (jsonId && pgpZoneId && jsonId !== pgpZoneId) {
       const warningMsg = `¡Advertencia! El código del JSON (${jsonId}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
       setMismatchWarning(warningMsg);
-      // El usuario decidirá si cargar de todos modos
+      // Stop here and wait for user to force load
     } else {
-      // Coinciden → cargamos directo
+      // Coinciden o no hay JSON cargado → cargamos directo
       performLoadPrestador(prestador);
     }
   }, [jsonPrestadorCode, performLoadPrestador]);
@@ -481,7 +474,18 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       toast({ title: "Cargando lista de prestadores..." });
       try {
         const data = await fetchSheetData<Prestador>(PRESTADORES_SHEET_URL);
-        const typedData = data.filter(p => p.PRESTADOR && String(p.PRESTADOR).trim() !== '');
+        const typedData = data
+            .map(p => {
+                const cleaned: Prestador = {
+                    'NIT': normalizeString(p.NIT),
+                    'PRESTADOR': normalizeString(p.PRESTADOR),
+                    'ID DE ZONA': normalizeString(p['ID DE ZONA']),
+                    'WEB': normalizeString(p.WEB)
+                };
+                return cleaned;
+            })
+            .filter(p => p.PRESTADOR && p['ID DE ZONA']);
+
         setPrestadores(typedData);
         if (typedData.length > 0) {
           toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
@@ -502,17 +506,17 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   useEffect(() => {
     if (!jsonPrestadorCode || prestadores.length === 0 || loading || selectedPrestador) return;
 
-    const matchById = prestadores.find(p =>
-      normalizeDigits(p['ID DE ZONA']) === normalizeDigits(jsonPrestadorCode)
-    );
+    const normalizedJsonCode = normalizeString(jsonPrestadorCode);
+    const matchById = prestadores.find(p => normalizeString(p['ID DE ZONA']) === normalizedJsonCode);
+    
     if (matchById) {
       toast({
         title: "Prestador Sugerido Encontrado",
         description: `Cargando automáticamente la nota técnica para ${matchById.PRESTADOR}.`
       });
-      performLoadPrestador(matchById);
+      handleSelectPrestador(matchById);
     }
-  }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, performLoadPrestador, toast]);
+  }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleSelectPrestador, toast]);
 
   /** Cálculo de comparación de valores */
   const calculateValueComparison = useCallback((pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth) => {
@@ -598,7 +602,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     empresa: selectedPrestador?.PRESTADOR ?? "—",
     nit: selectedPrestador?.NIT ?? "—",
     contrato: selectedPrestador?.['ID DE ZONA']
-      ? `PGP-${normalizeDigits(selectedPrestador['ID DE ZONA'])}`
+      ? `PGP-${normalizeString(selectedPrestador['ID DE ZONA'])}`
       : "PGP-—",
     periodo: monthNames.length ? monthNames.join(' - ') : "—"
   };
@@ -620,8 +624,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
             {prestadores.map((p, index) => (
-              <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleSelectPrestador(p)}>
-                {p.PRESTADOR}
+              <DropdownMenuItem key={`${p.NIT}-${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)}>
+                {p.PRESTADOR} ({p['ID DE ZONA']})
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
