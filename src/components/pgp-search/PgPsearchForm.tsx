@@ -5,7 +5,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, TableIcon, Hash, BarChart, Users, Stethoscope, Microscope, Pill, Syringe } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -59,6 +59,11 @@ interface PgpStats {
     totalCodes: number;
     totalMonthlyEvents: number;
 }
+
+interface PgPsearchFormProps {
+  unifiedSummary: any | null;
+}
+
 
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
@@ -211,7 +216,7 @@ const StatsSummaryCard = ({ stats }: { stats: PgpStats | null }) => {
 };
 
 
-const PgPsearchForm: React.FC = () => {
+const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
     const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
@@ -413,14 +418,32 @@ const PgPsearchForm: React.FC = () => {
                         <p>Cargando datos de la nota técnica...</p>
                     </div>
                 )}
+
+                {unifiedSummary && (
+                    <Card className="w-full shadow-lg border-green-500/50 bg-green-50/20">
+                        <CardHeader>
+                            <CardTitle>Datos Reales Consolidados (desde JSON)</CardTitle>
+                            <CardDescription>Suma de las estadísticas de los archivos JSON cargados.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                <StatCard title="Total Usuarios" value={unifiedSummary.numUsuarios} icon={Users} />
+                                <StatCard title="Total Consultas" value={unifiedSummary.numConsultas} icon={Stethoscope} />
+                                <StatCard title="Total Procedimientos" value={unifiedSummary.numProcedimientos} icon={Microscope} />
+                                <StatCard title="Total Medicamentos" value={unifiedSummary.totalMedicamentos.toLocaleString()} icon={Pill} />
+                                <StatCard title="Total Otros Servicios" value={unifiedSummary.totalOtrosServicios.toLocaleString()} icon={Syringe} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
                 
                 {isDataLoaded && !loading && (
                     <div className="space-y-6">
                         {globalSummary && (
                            <SummaryCard 
                                 summary={globalSummary} 
-                                title={`Resumen Global: Nota Técnica de ${selectedPrestador?.PRESTADOR}`}
-                                description="Cálculos basados en la totalidad de los datos cargados."
+                                title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR}`}
+                                description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
                            />
                         )}
                         <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />
@@ -429,7 +452,7 @@ const PgPsearchForm: React.FC = () => {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <TableIcon className="h-5 w-5" />
-                                    Vista Previa de Datos (Primeros 20 Registros)
+                                    Vista Previa de Nota Técnica (Primeros 20 Registros)
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

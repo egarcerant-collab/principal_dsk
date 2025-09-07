@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer, { calculateSummary } from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle, Users, Stethoscope, Microscope, Pill, Syringe, FileText } from 'lucide-react';
+import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw, AlertTriangle, Users, Stethoscope, Microscope, Pill, Syringe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
@@ -17,6 +17,10 @@ interface FileState {
     jsonData: any | null;
     fileName: string | null;
     prestadorInfo: PrestadorInfo | null;
+}
+
+interface JsonAnalyzerPageProps {
+  setUnifiedSummary: (summary: any | null) => void;
 }
 
 const initialFileState: FileState = {
@@ -44,7 +48,7 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     return map;
 }
 
-export default function JsonAnalyzerPage() {
+export default function JsonAnalyzerPage({ setUnifiedSummary }: JsonAnalyzerPageProps) {
   const [file1, setFile1] = useState<FileState>(initialFileState);
   const [file2, setFile2] = useState<FileState>(initialFileState);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +58,6 @@ export default function JsonAnalyzerPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
-  const [unifiedSummary, setUnifiedSummary] = useState<any | null>(null);
-
 
   useEffect(() => {
     setIsClient(true);
@@ -119,17 +121,16 @@ export default function JsonAnalyzerPage() {
         reader.readAsText(file);
     };
 
-    if (files.length > 0) {
-        if (!file1.jsonData) {
-            processFile(files[0], setFile1);
-            if (files.length > 1) {
-                 processFile(files[1], setFile2);
-            }
-        } else if (!file2.jsonData) {
-            processFile(files[0], setFile2);
-        }
+    const filesToProcess = [...files];
+    
+    if (filesToProcess.length > 0 && !file1.jsonData) {
+        processFile(filesToProcess.shift()!, setFile1);
     }
-  }, [providers, toast, file1.jsonData]);
+    if (filesToProcess.length > 0 && !file2.jsonData) {
+        processFile(filesToProcess.shift()!, setFile2);
+    }
+
+  }, [providers, toast, file1.jsonData, file2.jsonData]);
 
   useEffect(() => {
     if (file1.jsonData && file2.jsonData) {
@@ -156,13 +157,14 @@ export default function JsonAnalyzerPage() {
     } else {
         setUnifiedSummary(null);
     }
-  }, [file1.jsonData, file2.jsonData]);
+  }, [file1.jsonData, file2.jsonData, setUnifiedSummary]);
 
   const handleReset = () => {
     setFile1(initialFileState);
     setFile2(initialFileState);
     setError(null);
     setShowDuplicateAlert(false);
+    setUnifiedSummary(null);
   };
   
   if (!isClient) {
@@ -183,9 +185,9 @@ export default function JsonAnalyzerPage() {
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <CardTitle>Carga y Compara tus Archivos JSON</CardTitle>
+                    <CardTitle>Carga tus Archivos JSON</CardTitle>
                     <CardDescription>
-                        Carga la base de prestadores y luego sube hasta dos archivos JSON para analizarlos lado a lado.
+                        Carga la base de prestadores y luego sube hasta dos archivos JSON para analizarlos.
                     </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -271,25 +273,6 @@ export default function JsonAnalyzerPage() {
                 )}
              </div>
         )}
-        
-        {unifiedSummary && (
-            <Card className="w-full shadow-lg border-primary/20">
-                <CardHeader>
-                    <CardTitle>Resumen Unificado</CardTitle>
-                    <CardDescription>Suma de las estadísticas de ambos archivos cargados.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
-                        <StatCard title="Total Usuarios" value={unifiedSummary.numUsuarios} icon={Users} />
-                        <StatCard title="Total Consultas" value={unifiedSummary.numConsultas} icon={Stethoscope} />
-                        <StatCard title="Total Procedimientos" value={unifiedSummary.numProcedimientos} icon={Microscope} />
-                        <StatCard title="Total Medicamentos" value={unifiedSummary.totalMedicamentos.toLocaleString()} icon={Pill} />
-                        <StatCard title="Total Otros Servicios" value={unifiedSummary.totalOtrosServicios.toLocaleString()} icon={Syringe} />
-                    </div>
-                </CardContent>
-            </Card>
-        )}
-
 
       {anyFileLoaded && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
