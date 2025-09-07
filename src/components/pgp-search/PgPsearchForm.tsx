@@ -87,10 +87,23 @@ export const formatCurrency = (value: number | null | undefined): string => {
 };
 
 export const getNumericValue = (value: any): number => {
-    const strValue = String(value ?? '0').trim();
-    // Handles US-style numbers from Google Sheets ("1,234.56") AND simple decimals ("0.48467")
-    const cleanValue = strValue.replace(/[$,]/g, '');
-    const numericValue = parseFloat(cleanValue);
+    if (value === null || value === undefined) return 0;
+    
+    // Convert to string and trim whitespace
+    const strValue = String(value).trim();
+
+    // Check if the string is empty
+    if (strValue === '') return 0;
+
+    // Handle US-style numbers from Google Sheets ("1,234.56")
+    if (strValue.includes(',')) {
+       const cleanValue = strValue.replace(/[$,]/g, '');
+       const numericValue = parseFloat(cleanValue);
+       return isNaN(numericValue) ? 0 : numericValue;
+    }
+
+    // Handle simple decimals ("0.48467") or integers ("123")
+    const numericValue = parseFloat(strValue);
     return isNaN(numericValue) ? 0 : numericValue;
 };
 
