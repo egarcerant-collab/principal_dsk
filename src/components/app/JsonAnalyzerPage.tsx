@@ -116,7 +116,7 @@ export default function JsonAnalyzerPage() {
                 const nit = parsedJson?.numDocumentoIdObligado;
                 let prestadorInfo: PrestadorInfo | null = null;
                 if (nit && providers) {
-                    prestadorInfo = providers.get(String(nit)) || null;
+                    prestadorInfo = providers.get(String(nit).trim()) || null;
                 }
 
                 const newState: FileState = {
@@ -239,12 +239,15 @@ export default function JsonAnalyzerPage() {
                         </CardHeader>
                         <CardContent>
                             {file1.prestadorInfo ? (
-                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                <div className="flex flex-col">
                                     <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
                                     <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">NIT: {file1.jsonData.numDocumentoIdObligado} (Nombre no encontrado en la base de datos)</p>
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file1.jsonData.numDocumentoIdObligado}</p>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -277,12 +280,15 @@ export default function JsonAnalyzerPage() {
                         </CardHeader>
                         <CardContent>
                             {file2.prestadorInfo ? (
-                                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                <div className="flex flex-col">
                                     <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
                                     <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-muted-foreground">NIT: {file2.jsonData.numDocumentoIdObligado} (Nombre no encontrado en la base de datos)</p>
+                                <div className="flex flex-col">
+                                    <h3 className="text-lg font-bold text-foreground">Nombre no encontrado</h3>
+                                    <p className="text-sm text-muted-foreground">NIT: {file2.jsonData.numDocumentoIdObligado}</p>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -313,3 +319,5 @@ export default function JsonAnalyzerPage() {
     </div>
   );
 }
+
+    
