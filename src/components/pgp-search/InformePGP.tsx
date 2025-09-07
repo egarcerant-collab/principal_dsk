@@ -299,117 +299,115 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
   const band = withinBand(summary.totalTrim, data.band);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4">
-      <div ref={reportRef} className="bg-background p-4 space-y-4">
-        <Card className="shadow-xl">
-          <CardHeader>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
-                </div>
+    <div ref={reportRef} className="mx-auto max-w-6xl space-y-6 p-4">
+      <Card className="shadow-xl">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
+              <div className="text-sm text-muted-foreground">
+                {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
               </div>
-               <div className="flex items-center gap-2 print:hidden">
-                <Button onClick={handleCopy} variant="default" className="gap-2">
-                  <Copy className="h-4 w-4" /> {copied ? "¡Copiado!" : "Copiar informe"}
-                </Button>
-                <Button onClick={handleDownloadPdf} variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" /> Descargar PDF
-                </Button>
+              <div className="text-sm text-muted-foreground">
+                Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Estado de banda de control */}
-            {band.ok ? (
-              <Alert className="border-emerald-300">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Ejecución dentro de banda</AlertTitle>
-                <AlertDescription>
-                  Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Ejecución fuera de banda</AlertTitle>
-                <AlertDescription>
-                  Total trimestral {formatCOP(summary.totalTrim)} fuera de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-                </AlertDescription>
-              </Alert>
-            )}
+            <div className="flex items-center gap-2 print:hidden">
+              <Button onClick={handleCopy} variant="default" className="gap-2">
+                <Copy className="h-4 w-4" /> {copied ? "¡Copiado!" : "Copiar informe"}
+              </Button>
+              <Button onClick={handleDownloadPdf} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" /> Descargar PDF
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Estado de banda de control */}
+          {band.ok ? (
+            <Alert className="border-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Ejecución dentro de Rango</AlertTitle>
+              <AlertDescription>
+                Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Ejecución fuera de Rango</AlertTitle>
+              <AlertDescription>
+                Total trimestral {formatCOP(summary.totalTrim)} fuera de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
+              </AlertDescription>
+            </Alert>
+          )}
 
-            <section className="space-y-2">
-              <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Objetivo</h3>
-              <p className="leading-relaxed text-sm">{generateNarrative(data).paragraphs[0]}</p>
-            </section>
+          <section className="space-y-2">
+            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Objetivo</h3>
+            <p className="leading-relaxed text-sm">{generateNarrative(data).paragraphs[0]}</p>
+          </section>
 
-            <Separator />
+          <Separator />
 
-            <section className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Gráfico 1. Consolidado de ejecución (COP) por mes</CardTitle>
-                </CardHeader>
-                <CardContent className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="Mes" />
-                      <YAxis tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 }).format(v)} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Bar dataKey="Valor ejecutado" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+          <section className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Gráfico 1. Consolidado de ejecución (COP) por mes</CardTitle>
+              </CardHeader>
+              <CardContent className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="Mes" />
+                    <YAxis tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 }).format(v)} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar dataKey="Valor ejecutado" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Gráfico 2. CUPS reportados por mes</CardTitle>
-                </CardHeader>
-                <CardContent className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={cupsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="Mes" />
-                      <YAxis />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend />
-                      <Line type="monotone" dataKey="CUPS" stroke="#82ca9d" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </section>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Gráfico 2. CUPS reportados por mes</CardTitle>
+              </CardHeader>
+              <CardContent className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={cupsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="Mes" />
+                    <YAxis />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line type="monotone" dataKey="CUPS" stroke="#82ca9d" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </section>
 
-            <Separator />
+          <Separator />
 
-            <section className="space-y-3">
-              <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Desarrollo del informe</h3>
-              {generateNarrative(data).paragraphs.slice(1).map((p, i) => (
-                <p key={i} className="leading-relaxed text-sm">{p}</p>
+          <section className="space-y-3">
+            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Desarrollo del informe</h3>
+            {generateNarrative(data).paragraphs.slice(1).map((p, i) => (
+              <p key={i} className="leading-relaxed text-sm">{p}</p>
+            ))}
+          </section>
+
+          <Separator />
+
+          <section className="space-y-2">
+            <h3 className="text-base font-semibold">Recomendaciones</h3>
+            <ul className="list-disc pl-6 text-sm space-y-1">
+              {generateNarrative(data).recomendaciones.map((r, i) => (
+                <li key={i}>{r}</li>
               ))}
-            </section>
-
-            <Separator />
-
-            <section className="space-y-2">
-              <h3 className="text-base font-semibold">Recomendaciones</h3>
-              <ul className="list-disc pl-6 text-sm space-y-1">
-                {generateNarrative(data).recomendaciones.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-            </section>
-          </CardContent>
-        </Card>
-      </div>
+            </ul>
+          </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }
