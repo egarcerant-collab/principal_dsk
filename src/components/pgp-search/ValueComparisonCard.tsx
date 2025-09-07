@@ -7,8 +7,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DollarSign, BarChart2 } from "lucide-react";
 import type { ValueComparisonItem } from "./PgPsearchForm";
-import { formatCurrency } from './PgPsearchForm';
 
+// This function needs to be robust to handle different currency formats from the sheets.
+export const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return '$0';
+  // Formats to Colombian Pesos, without decimals.
+  return new Intl.NumberFormat('es-CO', { 
+      style: 'currency', 
+      currency: 'COP', 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0 
+    }).format(value);
+};
 
 interface ValueComparisonCardProps {
     expectedValue: number;
@@ -89,3 +99,5 @@ const ValueComparisonCard: React.FC<ValueComparisonCardProps> = ({ expectedValue
 };
 
 export default ValueComparisonCard;
+
+    

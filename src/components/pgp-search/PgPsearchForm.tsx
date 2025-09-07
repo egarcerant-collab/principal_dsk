@@ -97,12 +97,8 @@ export const getNumericValue = (value: any): number => {
     if (typeof value !== 'string') {
       value = String(value ?? '0');
     }
-    // First, remove currency symbols, thousands separators (dot), and trim whitespace
-    let cleanValue = value.replace(/[$.]/g, '').trim();
-    
-    // Then, replace the comma decimal separator with a dot
-    cleanValue = cleanValue.replace(',', '.');
-
+    // First, remove currency symbols and thousands separators (dots in COP)
+    const cleanValue = value.replace(/[$.]/g, '').replace(/,/g, '.').trim();
     const num = parseFloat(cleanValue);
     return isNaN(num) ? 0 : num;
 };
@@ -605,3 +601,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
 };
 
 export default PgPsearchForm;
+
+    
