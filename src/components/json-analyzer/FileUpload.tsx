@@ -1,21 +1,21 @@
 
 "use client";
 
-import React, { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
-import { UploadCloud, FileJson } from 'lucide-react';
+import React, { useRef, useState, type ChangeEvent, type DragEvent, useEffect } from 'react';
+import { UploadCloud, FileJson, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 
 interface FileUploadProps {
   onFileLoad: (content: string, name: string) => void;
-  onReset: () => void;
   disabled?: boolean;
+  fileSlot: 'file1' | 'file2'; // To identify the uploader instance
+  loadedFileName: string | null;
 }
 
-export default function FileUpload({ onFileLoad, onReset, disabled }: FileUploadProps) {
+export default function FileUpload({ onFileLoad, disabled, fileSlot, loadedFileName }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -25,7 +25,6 @@ export default function FileUpload({ onFileLoad, onReset, disabled }: FileUpload
       reader.onload = (e: ProgressEvent<FileReader>) => {
         if (e.target?.result) {
           onFileLoad(e.target.result as string, file.name);
-          setFileName(file.name);
         }
       };
       reader.readAsText(file);
@@ -68,27 +67,23 @@ export default function FileUpload({ onFileLoad, onReset, disabled }: FileUpload
     if (files && files.length > 0) {
       handleFile(files[0]);
     }
-  };
-
-  const triggerFileSelect = () => {
-    inputRef.current?.click();
-  };
-  
-  const handleResetClick = () => {
-    setFileName(null);
-    onReset();
-    if (inputRef.current) {
-      inputRef.current.value = ''; // Reset file input
+     if (e.target) {
+      e.target.value = ''; // Allow re-uploading the same file
     }
   };
 
-  if (fileName) {
+  const triggerFileSelect = () => {
+    if (!loadedFileName) {
+        inputRef.current?.click();
+    }
+  };
+  
+  if (loadedFileName) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 text-center p-6 border-2 border-dashed rounded-lg border-green-500 bg-green-50">
+      <div className="flex flex-col items-center justify-center gap-4 text-center p-6 border-2 border-dashed rounded-lg border-green-500 bg-green-50 h-[178px]">
         <FileJson className="h-12 w-12 text-green-600" />
         <p className="font-medium text-green-800">Archivo cargado:</p>
-        <p className="text-sm text-green-700">{fileName}</p>
-        <Button variant="outline" onClick={handleResetClick} disabled={disabled}>Subir otro archivo</Button>
+        <p className="text-sm text-green-700 truncate max-w-full px-2">{loadedFileName}</p>
       </div>
     );
   }
@@ -96,7 +91,7 @@ export default function FileUpload({ onFileLoad, onReset, disabled }: FileUpload
   return (
     <div
       className={cn(
-        'relative flex w-full flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-8 text-center transition-colors duration-300',
+        'relative flex w-full h-[178px] flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-8 text-center transition-colors duration-300',
         isDragging ? 'border-accent bg-accent/10' : 'border-border',
         disabled ? 'cursor-not-allowed bg-muted/50' : 'cursor-pointer hover:border-accent/70'
       )}
@@ -117,7 +112,7 @@ export default function FileUpload({ onFileLoad, onReset, disabled }: FileUpload
       <div className="flex flex-col items-center gap-2 text-muted-foreground">
         <UploadCloud className="h-12 w-12" />
         <p className="font-semibold text-foreground">
-          Arrastra y suelta tu archivo JSON aquí
+          Arrastra o selecciona un archivo
         </p>
         <p className="text-sm">o</p>
         <Button type="button" variant="secondary" size="sm" disabled={disabled}>

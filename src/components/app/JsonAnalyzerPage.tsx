@@ -6,17 +6,32 @@ import FileUpload from "@/components/json-analyzer/FileUpload";
 import DataVisualizer from "@/components/json-analyzer/DataVisualizer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Building, Loader2, DatabaseZap, CheckCircle } from 'lucide-react';
+import { Terminal, Building, Loader2, DatabaseZap, CheckCircle, RefreshCw } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+
 
 interface PrestadorInfo {
   NIT: string;
   PRESTADOR: string;
   WEB: string;
 }
+
+interface FileState {
+    jsonData: any | null;
+    fileName: string | null;
+    prestadorInfo: PrestadorInfo | null;
+}
+
+const initialFileState: FileState = {
+    jsonData: null,
+    fileName: null,
+    prestadorInfo: null,
+};
+
 
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
@@ -52,11 +67,10 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
 
 
 export default function JsonAnalyzerPage() {
-  const [jsonData, setJsonData] = useState<any | null>(null);
+  const [file1, setFile1] = useState<FileState>(initialFileState);
+  const [file2, setFile2] = useState<FileState>(initialFileState);
   const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
-  const [prestadorInfo, setPrestadorInfo] = useState<PrestadorInfo | null>(null);
   const [isLoadingProviders, setIsLoadingProviders] = useState<boolean>(false);
   const [isProvidersDataLoaded, setIsProvidersDataLoaded] = useState<boolean>(false);
   const { toast } = useToast();
@@ -85,36 +99,45 @@ export default function JsonAnalyzerPage() {
   }, [toast]);
 
 
-  const handleFileLoad = useCallback((content: string, name: string) => {
+  const handleFileLoad = useCallback((content: string, name: string, fileSlot: 'file1' | 'file2') => {
     try {
       const parsedJson = JSON.parse(content);
       setError(null);
-      setFileName(name);
       
       const nit = parsedJson?.numDocumentoIdObligado;
+      let prestadorInfo: PrestadorInfo | null = null;
       if (nit && providers) {
-        const info = providers.get(String(nit));
-        setPrestadorInfo(info || null);
-      } else {
-        setPrestadorInfo(null);
+        prestadorInfo = providers.get(String(nit)) || null;
       }
-      setJsonData(parsedJson);
+      
+      const newState: FileState = {
+        jsonData: parsedJson,
+        fileName: name,
+        prestadorInfo: prestadorInfo,
+      };
+
+      if (fileSlot === 'file1') {
+        setFile1(newState);
+      } else {
+        setFile2(newState);
+      }
 
     } catch (e: any) {
       const errorMessage = e instanceof Error ? `Error al parsear el archivo JSON: ${e.message}`: 'Ocurrió un error inesperado al parsear el archivo JSON.';
       setError(errorMessage);
       toast({ title: "Error de Archivo", description: errorMessage, variant: "destructive" });
-      setJsonData(null);
-      setFileName(null);
-      setPrestadorInfo(null);
+      if (fileSlot === 'file1') {
+        setFile1(initialFileState);
+      } else {
+        setFile2(initialFileState);
+      }
     }
   }, [providers, toast]);
 
   const handleReset = () => {
-    setJsonData(null);
+    setFile1(initialFileState);
+    setFile2(initialFileState);
     setError(null);
-    setFileName(null);
-    setPrestadorInfo(null);
   };
   
   if (!isClient) {
@@ -126,68 +149,130 @@ export default function JsonAnalyzerPage() {
     );
   }
 
+  const bothFilesLoaded = file1.jsonData && file2.jsonData;
+  const anyFileLoaded = file1.jsonData || file2.jsonData;
+
   return (
     <div className="w-full space-y-8 mt-4">
-      {!jsonData ? (
         <Card className="w-full shadow-lg">
           <CardHeader>
-            <CardTitle>Carga tus datos</CardTitle>
-            <CardDescription>
-                Primero, carga la base de datos de prestadores para enriquecer los datos. Luego, sube tu archivo JSON.
-            </CardDescription>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <CardTitle>Carga y Compara tus Archivos JSON</CardTitle>
+                    <CardDescription>
+                        Carga la base de prestadores y luego sube hasta dos archivos JSON para analizarlos lado a lado.
+                    </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                    <Button onClick={handleLoadProviders} disabled={isLoadingProviders || isProvidersDataLoaded} className={cn("w-full sm:w-auto", isProvidersDataLoaded && "bg-green-600 hover:bg-green-700")}>
+                        {isLoadingProviders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isProvidersDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
+                        {isLoadingProviders ? "Cargando..." : isProvidersDataLoaded ? "Prestadores Cargados" : "1. Cargar Prestadores"}
+                    </Button>
+                     {anyFileLoaded && (
+                        <Button onClick={handleReset} variant="outline">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Limpiar Todo
+                        </Button>
+                    )}
+                </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-             <Button onClick={handleLoadProviders} disabled={isLoadingProviders || isProvidersDataLoaded} className={cn("w-full md:w-auto", isProvidersDataLoaded && "bg-green-600 hover:bg-green-700")}>
-                {isLoadingProviders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isProvidersDataLoaded ? <CheckCircle className="mr-2 h-4 w-4"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
-                {isLoadingProviders ? "Cargando..." : isProvidersDataLoaded ? "Base de Prestadores Cargada" : "Cargar Base de Datos de Prestadores"}
-            </Button>
-            <FileUpload onFileLoad={handleFileLoad} onReset={handleReset} disabled={!isProvidersDataLoaded} />
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-           {prestadorInfo && (
-                <Card className="shadow-lg">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Building className="h-6 w-6 text-primary" />
-                            Información del Prestador
-                        </CardTitle>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Uploader 1 */}
+                <Card className="flex-1">
+                     <CardHeader>
+                        <CardTitle>Archivo 1</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                            <h3 className="text-xl font-bold text-foreground">{prestadorInfo.PRESTADOR}</h3>
-                            <p className="text-md text-muted-foreground">NIT: {prestadorInfo.NIT}</p>
-                        </div>
-                         {isClient && prestadorInfo.WEB && (
-                           <div className="aspect-video w-full rounded-lg border">
-                             <iframe
-                                  src={prestadorInfo.WEB}
-                                  title={`Web de ${prestadorInfo.PRESTADOR}`}
-                                  className="h-full w-full rounded-md"
-                                  allow="fullscreen"
-                              />
-                          </div>
-                         )}
+                    <CardContent>
+                        <FileUpload onFileLoad={(content, name) => handleFileLoad(content, name, 'file1')} disabled={!isProvidersDataLoaded} fileSlot="file1" loadedFileName={file1.fileName} />
                     </CardContent>
                 </Card>
-            )}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Visualización de Datos: <span className="font-normal text-muted-foreground">{fileName}</span></span>
-                <button
-                  onClick={handleReset}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Cargar otro archivo
-                </button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataVisualizer data={jsonData} />
-            </CardContent>
-          </Card>
+
+                {/* Uploader 2 */}
+                <Card className="flex-1">
+                     <CardHeader>
+                        <CardTitle>Archivo 2</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <FileUpload onFileLoad={(content, name) => handleFileLoad(content, name, 'file2')} disabled={!isProvidersDataLoaded} fileSlot="file2" loadedFileName={file2.fileName} />
+                    </CardContent>
+                </Card>
+            </div>
+          </CardContent>
+        </Card>
+      
+
+      {anyFileLoaded && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {/* Visualizer 1 */}
+            <div className="space-y-4">
+               {file1.jsonData && (
+                <>
+                {file1.prestadorInfo && (
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Building className="h-5 w-5 text-primary" />
+                                Prestador Archivo 1
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                <h3 className="text-lg font-bold text-foreground">{file1.prestadorInfo.PRESTADOR}</h3>
+                                <p className="text-sm text-muted-foreground">NIT: {file1.prestadorInfo.NIT}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                <Card>
+                    <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="text-xl">Análisis Archivo 1: <span className="font-normal text-muted-foreground">{file1.fileName}</span></span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <DataVisualizer data={file1.jsonData} />
+                    </CardContent>
+                </Card>
+                </>
+               )}
+            </div>
+            
+            {/* Visualizer 2 */}
+            <div className="space-y-4">
+               {file2.jsonData && (
+                <>
+                {file2.prestadorInfo && (
+                    <Card className="shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Building className="h-5 w-5 text-primary" />
+                                Prestador Archivo 2
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                <h3 className="text-lg font-bold text-foreground">{file2.prestadorInfo.PRESTADOR}</h3>
+                                <p className="text-sm text-muted-foreground">NIT: {file2.prestadorInfo.NIT}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                <Card>
+                    <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                         <span className="text-xl">Análisis Archivo 2: <span className="font-normal text-muted-foreground">{file2.fileName}</span></span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <DataVisualizer data={file2.jsonData} />
+                    </CardContent>
+                </Card>
+                </>
+               )}
+            </div>
         </div>
       )}
 
