@@ -436,7 +436,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         );
     }
 
-    const showComparison = isDataLoaded && cupCounts.size > 0;
+    const showComparison = isDataLoaded && cupCounts && cupCounts.size > 0;
 
     return (
         <Card>
