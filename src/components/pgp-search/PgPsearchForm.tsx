@@ -92,19 +92,11 @@ export const getNumericValue = (value: any): number => {
     if (typeof value === 'number') {
         return value;
     }
-    if (typeof value === 'string') {
-        // Standard US format from Google Sheets (e.g., "1,234.56" or "1234.56")
-        // Also handles currency symbols.
-        const cleanValue = value.replace(/[$,]/g, '').trim();
-        const num = parseFloat(cleanValue);
-        return isNaN(num) ? 0 : num;
+    if (typeof value !== 'string') {
+        value = String(value ?? '0');
     }
-     if (value === null || value === undefined) {
-        return 0;
-    }
-    // For any other type, try converting to string and then parsing.
-    const stringValue = String(value);
-    const cleanValue = stringValue.replace(/[$,]/g, '').trim();
+    // Handles US-style from Google Sheets ("1,234.56")
+    const cleanValue = value.replace(/[$,]/g, '').trim();
     const num = parseFloat(cleanValue);
     return isNaN(num) ? 0 : num;
 };
@@ -231,7 +223,7 @@ const ComparisonTable = ({ pgpData, cupCounts }: { pgpData: PgpRow[], cupCounts:
             realFrequency,
             difference,
         };
-    }).filter(item => item.cup && item.realFrequency > 0); // Filter out rows with 0 real frequency
+    }).filter(item => item.cup && item.realFrequency > 0);
 
     if (comparisonData.length === 0) {
         return (
@@ -301,41 +293,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
     const { toast } = useToast();
     const [isClient, setIsClient] = useState(false);
     const [isAiEnabled, setIsAiEnabled] = useState(false);
-    const [mismatchError, setMismatchError] = useState<string | null>(null);
+    const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
 
-
-    useEffect(() => {
-        setIsClient(true);
-        fetch('/api/check-env').then(res => res.json()).then(data => {
-            setIsAiEnabled(data.isAiEnabled);
-        });
-    }, []);
-
-    useEffect(() => {
-        if (!isClient) return;
-        
-        const fetchPrestadores = async () => {
-            setLoadingPrestadores(true);
-            toast({ title: "Cargando lista de prestadores..." });
-            try {
-                const data = await fetchSheetData<Prestador>(PRESTADORES_SHEET_URL);
-                const typedData = data.filter(p => p.PRESTADOR && String(p.PRESTADOR).trim() !== '');
-                setPrestadores(typedData);
-                 if (typedData.length > 0) {
-                    toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
-                 } else {
-                    toast({ title: "Atención: No se encontraron prestadores.", description: "Verifique la hoja de cálculo o la conexión.", variant: "destructive" });
-                 }
-            } catch (error: any) {
-                toast({ title: "Error al Cargar la Lista de Prestadores", description: error.message, variant: "destructive" });
-                console.error("Error fetching providers:", error);
-            } finally {
-                setLoadingPrestadores(false);
-            }
-        };
-        fetchPrestadores();
-    }, [isClient, toast]);
-    
     const calculateSummary = useCallback((data: PgpRow[]): SummaryData | null => {
         if (data.length === 0) return null;
         
@@ -360,77 +319,28 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         };
     }, []);
 
-    const calculateValueComparison = useCallback((pgpData: PgpRow[], cupCounts: CupCountsMap) => {
-        let totalExpected = 0;
-        let totalExecuted = 0;
-        
-        const comparisonData = pgpData.map(row => {
-            const findColumn = (possibleNames: string[]) => {
-                for (const name of possibleNames) {
-                    const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
-                    if (key) return row[key];
-                }
-                return '';
-            };
-
-            const cup = findColumn(['cup/cum', 'cups']);
-            const description = findColumn(['descripcion cups', 'descripcion']);
-            const unitValue = getNumericValue(findColumn(['valor unitario']));
-            const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
-            const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
-
-            const expectedValue = unitValue * expectedFrequency;
-            const executedValue = unitValue * realFrequency;
-
-            totalExpected += expectedValue;
-            totalExecuted += executedValue;
-
-            return {
-                cup,
-                description,
-                unitValue,
-                expectedValue,
-                executedValue,
-                difference: executedValue - expectedValue,
-            };
-        }).filter(item => item.cup && (item.executedValue > 0 || item.expectedValue > 0));
-
-        setValueComparison(comparisonData);
-        setTotalExpectedValue(totalExpected);
-        setTotalExecutedValue(totalExecuted);
-
+    useEffect(() => {
+        setIsClient(true);
+        fetch('/api/check-env').then(res => res.json()).then(data => {
+            setIsAiEnabled(data.isAiEnabled);
+        });
     }, []);
 
-    useEffect(() => {
-        if (isDataLoaded && pgpData.length > 0 && cupCounts) {
-            calculateValueComparison(pgpData, cupCounts);
-        } else {
-            setValueComparison([]);
-            setTotalExpectedValue(0);
-            setTotalExecutedValue(0);
-        }
-    }, [isDataLoaded, pgpData, cupCounts, calculateValueComparison]);
-
-    const handleSelectPrestador = async (prestador: Prestador) => {
-        setMismatchError(null);
+    const handleLoadPrestador = useCallback(async (prestador: Prestador) => {
+        setMismatchWarning(null);
         setSelectedPrestador(prestador);
 
+        // Check for mismatch but allow loading
         const pgpZoneId = prestador['ID DE ZONA'] ? String(prestador['ID DE ZONA']).trim() : null;
-        
         if (jsonPrestadorCode && pgpZoneId && jsonPrestadorCode !== pgpZoneId) {
-            const errorMsg = `El código del prestador del JSON (${jsonPrestadorCode}) no coincide con el ID DE ZONA de la nota técnica (${pgpZoneId}).`;
-            setMismatchError(errorMsg);
+            const warningMsg = `¡Advertencia! El código del JSON (${jsonPrestadorCode}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
+            setMismatchWarning(warningMsg);
             toast({
-                title: "Error de Coincidencia de Prestador",
-                description: errorMsg,
+                title: "Advertencia de No Coincidencia",
+                description: warningMsg,
                 variant: "destructive",
-                duration: 5000,
+                duration: 7000,
             });
-            setIsDataLoaded(false);
-            setPgpData([]);
-            setGlobalSummary(null);
-            setAnalysis(null);
-            return;
         }
 
         setLoading(true);
@@ -519,8 +429,98 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
         } finally {
             setLoading(false);
         }
-    };
+    }, [isAiEnabled, toast, calculateSummary, jsonPrestadorCode]);
+
+
+    useEffect(() => {
+        if (!isClient) return;
+        
+        const fetchPrestadores = async () => {
+            setLoadingPrestadores(true);
+            toast({ title: "Cargando lista de prestadores..." });
+            try {
+                const data = await fetchSheetData<Prestador>(PRESTADORES_SHEET_URL);
+                const typedData = data.filter(p => p.PRESTADOR && String(p.PRESTADOR).trim() !== '');
+                setPrestadores(typedData);
+                 if (typedData.length > 0) {
+                    toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
+                 } else {
+                    toast({ title: "Atención: No se encontraron prestadores.", description: "Verifique la hoja de cálculo o la conexión.", variant: "destructive" });
+                 }
+            } catch (error: any) {
+                toast({ title: "Error al Cargar la Lista de Prestadores", description: error.message, variant: "destructive" });
+                console.error("Error fetching providers:", error);
+            } finally {
+                setLoadingPrestadores(false);
+            }
+        };
+        fetchPrestadores();
+    }, [isClient, toast]);
+
+     useEffect(() => {
+        if (jsonPrestadorCode && prestadores.length > 0 && !loading) {
+            const matchedPrestador = prestadores.find(p => p['ID DE ZONA']?.trim() === jsonPrestadorCode);
+            if (matchedPrestador && !selectedPrestador) {
+                toast({
+                    title: "Prestador Sugerido Encontrado",
+                    description: `Cargando automáticamente la nota técnica para ${matchedPrestador.PRESTADOR}.`
+                });
+                handleLoadPrestador(matchedPrestador);
+            }
+        }
+    }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleLoadPrestador, toast]);
     
+    const calculateValueComparison = useCallback((pgpData: PgpRow[], cupCounts: CupCountsMap) => {
+        let totalExpected = 0;
+        let totalExecuted = 0;
+        
+        const comparisonData = pgpData.map(row => {
+            const findColumn = (possibleNames: string[]) => {
+                for (const name of possibleNames) {
+                    const key = Object.keys(row).find(k => k.toLowerCase().trim() === name.toLowerCase());
+                    if (key) return row[key];
+                }
+                return '';
+            };
+
+            const cup = findColumn(['cup/cum', 'cups']);
+            const description = findColumn(['descripcion cups', 'descripcion']);
+            const unitValue = getNumericValue(findColumn(['valor unitario']));
+            const expectedFrequency = getNumericValue(findColumn(['frecuencia eventos mes']));
+            const realFrequency = cup ? cupCounts.get(cup) || 0 : 0;
+
+            const expectedValue = unitValue * expectedFrequency;
+            const executedValue = unitValue * realFrequency;
+
+            totalExpected += expectedValue;
+            totalExecuted += executedValue;
+
+            return {
+                cup,
+                description,
+                unitValue,
+                expectedValue,
+                executedValue,
+                difference: executedValue - expectedValue,
+            };
+        }).filter(item => item.cup && (item.executedValue > 0 || item.expectedValue > 0));
+
+        setValueComparison(comparisonData);
+        setTotalExpectedValue(totalExpected);
+        setTotalExecutedValue(totalExecuted);
+
+    }, []);
+
+    useEffect(() => {
+        if (isDataLoaded && pgpData.length > 0 && cupCounts) {
+            calculateValueComparison(pgpData, cupCounts);
+        } else {
+            setValueComparison([]);
+            setTotalExpectedValue(0);
+            setTotalExecutedValue(0);
+        }
+    }, [isDataLoaded, pgpData, cupCounts, calculateValueComparison]);
+
     if (!isClient) {
         return (
             <div className="flex items-center justify-center py-6">
@@ -549,18 +549,18 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary, cupCounts
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
                         {prestadores.map((p, index) => (
-                           <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleSelectPrestador(p)}>
+                           <DropdownMenuItem key={`${p.NIT}-${index}`} onSelect={() => handleLoadPrestador(p)}>
                                {p.PRESTADOR}
                            </DropdownMenuItem>
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                 {mismatchError && (
+                 {mismatchWarning && (
                     <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Error de Coincidencia</AlertTitle>
-                        <AlertDescription>{mismatchError}</AlertDescription>
+                        <AlertTitle>Advertencia de Coincidencia</AlertTitle>
+                        <AlertDescription>{mismatchWarning}</AlertDescription>
                     </Alert>
                 )}
                 
