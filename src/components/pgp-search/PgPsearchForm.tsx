@@ -15,10 +15,10 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow, type DeviatedCupInfo } from './InformePGP';
+import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow, type DeviatedCupInfo, type PgpRow } from './InformePGP';
 
 
-interface PgpRow {
+interface PgpRowBE { // Para el backend de IA
   SUBCATEGORIA?: string;
   AMBITO?: string;
   'ID RESOLUCION 3100'?: string;
@@ -425,7 +425,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             'OBSERVACIONES': findColumnValue(row, ['observaciones'])
           }));
 
-          const analysisResult = await analyzePgpData(analysisInput);
+          const analysisResult = await analyzePgpData(analysisInput as PgpRowBE[]);
           setAnalysis(analysisResult);
         } catch (aiError: any) {
           toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
@@ -563,7 +563,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           };
           if (diff < 0) {
             underExecutedCups.push(cupInfo);
-          } else {
+          } else if (diff > 0) {
             overExecutedCups.push(cupInfo);
           }
         }
@@ -673,6 +673,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         periodo: periodo,
         responsable: 'Dirección Nacional del Riesgo en Salud',
       },
+      pgpData,
       months: months,
       band: {
         estimateCOP: estimacionTrimestral,

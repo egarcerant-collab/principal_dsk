@@ -1,17 +1,63 @@
 "use client";
 
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRightLeft, XCircle, HelpCircle, FileText, TrendingDown, TrendingUp } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  ArrowRightLeft,
+  XCircle,
+  HelpCircle,
+  FileText,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import StatCard from "../shared/StatCard";
+import { Button } from "@/components/ui/button";
 
 // ======= Tipos =======
-export type MonthKey = "ABRIL" | "MAYO" | "JUNIO" | "ENERO" | "FEBRERO" | "MARZO" | "JULIO" | "AGOSTO" | "SEPTIEMBRE" | "OCTUBRE" | "NOVIEMBRE" | "DICIEMBRE";
+export type MonthKey =
+  | "ABRIL"
+  | "MAYO"
+  | "JUNIO"
+  | "ENERO"
+  | "FEBRERO"
+  | "MARZO"
+  | "JULIO"
+  | "AGOSTO"
+  | "SEPTIEMBRE"
+  | "OCTUBRE"
+  | "NOVIEMBRE"
+  | "DICIEMBRE";
 
 export interface MonthExecution {
   month: MonthKey;
@@ -64,12 +110,36 @@ export interface ComparisonSummary {
 }
 
 export interface FinancialMatrixRow {
-    concepto: string;
-    autorizado: number;
-    ejecutado: number;
-    diferencia: number;
-    cumplimiento: number;
+  concepto: string;
+  autorizado: number;
+  ejecutado: number;
+  diferencia: number;
+  cumplimiento: number;
 }
+
+export interface PgpRow {
+  SUBCATEGORIA?: string;
+  AMBITO?: string;
+  'ID RESOLUCION 3100'?: string;
+  'DESCRIPCION ID RESOLUCION'?: string;
+  'CUP/CUM'?: string;
+  'DESCRIPCION CUPS'?: string;
+  'FRECUENCIA AÑO SERVICIO'?: number;
+  'FRECUENCIA USO'?: number;
+  'FRECUENCIA EVENTOS MES'?: number;
+  'FRECUENCIA EVENTO DIA'?: number;
+  'COSTO EVENTO MES'?: number;
+  'COSTO EVENTO DIA'?: number;
+  'FRECUENCIA MINIMA MES'?: number;
+  'FRECUENCIA MAXIMA MES'?: number;
+  'VALOR UNITARIO'?: number;
+  'VALOR MINIMO MES'?: number;
+  'VALOR MAXIMO MES'?: number;
+  'COSTO EVENTO MES (VALOR MES)'?: number;
+  OBSERVACIONES?: string;
+  [key: string]: any;
+}
+
 
 export interface ReportData {
   header: HeaderInfo;
@@ -84,29 +154,88 @@ export interface ReportData {
   totalExpectedFrequency?: number;
   totalRealFrequency?: number;
   expectedMonthlyValue?: number;
+  pgpData?: PgpRow[]; // <-- Añadido
 }
 
 // ======= Utilidades =======
-const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 2 }).format(n);
-const formatNumber = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
+const formatCOP = (n?: number) => {
+    if (n === undefined || n === null) return '$0';
+    return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        minimumFractionDigits: 2,
+    }).format(n);
+}
 
-const pctBadge = (ratio: number) => {
-  const p = isFinite(ratio) ? ratio * 100 : 0;
+const formatNumber = (n?: number) => {
+  if (n === undefined || n === null) return '0';
+  return new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
+}
+
+const pctBadge = (ratio?: number) => {
+  const p = isFinite(ratio ?? 0) ? (ratio ?? 0) * 100 : 0;
   let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
   if (p > 105) variant = "destructive";
   else if (p >= 95 && p <= 105) variant = "default";
   return <Badge variant={variant}>{p.toFixed(2)}%</Badge>;
 };
 
-const DeviatedCupsAccordion = ({ title, icon, count, data, variant }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under' }) => {
+const DetailRow = ({ label, value }: { label: string, value: any }) => (
+    <div className="flex justify-between border-b py-2">
+        <span className="text-sm font-medium text-muted-foreground">{label}:</span>
+        <span className="text-sm font-semibold">{value || 'N/A'}</span>
+    </div>
+);
+
+const CupDetailModal = ({ cup, isOpen, onClose }: { cup: PgpRow | null, isOpen: boolean, onClose: () => void }) => {
+    if (!cup) return null;
+
+    return (
+         <AlertDialog open={isOpen} onOpenChange={onClose}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Detalle del CUP: {cup['CUP/CUM']}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        {cup['DESCRIPCION CUPS']}
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="max-h-96 overflow-y-auto pr-4 space-y-2">
+                    <DetailRow label="Subcategoría" value={cup.SUBCATEGORIA} />
+                    <DetailRow label="Ámbito" value={cup.AMBITO} />
+                    <Separator />
+                    <h4 className="font-semibold pt-2">Frecuencias</h4>
+                    <DetailRow label="Frecuencia Año Servicio" value={formatNumber(cup['FRECUENCIA AÑO SERVICIO'])} />
+                    <DetailRow label="Frecuencia Uso" value={formatNumber(cup['FRECUENCIA USO'])} />
+                    <DetailRow label="Frecuencia Eventos Mes" value={formatNumber(cup['FRECUENCIA EVENTOS MES'])} />
+                    <DetailRow label="Frecuencia Mínima Mes" value={formatNumber(cup['FRECUENCIA MINIMA MES'])} />
+                    <DetailRow label="Frecuencia Máxima Mes" value={formatNumber(cup['FRECUENCIA MAXIMA MES'])} />
+                     <Separator />
+                    <h4 className="font-semibold pt-2">Costos y Valores</h4>
+                    <DetailRow label="Valor Unitario" value={formatCOP(cup['VALOR UNITARIO'])} />
+                    <DetailRow label="Costo Evento Mes" value={formatCOP(cup['COSTO EVENTO MES (VALOR MES)'])} />
+                    <DetailRow label="Valor Mínimo Mes" value={formatCOP(cup['VALOR MINIMO MES'])} />
+                    <DetailRow label="Valor Máximo Mes" value={formatCOP(cup['VALOR MAXIMO MES'])} />
+                    <Separator />
+                    <h4 className="font-semibold pt-2">Observaciones</h4>
+                    <p className="text-sm text-muted-foreground">{cup.OBSERVACIONES || "Sin observaciones."}</p>
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogAction onClick={onClose}>Cerrar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
+
+const DeviatedCupsAccordion = ({ title, icon, count, data, variant, onCupClick }: { title: string, icon: React.ReactNode, count: number, data: DeviatedCupInfo[], variant: 'over' | 'under', onCupClick: (cup: string) => void }) => {
   if (count === 0) return null;
   
   const diffClass = variant === 'over' ? "font-bold text-red-500" : "font-bold text-yellow-600";
   const diffPrefix = variant === 'over' ? "+" : "";
 
   return (
-    <AccordionItem value={`${variant}-executed-cups`} className="border rounded-lg bg-white shadow-sm">
-      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline">
+     <AccordionItem value={`${variant}-executed-cups`} className="border rounded-lg bg-white shadow-sm">
+      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-3">
             {icon}
@@ -130,11 +259,15 @@ const DeviatedCupsAccordion = ({ title, icon, count, data, variant }: { title: s
             <TableBody>
               {data.map((c, i) => (
                 <TableRow key={`${c.cup}-${i}`}>
-                  <TableCell className="font-mono text-xs">{c.cup}</TableCell>
+                  <TableCell>
+                    <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(c.cup)}>
+                      {c.cup}
+                    </Button>
+                  </TableCell>
                   <TableCell>{c.month}</TableCell>
-                  <TableCell className="text-right">{c.expected}</TableCell>
-                  <TableCell className="text-right">{c.real}</TableCell>
-                  <TableCell className={diffClass + " text-right"}>{diffPrefix}{c.diff}</TableCell>
+                  <TableCell className="text-right">{formatNumber(c.expected)}</TableCell>
+                  <TableCell className="text-right">{formatNumber(c.real)}</TableCell>
+                  <TableCell className={diffClass + " text-right"}>{diffPrefix}{formatNumber(c.diff)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -154,8 +287,8 @@ const DiscrepancyAccordion = ({ title, icon, count, data }: { title: string, ico
     : "CUPS del JSON no encontrados en la nota técnica.";
 
   return (
-    <AccordionItem value={`${title.toLowerCase().replace(' ', '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
-      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline">
+    <AccordionItem value={`${title.toLowerCase().replace(/\s+/g, '-')}-cups`} className="border rounded-lg bg-white shadow-sm">
+      <AccordionTrigger className="p-4 text-sm font-medium hover:no-underline [&[data-state=open]]:bg-muted/50">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-3">
             {icon}
@@ -178,7 +311,24 @@ const DiscrepancyAccordion = ({ title, icon, count, data }: { title: string, ico
 
 // ======= Componente principal =======
 export default function InformePGP({ data }: { data: ReportData }) {
-  const header = data.header;
+  const { header, pgpData } = data;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCupInfo, setSelectedCupInfo] = useState<PgpRow | null>(null);
+
+  const pgpDataMap = useMemo(() => {
+    if (!pgpData) return new Map();
+    return new Map<string, PgpRow>(pgpData.map(row => [row['CUP/CUM'] ?? '', row]));
+  }, [pgpData]);
+
+  const handleCupClick = (cupCode: string) => {
+    const cupInfo = pgpDataMap.get(cupCode);
+    if (cupInfo) {
+      setSelectedCupInfo(cupInfo);
+      setIsModalOpen(true);
+    }
+  };
+
+  const closeModal = () => setIsModalOpen(false);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
@@ -247,9 +397,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                 <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
-                  <Accordion type="single" collapsible className="space-y-4">
+                 <Accordion type="multiple" className="space-y-4">
 
                      <DeviatedCupsAccordion
                         title="CUPS Sobreejecutados"
@@ -257,6 +405,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         count={data.comparisonSummary.overExecutedCups.length}
                         data={data.comparisonSummary.overExecutedCups}
                         variant="over"
+                        onCupClick={handleCupClick}
                       />
                       
                       <DeviatedCupsAccordion
@@ -265,6 +414,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                         count={data.comparisonSummary.underExecutedCups.length}
                         data={data.comparisonSummary.underExecutedCups}
                         variant="under"
+                        onCupClick={handleCupClick}
                       />
                       
                       <DiscrepancyAccordion
@@ -282,7 +432,6 @@ export default function InformePGP({ data }: { data: ReportData }) {
                       />
 
                   </Accordion>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -327,7 +476,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                                      {formatNumber((data.totalRealFrequency || 0) - (data.totalExpectedFrequency || 0))}
                                     </TableCell>
                                      <TableCell className="text-right">
-                                       {pctBadge((data.totalExpectedFrequency) ? (data.totalRealFrequency || 0) / data.totalExpectedFrequency : 0)}
+                                       {pctBadge((data.totalExpectedFrequency) ? (data.totalRealFrequency || 0) / (data.totalExpectedFrequency || 1) : 0)}
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
@@ -377,6 +526,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
           </Table>
         </CardContent>
       </Card>
+       <CupDetailModal cup={selectedCupInfo} isOpen={isModalOpen} onClose={closeModal} />
     </div>
   );
 }
