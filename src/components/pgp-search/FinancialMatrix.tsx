@@ -1,13 +1,13 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, TableIcon, Wallet, Landmark, Calendar } from "lucide-react";
+import { Download, TableIcon, Wallet, Landmark, Calendar, ChevronDown } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { formatCurrency, type MatrixRow } from './PgPsearchForm';
 
@@ -36,9 +36,13 @@ interface FinancialMatrixProps {
 }
 
 const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFinancials }) => {
+    const [showAll, setShowAll] = useState(false);
+    
     if (!matrixData || matrixData.length === 0) {
         return null;
     }
+
+    const visibleData = showAll ? matrixData : matrixData.slice(0, 10);
 
     const getRowClass = (classification: string) => {
         switch (classification) {
@@ -126,13 +130,13 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFi
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {matrixData.map((row, index) => (
+                                        {visibleData.map((row, index) => (
                                             <TableRow key={index} className={getRowClass(row.Clasificacion)}>
                                                 <TableCell className="text-xs">{row.Mes}</TableCell>
                                                 <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                                                <TableCell className="text-center">{row.Cantidad_Esperada}</TableCell>
+                                                <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(2)}</TableCell>
                                                 <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                                                <TableCell className="text-center font-semibold">{row.Diferencia}</TableCell>
+                                                <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(2)}</TableCell>
                                                 <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
                                                 <TableCell className="font-medium">{row.Clasificacion}</TableCell>
                                                 <TableCell className="text-right text-xs">{formatCurrency(row.Valor_Unitario)}</TableCell>
@@ -143,6 +147,14 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFi
                                     </TableBody>
                                 </Table>
                             </ScrollArea>
+                             {matrixData.length > 10 && (
+                                <div className="pt-4 text-center">
+                                    <Button variant="outline" onClick={() => setShowAll(!showAll)}>
+                                        <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${showAll ? 'rotate-180' : ''}`} />
+                                        {showAll ? 'Ver menos' : `Ver más (${matrixData.length - 10} filas)`}
+                                    </Button>
+                                </div>
+                            )}
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>

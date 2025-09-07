@@ -1,6 +1,7 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -80,6 +81,7 @@ export interface MatrixRow {
     Valor_Unitario: number;
     Valor_Esperado: number;
     Valor_Ejecutado: number;
+    percentage_numeric: number;
 }
 
 export interface ComparisonSummary {
@@ -343,10 +345,14 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Valor_Unitario: unitValue,
             Valor_Esperado: valorEsperado,
             Valor_Ejecutado: valorEjecutado,
+            percentage_numeric: percentage,
         });
     });
     monthlyFinancialsMap.set(monthName, { totalValorEsperado: monthTotalExpected, totalValorEjecutado: monthTotalExecuted });
   });
+  
+  // Sort the matrix by over-execution percentage, descending
+  executionMatrix.sort((a, b) => b.percentage_numeric - a.percentage_numeric);
 
   const monthlyFinancials = Array.from(monthlyFinancialsMap, ([month, data]) => ({ month, ...data }));
 
