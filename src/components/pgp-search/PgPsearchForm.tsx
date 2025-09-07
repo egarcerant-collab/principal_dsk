@@ -3,6 +3,7 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -23,6 +24,7 @@ import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/li
 import Papa from 'papaparse';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import Report, { type ReportData } from '@/components/report/InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -525,6 +527,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isClient, setIsClient] = useState(false);
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
 
   const comparisonSummary = useMemo(() => {
     if (!isDataLoaded || executionDataByMonth.size === 0) {
@@ -631,6 +634,48 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       setLoading(false);
     }
   }, [isAiEnabled, toast]);
+
+  useEffect(() => {
+    if (isDataLoaded && executionDataByMonth.size > 0 && selectedPrestador && globalSummary && comparisonSummary) {
+      const monthExecutions = Array.from(executionDataByMonth.entries()).map(([monthKey, monthData]) => {
+        const totalValue = comparisonSummary.monthlyFinancials.find(mf => mf.month === getMonthName(monthKey))?.totalValorEjecutado ?? 0;
+        let totalCups = 0;
+        monthData.cupCounts.forEach(count => totalCups += count);
+        return {
+          month: getMonthName(monthKey),
+          cups: totalCups,
+          valueCOP: totalValue,
+        };
+      });
+
+      const totalEjecutado = monthExecutions.reduce((sum, m) => sum + m.valueCOP, 0);
+      const valor3m = globalSummary.totalCostoMes * monthExecutions.length; // Asumimos que la nota técnica es mensual
+
+      const newReportData: ReportData = {
+        header: {
+          empresa: "DUSAKAWI EPSI",
+          nit: selectedPrestador.NIT,
+          municipio: 'URIBIA',
+          contrato: '44847_04_PGP',
+          vigencia: '01/01/2025–01/12/2025',
+          ciudad: "Uribia",
+          fecha: new Date().toLocaleDateString('es-CO'),
+        },
+        months: monthExecutions,
+        notaTecnica: {
+          min90: valor3m * 0.9,
+          valor3m: valor3m,
+          max110: valor3m * 1.1,
+          anticipos: totalEjecutado * 0.8, // Ejemplo, podría ser otro cálculo
+          totalPagar: totalEjecutado * 0.2, // Ejemplo
+          totalFinal: totalEjecutado,
+        },
+      };
+      setReportData(newReportData);
+    } else {
+      setReportData(null);
+    }
+  }, [isDataLoaded, executionDataByMonth, selectedPrestador, globalSummary, comparisonSummary]);
 
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
@@ -786,6 +831,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     monthlyFinancials={comparisonSummary.monthlyFinancials}
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} />
+
+                {reportData && <Report data={reportData} />}
               </>
             )}
           </div>
