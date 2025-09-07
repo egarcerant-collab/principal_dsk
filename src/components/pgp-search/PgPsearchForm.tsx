@@ -13,7 +13,6 @@ import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import InformePGP, { type ComparisonSummary, type DeviatedCupInfo } from './InformePGP';
-import QuarterlyFinancialReport, { type ReportData as FinancialReportData } from './QuarterlyFinancialReport';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -334,43 +333,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return calculateComparison(pgpData, executionDataByMonth);
   }, [pgpData, executionDataByMonth, isDataLoaded]);
 
-  const financialReportData: FinancialReportData | null = useMemo(() => {
-    if (!isDataLoaded || executionDataByMonth.size === 0 || !globalSummary || !selectedPrestador) {
-        return null;
-    }
-
-    const months = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
-        const totalValue = Object.entries(data.summary).reduce((acc, [key, value]) => {
-            if (key.toLowerCase().includes('valor') || key.toLowerCase().includes('costo')) {
-                return acc + getNumericValue(value);
-            }
-            return acc;
-        }, 0);
-        
-        // This is a guess, needs refinement based on actual JSON structure.
-        const executedValue = getNumericValue(data.summary?.vrTotalFactura) || totalValue || 0;
-
-        return {
-            monthName: new Date(2024, parseInt(month) - 1).toLocaleString('es-CO', { month: 'long' }),
-            summary: data.summary,
-            executedValue: executedValue,
-        };
-    });
-
-    return {
-        header: {
-            empresa: selectedPrestador.PRESTADOR,
-            nit: selectedPrestador.NIT,
-            municipio: 'N/A', // This should be available in prestador data
-            departamento: 'N/A', // This should be available in prestador data
-            contrato: 'N/A', // Not available
-            vigencia: 'N/A', // Not available
-            periodo: 'N/A' // Could be constructed from months
-        },
-        months: months,
-    };
-  }, [isDataLoaded, executionDataByMonth, globalSummary, selectedPrestador]);
-
   useEffect(() => {
     setIsClient(true);
     fetch('/api/check-env').then(res => res.json()).then(data => {
@@ -606,8 +568,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
             {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
             
-            {financialReportData && <QuarterlyFinancialReport header={financialReportData.header} months={financialReportData.months} />}
-
             {showComparison && (
                 <InformePGP 
                     comparisonSummary={comparisonSummary}
