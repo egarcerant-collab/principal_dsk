@@ -2,14 +2,16 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertCircle, AlertTriangle } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +19,10 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import InformePGP from './InformePGP';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
+import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
+import Papa from 'papaparse';
+import { ScrollArea } from '../ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -418,6 +424,91 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   };
 };
 
+const handleDownloadXls = (data: any[], filename: string) => {
+    const csv = Papa.unparse(data);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+const MatrizEjecucionCard = ({ matrizData }: { matrizData: MatrizEjecucionRow[] }) => {
+  const getRowClass = (classification: string) => {
+      switch (classification) {
+          case "Sobre-ejecutado": return "text-red-600";
+          case "Sub-ejecutado": return "text-blue-600";
+          case "Faltante": return "text-yellow-600";
+          default: return "";
+      }
+  };
+
+  return (
+    <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
+      <AccordionItem value="item-1" className="border-0">
+        <div className="flex items-center justify-between p-4">
+          <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+            <div className="flex items-center">
+              <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
+              <h3 className="text-base font-medium text-left">Matriz Ejecución vs Esperado (mensual)</h3>
+            </div>
+          </AccordionTrigger>
+          <div className='flex items-center gap-4 pl-4'>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownloadXls(matrizData, `matriz_ejecucion_mensual.xls`);
+              }}
+              className="h-7 w-7"
+              aria-label="Descargar Matriz Mensual"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <AccordionContent className="px-4 pb-4">
+          <ScrollArea className="h-96">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                <TableRow>
+                  <TableHead>Mes</TableHead>
+                  <TableHead>CUPS</TableHead>
+                  <TableHead className="text-center">Cant. Esperada</TableHead>
+                  <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                  <TableHead className="text-center">Diferencia</TableHead>
+                  <TableHead className="text-center">% Ejecución</TableHead>
+                  <TableHead>Clasificación</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrizData.map((row, index) => (
+                  <TableRow key={index} className={getRowClass(row.Clasificacion)}>
+                    <TableCell className="text-xs">{row.Mes}</TableCell>
+                    <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                    <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
+                    <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                    <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
+                    <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
+                    <TableCell className="font-medium">{row.Clasificacion}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+};
+
+
 /** =====================  COMPONENTE PRINCIPAL  ===================== **/
 const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode }) => {
   const [loading, setLoading] = useState<boolean>(false);
@@ -440,6 +531,13 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       return null;
     }
     return calculateComparison(pgpData, executionDataByMonth);
+  }, [pgpData, executionDataByMonth, isDataLoaded]);
+
+  const matrizEjecucionMensual = useMemo(() => {
+    if (!isDataLoaded || executionDataByMonth.size === 0) {
+        return [];
+    }
+    return buildMatrizEjecucion({ executionDataByMonth, pgpData });
   }, [pgpData, executionDataByMonth, isDataLoaded]);
 
   useEffect(() => {
@@ -687,6 +785,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
                     monthlyFinancials={comparisonSummary.monthlyFinancials}
                 />
+                <MatrizEjecucionCard matrizData={matrizEjecucionMensual} />
               </>
             )}
           </div>
