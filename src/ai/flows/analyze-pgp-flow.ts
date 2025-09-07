@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A PGP data analysis AI agent.
@@ -8,7 +9,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const PgpRowSchema = z.object({
+const PgpRowSchemaForAI = z.object({
   SUBCATEGORIA: z.string().optional(),
   AMBITO: z.string().optional(),
   'ID RESOLUCION 3100': z.string().optional(),
@@ -29,19 +30,21 @@ const PgpRowSchema = z.object({
   'COSTO EVENTO MES (VALOR MES)': z.number().optional().describe('El costo total estimado del evento para un mes.'),
   OBSERVACIONES: z.string().optional(),
 });
-type PgpRow = z.infer<typeof PgpRowSchema>;
+type PgpRowForAI = z.infer<typeof PgpRowSchemaForAI>;
 
 const AnalyzePgpDataInputSchema = z.object({
   jsonData: z.string(),
 });
+
 const AnalyzePgpDataOutputSchema = z.object({
     keyObservations: z.array(z.string()).describe("Una lista de 3 a 5 observaciones clave y concisas sobre los datos."),
     potentialRisks: z.array(z.string()).describe("Una lista de 2 a 3 riesgos potenciales identificados en los datos."),
     strategicRecommendations: z.array(z.string()).describe("Una lista de 2 a 3 recomendaciones estratégicas basadas en el análisis.")
 });
 
-export async function analyzePgpData(input: PgpRow[]): Promise<z.infer<typeof AnalyzePgpDataOutputSchema>> {
-  return analyzePgpDataFlow({ jsonData: JSON.stringify(input, null, 2) });
+export async function analyzePgpData(input: PgpRowForAI[]): Promise<z.infer<typeof AnalyzePgpDataOutputSchema>> {
+  const dataAsString = JSON.stringify(input, null, 2);
+  return analyzePgpDataFlow({ jsonData: dataAsString });
 }
 
 const prompt = ai.definePrompt({
@@ -77,3 +80,5 @@ const analyzePgpDataFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

@@ -66,6 +66,28 @@ const formatCurrency = (value: number | null | undefined): string => {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 };
 
+const getNumericValue = (value: any): number => {
+    if (typeof value !== 'string' || value.trim() === '') {
+        return 0;
+    }
+    const cleanValue = value.replace(/[$\s]/g, '');
+    let number;
+    // Handle formats like "1.234,56" and "1,234.56"
+    if (cleanValue.includes(',') && cleanValue.includes('.')) {
+        // Assuming '.' is thousand separator and ',' is decimal
+        number = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
+    } else if (cleanValue.includes(',')) {
+         // Assuming ',' is decimal separator
+        number = parseFloat(cleanValue.replace(',', '.'));
+    }
+    else {
+        number = parseFloat(cleanValue);
+    }
+
+    return isNaN(number) ? 0 : number;
+};
+
+
 const SummaryCard = ({ summary, title, description }: { summary: SummaryData, title: string, description: string }) => (
     <Card className="mb-6 shadow-lg border-primary/20">
         <CardHeader>
@@ -166,17 +188,6 @@ const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput 
         </Card>
     )
 }
-
-const getNumericValue = (value: any): number => {
-    if (typeof value !== 'string' || value.trim() === '') {
-        return 0;
-    }
-    // Remove '$', spaces, and '.' as thousand separators, then replace ',' with '.' for decimal
-    const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-    const number = parseFloat(cleanValue);
-    return isNaN(number) ? 0 : number;
-};
-
 
 const PgPsearchForm: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
@@ -327,9 +338,7 @@ const PgPsearchForm: React.FC = () => {
             try {
                 const analysisInput = pgpRows.slice(0, 50).map(row => {
                     const getNumericAI = (value: any) => {
-                         if (typeof value !== 'string' || value.trim() === '') return 0;
-                         const cleanValue = value.replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-                         return parseFloat(cleanValue) || 0;
+                        return getNumericValue(value);
                     };
                     return {
                         'SUBCATEGORIA': row.SUBCATEGORIA,
@@ -340,7 +349,7 @@ const PgPsearchForm: React.FC = () => {
                         'DESCRIPCION CUPS': row['DESCRIPCION CUPS'],
                         'FRECUENCIA AÑO SERVICIO': getNumericAI(row['FRECUENCIA AÑO SERVICIO']),
                         'FRECUENCIA USO': getNumericAI(row['FRECUENCIA USO']),
-                        'FRECUencia EVENTOS MES': getNumericAI(row['FRECUENCIA EVENTOS MES']),
+                        'FRECUENCIA EVENTOS MES': getNumericAI(row['FRECUENCIA EVENTOS MES']),
                         'FRECUENCIA EVENTO DIA': getNumericAI(row['FRECUENCIA EVENTO DIA']),
                         'COSTO EVENTO MES': getNumericAI(row['COSTO EVENTO MES']),
                         'COSTO EVENTO DIA': getNumericAI(row['COSTO EVENTO DIA']),
