@@ -232,7 +232,10 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
 
     files.forEach(file => {
       if (file.jsonData) {
-        allNits.push(file.jsonData.numDocumentoIdObligado);
+        const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
+        if (nit) {
+            allNits.push(nit);
+        }
       }
     });
     const uniqueNits = new Set(allNits);
