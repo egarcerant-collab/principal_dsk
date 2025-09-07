@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRightLeft, XCircle, HelpCircle, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowRightLeft, XCircle, HelpCircle, FileText, TrendingDown, TrendingUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,11 +45,22 @@ export interface HeaderInfo {
   periodo?: string;
 }
 
+export interface DeviatedCupInfo {
+  cup: string;
+  description: string;
+  month: string;
+  expected: number;
+  real: number;
+  diff: number;
+}
+
 export interface ComparisonSummary {
   totalPgpCups: number;
   matchingCups: number;
   missingCups: string[];
   unexpectedCups: string[];
+  underExecutedCups: DeviatedCupInfo[];
+  overExecutedCups: DeviatedCupInfo[];
 }
 
 export interface FinancialMatrixRow {
@@ -155,13 +166,61 @@ export default function InformePGP({ data }: { data: ReportData }) {
           {data.comparisonSummary && (
             <Card className="bg-gray-50">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Contabilidad y Coincidencias</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Análisis de Frecuencias y Desviaciones</CardTitle>
                 <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
                 
-                <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
+                <Accordion type="single" collapsible>
+                   <AccordionItem value="over-executed-cups" className="border rounded-lg bg-white mb-2">
+                      <AccordionTrigger className="p-4 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                           <TrendingUp className="h-5 w-5 text-red-500" />
+                           <span>{data.comparisonSummary.overExecutedCups.length} CUPS Sobreejecutados</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 pt-0">
+                         <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real mayor a la esperada.</p>
+                         <ScrollArea className="h-40">
+                          <Table>
+                            <TableHeader>
+                              <TableRow><TableHead>CUP</TableHead><TableHead>Mes</TableHead><TableHead>Esp.</TableHead><TableHead>Real</TableHead><TableHead>Dif.</TableHead></TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {data.comparisonSummary.overExecutedCups.map((c, i) => <TableRow key={i}><TableCell>{c.cup}</TableCell><TableCell>{c.month}</TableCell><TableCell>{c.expected}</TableCell><TableCell>{c.real}</TableCell><TableCell className="font-bold text-red-500">+{c.diff}</TableCell></TableRow>)}
+                            </TableBody>
+                          </Table>
+                         </ScrollArea>
+                      </AccordionContent>
+                   </AccordionItem>
+                </Accordion>
+
+                 <Accordion type="single" collapsible>
+                   <AccordionItem value="under-executed-cups" className="border rounded-lg bg-white mb-2">
+                      <AccordionTrigger className="p-4 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                           <TrendingDown className="h-5 w-5 text-yellow-600" />
+                           <span>{data.comparisonSummary.underExecutedCups.length} CUPS Subejecutados</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 pt-0">
+                         <p className="text-xs text-muted-foreground mb-2">CUPS con frecuencia real menor a la esperada.</p>
+                          <ScrollArea className="h-40">
+                          <Table>
+                            <TableHeader>
+                              <TableRow><TableHead>CUP</TableHead><TableHead>Mes</TableHead><TableHead>Esp.</TableHead><TableHead>Real</TableHead><TableHead>Dif.</TableHead></TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {data.comparisonSummary.underExecutedCups.map((c, i) => <TableRow key={i}><TableCell>{c.cup}</TableCell><TableCell>{c.month}</TableCell><TableCell>{c.expected}</TableCell><TableCell>{c.real}</TableCell><TableCell className="font-bold text-yellow-600">{c.diff}</TableCell></TableRow>)}
+                            </TableBody>
+                          </Table>
+                         </ScrollArea>
+                      </AccordionContent>
+                   </AccordionItem>
+                </Accordion>
+                
+                <Accordion type="single" collapsible>
                    <AccordionItem value="missing-cups" className="border rounded-lg bg-white">
                       <AccordionTrigger className="p-4 text-sm font-medium">
                         <div className="flex items-center gap-2">
@@ -180,7 +239,7 @@ export default function InformePGP({ data }: { data: ReportData }) {
                    </AccordionItem>
                 </Accordion>
                 
-                <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
+                <Accordion type="single" collapsible>
                    <AccordionItem value="unexpected-cups" className="border rounded-lg bg-white">
                       <AccordionTrigger className="p-4 text-sm font-medium">
                         <div className="flex items-center gap-2">

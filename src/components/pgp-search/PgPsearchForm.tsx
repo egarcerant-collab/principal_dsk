@@ -15,7 +15,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
 import ValueComparisonCard from './ValueComparisonCard';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow } from './InformePGP';
+import InformePGP, { type ReportData, type MonthKey, type MonthExecution, type ComparisonSummary, type FinancialMatrixRow, type DeviatedCupInfo } from './InformePGP';
 
 
 interface PgpRow {
@@ -531,7 +531,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       return;
     }
     
-    const pgpCups = new Set(pgpData.map(row => findColumnValue(row, ['cup/cum', 'cups'])).filter(Boolean));
+    const pgpDataMap = new Map<string, PgpRow>(pgpData.map(row => [findColumnValue(row, ['cup/cum', 'cups']), row]));
+    const pgpCups = new Set(pgpDataMap.keys());
     const jsonCups = new Set<string>();
     executionDataByMonth.forEach(monthData => {
         monthData.cupCounts.forEach((_, cup) => jsonCups.add(cup));
@@ -541,11 +542,41 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     const missingCups = [...pgpCups].filter(cup => !jsonCups.has(cup));
     const unexpectedCups = [...jsonCups].filter(cup => !pgpCups.has(cup));
 
+    const underExecutedCups: DeviatedCupInfo[] = [];
+    const overExecutedCups: DeviatedCupInfo[] = [];
+
+    matchingCups.forEach(cup => {
+      const pgpRow = pgpDataMap.get(cup)!;
+      const expected = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
+
+      executionDataByMonth.forEach((monthData, month) => {
+        const real = monthData.cupCounts.get(cup) || 0;
+        if (real !== expected) {
+          const diff = real - expected;
+          const cupInfo: DeviatedCupInfo = {
+            cup,
+            description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']) ?? '',
+            month: getMonthName(month),
+            expected,
+            real,
+            diff,
+          };
+          if (diff < 0) {
+            underExecutedCups.push(cupInfo);
+          } else {
+            overExecutedCups.push(cupInfo);
+          }
+        }
+      });
+    });
+
     const comparisonSummary: ComparisonSummary = {
         totalPgpCups: pgpCups.size,
         matchingCups: matchingCups.size,
         missingCups,
         unexpectedCups,
+        underExecutedCups,
+        overExecutedCups
     };
     
     let totalExpected = 0;
@@ -558,7 +589,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     const totalExpectedFrequency = pgpData.reduce((acc, row) => {
       const freq = getNumericValue(findColumnValue(row, ['frecuencia eventos mes']));
       return acc + freq;
-    }, 0) * executionDataByMonth.size; // Multiply by number of months
+    }, 0) * executionDataByMonth.size;
     
     let totalRealFrequency = 0;
     executionDataByMonth.forEach(data => {
