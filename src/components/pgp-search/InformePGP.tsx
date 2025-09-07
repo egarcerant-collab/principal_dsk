@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, AlertTriangle, FileText, Copy, Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, Legend } from "recharts";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
 
 /**
  * InformePGP.tsx
@@ -214,6 +217,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // ======= Componente principal =======
 export default function InformePGP({ data = defaultData }: { data?: ReportData }) {
   const [copied, setCopied] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const summary = useMemo(() => generateNarrative(data), [data]);
 
   const barData = useMemo(
@@ -225,11 +229,6 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
     () => data.months.map((m) => ({ Mes: m.month, CUPS: m.cups })),
     [data.months]
   );
-
-  const bandData = useMemo(() => {
-    const avg = data.band.estimateCOP / 3;
-    return data.months.map((m) => ({ Mes: m.month, "Meta mensual (aprox.)": avg, "Valor ejecutado": m.valueCOP }));
-  }, [data.months, data.band.estimateCOP]);
 
   const header = data.header;
 
@@ -256,119 +255,161 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  
+  const handleDownloadPdf = async () => {
+    const reportElement = reportRef.current;
+    if (!reportElement) return;
+
+    const canvas = await html2canvas(reportElement, {
+      scale: 2, // Mejora la resolución
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const ratio = canvasWidth / canvasHeight;
+    
+    const imgWidth = pdfWidth - 40; // Margen de 20pt por lado
+    const imgHeight = imgWidth / ratio;
+    
+    let heightLeft = imgHeight;
+    let position = 20; // Margen superior
+
+    pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - 40);
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight; 
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 40);
+    }
+    
+    pdf.save(`informe_pgp_${(header.empresa || 'reporte').replace(/\s/g, '_')}.pdf`);
+  };
 
   const band = withinBand(summary.totalTrim, data.band);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4">
-      <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
+      <div ref={reportRef} className="bg-background p-4 space-y-4">
+        <Card className="shadow-xl">
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl">INFORME TRIMESTRAL – PGP</CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  {header.empresa} | NIT {header.nit} | {header.municipio} – {header.departamento}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Contrato: <Badge variant="secondary">{header.contrato}</Badge> &nbsp; Vigencia: {header.vigencia}
+               <div className="flex items-center gap-2 print:hidden">
+                <Button onClick={handleCopy} variant="default" className="gap-2">
+                  <Copy className="h-4 w-4" /> {copied ? "¡Copiado!" : "Copiar informe"}
+                </Button>
+                <Button onClick={handleDownloadPdf} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" /> Descargar PDF
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={handleCopy} variant="default" className="gap-2">
-                <Copy className="h-4 w-4" /> {copied ? "¡Copiado!" : "Copiar informe"}
-              </Button>
-              <Button variant="outline" className="gap-2" onClick={() => window.print()}>
-                <Download className="h-4 w-4" /> Imprimir / PDF
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Estado de banda de control */}
-          {band.ok ? (
-            <Alert className="border-emerald-300">
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Ejecución dentro de banda</AlertTitle>
-              <AlertDescription>
-                Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Ejecución fuera de banda</AlertTitle>
-              <AlertDescription>
-                Total trimestral {formatCOP(summary.totalTrim)} fuera de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
-              </AlertDescription>
-            </Alert>
-          )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Estado de banda de control */}
+            {band.ok ? (
+              <Alert className="border-emerald-300">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Ejecución dentro de banda</AlertTitle>
+                <AlertDescription>
+                  Total trimestral {formatCOP(summary.totalTrim)} dentro de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Ejecución fuera de banda</AlertTitle>
+                <AlertDescription>
+                  Total trimestral {formatCOP(summary.totalTrim)} fuera de {formatCOP(summary.bandMin)}–{formatCOP(summary.bandMax)}.
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <section className="space-y-2">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Objetivo</h3>
-            <p className="leading-relaxed text-sm">{generateNarrative(data).paragraphs[0]}</p>
-          </section>
+            <section className="space-y-2">
+              <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Objetivo</h3>
+              <p className="leading-relaxed text-sm">{generateNarrative(data).paragraphs[0]}</p>
+            </section>
 
-          <Separator />
+            <Separator />
 
-          <section className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Gráfico 1. Consolidado de ejecución (COP) por mes</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="Mes" />
-                    <YAxis tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 }).format(v)} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Bar dataKey="Valor ejecutado" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <section className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Gráfico 1. Consolidado de ejecución (COP) por mes</CardTitle>
+                </CardHeader>
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="Mes" />
+                      <YAxis tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact", maximumFractionDigits: 1 }).format(v)} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      <Bar dataKey="Valor ejecutado" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Gráfico 2. CUPS reportados por mes</CardTitle>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cupsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="Mes" />
-                    <YAxis />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    <Line type="monotone" dataKey="CUPS" stroke="#82ca9d" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </section>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Gráfico 2. CUPS reportados por mes</CardTitle>
+                </CardHeader>
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={cupsData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="Mes" />
+                      <YAxis />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      <Line type="monotone" dataKey="CUPS" stroke="#82ca9d" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </section>
 
-          <Separator />
+            <Separator />
 
-          <section className="space-y-3">
-            <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Desarrollo del informe</h3>
-            {generateNarrative(data).paragraphs.slice(1).map((p, i) => (
-              <p key={i} className="leading-relaxed text-sm">{p}</p>
-            ))}
-          </section>
-
-          <Separator />
-
-          <section className="space-y-2">
-            <h3 className="text-base font-semibold">Recomendaciones</h3>
-            <ul className="list-disc pl-6 text-sm space-y-1">
-              {generateNarrative(data).recomendaciones.map((r, i) => (
-                <li key={i}>{r}</li>
+            <section className="space-y-3">
+              <h3 className="text-base font-semibold flex items-center gap-2"><FileText className="h-4 w-4"/> Desarrollo del informe</h3>
+              {generateNarrative(data).paragraphs.slice(1).map((p, i) => (
+                <p key={i} className="leading-relaxed text-sm">{p}</p>
               ))}
-            </ul>
-          </section>
-        </CardContent>
-      </Card>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-2">
+              <h3 className="text-base font-semibold">Recomendaciones</h3>
+              <ul className="list-disc pl-6 text-sm space-y-1">
+                {generateNarrative(data).recomendaciones.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            </section>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
