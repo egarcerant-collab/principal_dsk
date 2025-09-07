@@ -421,40 +421,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
                            />
                         )}
                         { isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} /> }
-                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <TableIcon className="h-5 w-5" />
-                                    Vista Previa de Nota Técnica (Primeros 20 Registros)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <ScrollArea className="h-[400px] w-full">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>CUPS</TableHead>
-                                                <TableHead>Descripción</TableHead>
-                                                <TableHead>Costo Evento Mes</TableHead>
-                                                <TableHead>Valor Mínimo Mes</TableHead>
-                                                <TableHead>Valor Máximo Mes</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {pgpData.slice(0, 20).map((row, index) => (
-                                                <TableRow key={index}>
-                                                    <TableCell>{row['CUP/CUM']}</TableCell>
-                                                    <TableCell>{row['DESCRIPCION CUPS']}</TableCell>
-                                                    <TableCell>{formatCurrency(getNumericValue(row['COSTO EVENTO MES (VALOR MES)'] !== undefined ? row['COSTO EVENTO MES (VALOR MES)'] : row['COSTO EVENTO MES']))}</TableCell>
-                                                    <TableCell>{formatCurrency(getNumericValue(row['VALOR MINIMO MES']))}</TableCell>
-                                                    <TableCell>{formatCurrency(getNumericValue(row['VALOR MAXIMO MES']))}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
                     </div>
                 )}
             </CardContent>
@@ -463,5 +429,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ unifiedSummary }) => {
 };
 
 export default PgPsearchForm;
-
-    
