@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -595,13 +594,15 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   }
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
-  const monthNames = [...executionDataByMonth.keys()].map(m => getMonthName(m));
-
-  const reportMonths: MonthInput[] = [...totalExecutedValueByMonth.entries()].map(([month, executedValue]) => ({
+  
+  const reportMonths: MonthInput[] = [...executionDataByMonth.entries()].map(([month, data]) => ({
     monthName: getMonthName(month),
-    pgpMensualAutorizado: globalSummary?.totalCostoMes || 0,
-    ejecutadoMes: executedValue,
+    summary: globalSummary, // El PGP mensual es el mismo para todos los meses del mismo contrato
+    executedValue: totalExecutedValueByMonth.get(month) || 0
   }));
+  
+  const monthNames = reportMonths.map(m => m.monthName);
+
 
   const reportHeader: ReportHeader = {
     empresa: selectedPrestador?.PRESTADOR ?? "—",
