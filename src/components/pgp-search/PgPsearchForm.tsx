@@ -102,7 +102,7 @@ export const getNumericValue = (value: any): number => {
     return isNaN(n) ? 0 : n;
   };
 
-const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
+export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
