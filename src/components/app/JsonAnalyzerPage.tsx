@@ -37,11 +37,12 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
     const map = new Map<string, PrestadorInfo>();
     providersList.forEach(provider => {
-        if (provider.NIT) {
-            const cleanNit = String(provider.NIT).trim();
-            map.set(cleanNit, {
+        // Use ID DE ZONA as the primary key if it exists, otherwise fallback to NIT
+        const key = provider['ID DE ZONA'] ? String(provider['ID DE ZONA']).trim() : String(provider.NIT).trim();
+        if (key) {
+            map.set(key, {
                 ...provider,
-                NIT: cleanNit,
+                NIT: String(provider.NIT).trim(),
                 PRESTADOR: provider.PRESTADOR ? String(provider.PRESTADOR).trim() : 'Nombre no encontrado',
                 WEB: provider.WEB ? String(provider.WEB).trim() : ''
             });
@@ -49,6 +50,7 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     });
     return map;
 }
+
 
 export const calculateCupCounts = (jsonData: any): CupCountsMap => {
     const counts: CupCountsMap = new Map();
@@ -164,8 +166,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                     const content = e.target.result as string;
                     const parsedJson = JSON.parse(content);
                     
-                    const nit = parsedJson?.numDocumentoIdObligado;
-                    const prestadorInfo = (nit && providers?.get(String(nit).trim())) || null;
+                    const prestadorCode = parsedJson?.codPrestador;
+                    const prestadorInfo = (prestadorCode && providers?.get(String(prestadorCode).trim())) || null;
 
                     resolve({
                         jsonData: parsedJson,
@@ -349,10 +351,10 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                                 <div className="flex flex-col items-start text-left">
                                     <h4 className="text-lg font-bold text-foreground">
                                         <Building className="inline-block mr-2 h-5 w-5 text-primary" />
-                                        {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : 'Nombre no encontrado'}
+                                        {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : `Prestador no encontrado para código ${file.jsonData.codPrestador}`}
                                     </h4>
                                     <p className="text-sm text-muted-foreground">
-                                      NIT: {file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName} | Mes: {getMonthName(file.month)}
+                                      NIT: {file.prestadorInfo?.NIT || file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName} | Mes: {getMonthName(file.month)}
                                     </p>
                                 </div>
                             </AccordionTrigger>
