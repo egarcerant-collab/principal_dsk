@@ -49,13 +49,14 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick }: {
+const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload }: {
     title: string;
     icon: React.ElementType;
     data: DeviatedCupInfo[];
     badgeVariant: "destructive" | "default";
     pgpData: any[];
     onCupClick: (cup: string) => void;
+    onDownload: (data: any[], filename: string) => void;
 }) => {
     const Icon = icon;
     if (!data || data.length === 0) {
@@ -75,29 +76,29 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                <AccordionTrigger className="p-4 hover:no-underline">
-                    <div className="flex flex-1 items-center justify-between">
-                         <div className="flex items-center">
+                <div className="flex items-center justify-between p-4">
+                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+                        <div className="flex items-center">
                             <Icon className={`h-6 w-6 mr-3 ${badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500'}`} />
                             <h3 className="text-base font-medium text-left">{title}</h3>
                         </div>
-                        <div className='flex items-center gap-4'>
-                             <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownloadXls(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
-                                }}
-                                className="h-7 w-7"
-                                aria-label={`Descargar ${title}`}
-                            >
-                                <Download className="h-4 w-4" />
-                            </Button>
-                            <Badge variant={badgeVariant}>{data.length}</Badge>
-                        </div>
+                    </AccordionTrigger>
+                    <div className='flex items-center gap-4 pl-4'>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
+                            }}
+                            className="h-7 w-7"
+                            aria-label={`Descargar ${title}`}
+                        >
+                            <Download className="h-4 w-4" />
+                        </Button>
+                        <Badge variant={badgeVariant}>{data.length}</Badge>
                     </div>
-                </AccordionTrigger>
+                </div>
                 <AccordionContent className="px-4 pb-4">
                     <ScrollArea className="h-72">
                         <Table>
@@ -165,29 +166,29 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                 <AccordionTrigger className="p-4 hover:no-underline">
-                    <div className="flex flex-1 items-center justify-between">
-                         <div className="flex items-center">
+                <div className="flex items-center justify-between p-4">
+                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+                        <div className="flex items-center">
                             <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
                             <h3 className="text-base font-medium text-left">{title}</h3>
                         </div>
-                        <div className='flex items-center gap-4'>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
-                                }}
-                                className="h-7 w-7"
-                                aria-label={`Descargar ${title}`}
-                            >
-                                <Download className="h-4 w-4" />
-                            </Button>
-                            <Badge variant={badgeVariant}>{data.length}</Badge>
-                        </div>
+                    </AccordionTrigger>
+                     <div className='flex items-center gap-4 pl-4'>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDownload(data, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
+                            }}
+                            className="h-7 w-7"
+                            aria-label={`Descargar ${title}`}
+                        >
+                            <Download className="h-4 w-4" />
+                        </Button>
+                        <Badge variant={badgeVariant}>{data.length}</Badge>
                     </div>
-                </AccordionTrigger>
+                </div>
                 <AccordionContent className="px-4 pb-4">
                     <ScrollArea className="h-72">
                         <Table>
@@ -293,7 +294,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Análisis de Frecuencias y Desviaciones</CardTitle>
+                    <CardTitle>ANÁLISIS DE FRECUENCIAS Y DESVIACIONES</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">No hay datos de ejecución cargados para comparar.</p>
@@ -329,7 +330,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Análisis de Frecuencias y Desviaciones</CardTitle>
+                    <CardTitle>ANÁLISIS DE FRECUENCIAS Y DESVIACIONES</CardTitle>
                     <CardDescription>
                         Comparación entre la frecuencia de servicios esperada (nota técnica) y la real (archivos JSON).
                     </CardDescription>
@@ -342,6 +343,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
                         badgeVariant="destructive"
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
+                        onDownload={handleDownloadXls}
                     />
                     <DeviatedCupsAccordion
                         title="CUPS Subejecutados"
@@ -350,6 +352,7 @@ export default function InformePGP({ comparisonSummary, pgpData }: InformePGPPro
                         badgeVariant="default"
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
+                        onDownload={handleDownloadXls}
                     />
                      <DiscrepancyAccordion
                         title="CUPS Faltantes"
