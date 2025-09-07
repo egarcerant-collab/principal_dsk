@@ -251,6 +251,46 @@ export default function InformePGP({ data }: { data: ReportData }) {
            )}
         </CardContent>
       </Card>
+      
+      {/* Matriz Adicional en Blanco */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Matriz Adicional (En Blanco)</CardTitle>
+          <CardDescription>Plantilla para conceptos o proyecciones adicionales.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40%]">Concepto</TableHead>
+                <TableHead className="text-right">Valor A</TableHead>
+                <TableHead className="text-right">Valor B</TableHead>
+                <TableHead className="text-right">Resultado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+              </TableRow>
+              <TableRow className="font-bold bg-muted/50">
+                <TableCell>Total</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+                <TableCell className="text-right">...</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
