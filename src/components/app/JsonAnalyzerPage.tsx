@@ -39,10 +39,8 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
     const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
     const map = new Map<string, PrestadorInfo>();
     providersList.forEach(provider => {
-        // Use a cleaned, consistent key for the map
         const key = normalizeString(provider['ID DE ZONA']);
         if (key) {
-            // Ensure all data in the stored object is also cleaned
             const cleanedProvider: PrestadorInfo = {
                 'NIT': normalizeString(provider.NIT),
                 'PRESTADOR': normalizeString(provider.PRESTADOR),
@@ -53,6 +51,17 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
         }
     });
     return map;
+}
+
+const findValueByKeyCaseInsensitive = (obj: any, key: string): string | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    const keyToFind = key.toLowerCase();
+    for (const k in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, k) && k.toLowerCase() === keyToFind) {
+            return obj[k];
+        }
+    }
+    return null;
 }
 
 
@@ -170,7 +179,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                     const content = e.target.result as string;
                     const parsedJson = JSON.parse(content);
                     
-                    const prestadorCode = normalizeString(parsedJson?.codPrestador);
+                    const prestadorCode = normalizeString(findValueByKeyCaseInsensitive(parsedJson, 'codPrestador'));
                     const prestadorInfo = (prestadorCode && providers?.get(prestadorCode)) || null;
 
                     resolve({
@@ -210,7 +219,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     setShowDuplicateAlert(allNits.length > uniqueNits.size);
     
     if (files.length > 0) {
-      const firstPrestadorCode = files[0].jsonData?.codPrestador;
+      const firstPrestadorCode = findValueByKeyCaseInsensitive(files[0].jsonData, 'codPrestador');
       if (firstPrestadorCode) {
         setJsonPrestadorCode(normalizeString(firstPrestadorCode));
       }
@@ -355,10 +364,10 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
                                 <div className="flex flex-col items-start text-left">
                                     <h4 className="text-lg font-bold text-foreground">
                                         <Building className="inline-block mr-2 h-5 w-5 text-primary" />
-                                        {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : `Prestador no encontrado para código ${file.jsonData.codPrestador}`}
+                                        {file.prestadorInfo ? file.prestadorInfo.PRESTADOR : `Prestador no encontrado para código ${findValueByKeyCaseInsensitive(file.jsonData, 'codPrestador') || 'desconocido'}`}
                                     </h4>
                                     <p className="text-sm text-muted-foreground">
-                                      NIT: {file.prestadorInfo?.NIT || file.jsonData.numDocumentoIdObligado} | Archivo: {file.fileName} | Mes: {getMonthName(file.month)}
+                                      NIT: {file.prestadorInfo?.NIT || findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado')} | Archivo: {file.fileName} | Mes: {getMonthName(file.month)}
                                     </p>
                                 </div>
                             </AccordionTrigger>
@@ -383,3 +392,5 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
+
+    
