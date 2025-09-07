@@ -653,6 +653,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       financialMatrix,
       totalExpectedFrequency,
       totalRealFrequency,
+      expectedMonthlyValue: globalSummary.totalCostoMes,
     };
     
     setReportData(dataForReport);

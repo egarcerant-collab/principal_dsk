@@ -4,12 +4,11 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRightLeft, XCircle, HelpCircle, FileText } from "lucide-react";
+import { ArrowRightLeft, XCircle, HelpCircle, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import StatCard from "../shared/StatCard";
-
 
 // ======= Tipos =======
 export type MonthKey = "ABRIL" | "MAYO" | "JUNIO" | "ENERO" | "FEBRERO" | "MARZO" | "JULIO" | "AGOSTO" | "SEPTIEMBRE" | "OCTUBRE" | "NOVIEMBRE" | "DICIEMBRE";
@@ -73,12 +72,12 @@ export interface ReportData {
   financialMatrix?: FinancialMatrixRow[];
   totalExpectedFrequency?: number;
   totalRealFrequency?: number;
+  expectedMonthlyValue?: number;
 }
 
 // ======= Utilidades =======
 const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 2 }).format(n);
 const formatNumber = (n: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n);
-
 
 const pctBadge = (ratio: number) => {
   const p = isFinite(ratio) ? ratio * 100 : 0;
@@ -88,11 +87,10 @@ const pctBadge = (ratio: number) => {
   return <Badge variant={variant}>{p.toFixed(2)}%</Badge>;
 };
 
-
 // ======= Componente principal =======
 export default function InformePGP({ data }: { data: ReportData }) {
-  
   const header = data.header;
+  const totalEjecutado = data.months.reduce((acc, m) => acc + m.valueCOP, 0);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 bg-white print:bg-transparent">
@@ -110,14 +108,13 @@ export default function InformePGP({ data }: { data: ReportData }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-
           {data.comparisonSummary && (
             <Card className="bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-blue-600" />Contabilidad y Coincidencias</CardTitle>
                 <CardDescription>Resumen de la alineación entre la Nota Técnica y los datos de ejecución (JSON).</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard title="CUPS en Nota Técnica" value={data.comparisonSummary.totalPgpCups} icon={FileText} />
                 
                 <Accordion type="single" collapsible className="md:col-span-1 lg:col-span-1">
@@ -157,13 +154,53 @@ export default function InformePGP({ data }: { data: ReportData }) {
                       </AccordionContent>
                    </AccordionItem>
                 </Accordion>
-                
               </CardContent>
             </Card>
           )}
           
           <Separator />
           
+          {data.months.length > 0 && data.expectedMonthlyValue !== undefined && (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Detalle Mensual</CardTitle>
+                    <CardDescription>Comparación del valor esperado (nota técnica) vs. el ejecutado (JSON) para cada mes.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Mes</TableHead>
+                                <TableHead className="text-right">Valor Esperado</TableHead>
+                                <TableHead className="text-right">Valor Ejecutado</TableHead>
+                                <TableHead className="text-right">Diferencia</TableHead>
+                                <TableHead className="text-right">% Cumplimiento</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {data.months.map(month => {
+                            const expected = data.expectedMonthlyValue ?? 0;
+                            const executed = month.valueCOP;
+                            const diff = executed - expected;
+                            const ratio = expected > 0 ? executed / expected : 0;
+                            return (
+                              <TableRow key={month.month}>
+                                <TableCell className="font-medium">{month.month}</TableCell>
+                                <TableCell className="text-right">{formatCOP(expected)}</TableCell>
+                                <TableCell className="text-right">{formatCOP(executed)}</TableCell>
+                                <TableCell className={`text-right ${diff > 0 ? "text-red-600" : "text-green-600"}`}>
+                                    {formatCOP(diff)}
+                                </TableCell>
+                                <TableCell className="text-right">{pctBadge(ratio)}</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+             </Card>
+          )}
+
            {data.financialMatrix && data.financialMatrix.length > 0 && (
                 <Card>
                     <CardHeader>
@@ -212,8 +249,6 @@ export default function InformePGP({ data }: { data: ReportData }) {
                     </CardContent>
                 </Card>
            )}
-
-
         </CardContent>
       </Card>
     </div>
