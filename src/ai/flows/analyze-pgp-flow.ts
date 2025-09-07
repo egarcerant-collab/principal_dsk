@@ -21,7 +21,7 @@ const PgpRowSchema = z.object({
   'FRECUENCIA USO': z.number().optional(),
   'FRECUENCIA EVENTOS MES': z.number().optional().describe("La frecuencia con la que se espera que ocurra el evento en un mes."),
   'FRECUENCIA EVENTO DIA': z.number().optional(),
-  'COSTO EVENTO MES': z.number().optional().describe("El costo total estimado del evento para un mes."),
+  'COSTO EVENTO MES': z.number().optional(),
   'COSTO EVENTO DIA': z.number().optional(),
   'FRECUENCIA MINIMA MES': z.number().optional().describe("La frecuencia mínima esperada para el evento en un mes."),
   'FRECUENCIA MAXIMA MES': z.number().optional().describe("La frecuencia máxima esperada para el evento en un mes."),
