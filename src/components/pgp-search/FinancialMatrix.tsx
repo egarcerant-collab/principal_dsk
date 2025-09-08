@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, TableIcon, Wallet, Landmark, Calendar, ChevronDown } from "lucide-react";
+import { Download, TableIcon, Wallet, Landmark, Calendar, ChevronDown, PercentCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { formatCurrency, type MatrixRow } from './PgPsearchForm';
 
@@ -28,6 +28,7 @@ export interface MonthlyFinancialSummary {
     month: string;
     totalValorEsperado: number;
     totalValorEjecutado: number;
+    percentage: number;
 }
 
 interface FinancialMatrixProps {
@@ -53,6 +54,27 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFi
         }
     };
 
+    const getPercentageCard = (percentage: number) => {
+        let colorClass = "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 border-green-200";
+        let Icon = PercentCircle;
+
+        if (percentage > 111) {
+            colorClass = "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border-red-200";
+            Icon = TrendingUp;
+        } else if (percentage < 90) {
+            colorClass = "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200";
+            Icon = TrendingDown;
+        }
+
+        return (
+            <div className={`p-4 rounded-lg border text-center ${colorClass}`}>
+                 <Icon className="h-6 w-6 mx-auto mb-1" />
+                <p className="text-sm text-muted-foreground">Ejecución</p>
+                <p className="text-2xl font-bold">{percentage.toFixed(1)}%</p>
+            </div>
+        )
+    };
+
     return (
         <Card>
              <CardHeader>
@@ -70,12 +92,13 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFi
                                 <Calendar className="h-5 w-5 mr-2 text-muted-foreground"/>
                                 {summary.month}
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                                 <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200">
                                     <Landmark className="h-6 w-6 mx-auto text-blue-500 mb-1" />
                                     <p className="text-sm text-muted-foreground">Valor Esperado</p>
                                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(summary.totalValorEsperado)}</p>
                                 </div>
+                                {getPercentageCard(summary.percentage)}
                                 <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200">
                                     <Wallet className="h-6 w-6 mx-auto text-green-500 mb-1" />
                                     <p className="text-sm text-muted-foreground">Valor Ejecutado</p>
@@ -134,9 +157,9 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ matrixData, monthlyFi
                                             <TableRow key={index} className={getRowClass(row.Clasificacion)}>
                                                 <TableCell className="text-xs">{row.Mes}</TableCell>
                                                 <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                                                <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(2)}</TableCell>
+                                                <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
                                                 <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                                                <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(2)}</TableCell>
+                                                <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
                                                 <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
                                                 <TableCell className="font-medium">{row.Clasificacion}</TableCell>
                                                 <TableCell className="text-right text-xs">{formatCurrency(row.Valor_Unitario)}</TableCell>

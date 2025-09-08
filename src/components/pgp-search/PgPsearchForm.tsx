@@ -4,6 +4,7 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -294,7 +295,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: { cup: string, realFrequency: number }[] = [];
   const executionMatrix: MatrixRow[] = [];
-  const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number }>();
+  const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number, percentage: number }>();
 
 
   const pgpCupsMap = new Map<string, PgpRow>();
@@ -356,7 +357,12 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             percentage_numeric: percentage,
         });
     });
-    monthlyFinancialsMap.set(monthName, { totalValorEsperado: monthTotalExpected, totalValorEjecutado: monthTotalExecuted });
+    const executionPercentage = monthTotalExpected > 0 ? (monthTotalExecuted / monthTotalExpected) * 100 : 0;
+    monthlyFinancialsMap.set(monthName, { 
+        totalValorEsperado: monthTotalExpected, 
+        totalValorEjecutado: monthTotalExecuted,
+        percentage: executionPercentage,
+    });
   });
   
   // Sort the matrix by over-execution percentage, descending
