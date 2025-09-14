@@ -21,12 +21,6 @@ export interface InformeDatos {
     analisis: { 
         title: string; 
         text: string;
-        barChartData?: { name: string; [key: string]: any }[];
-        barChartDataKey?: string;
-        barChartTitle?: string;
-        tableData?: any[];
-        tableHeaders?: string[];
-        tableBody?: any[][];
     }[];
     ciudad: string;
     fecha: string;
@@ -42,7 +36,7 @@ export interface InformeDatos {
 function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
     const docDefinition: any = {
         pageSize: 'A4',
-        pageMargins: [58, 88, 28, 60], // [left, top, right, bottom] - Ajustado
+        pageMargins: [58, 88, 28.35, 60], // [left, top, right, bottom] - Ajustado
 
         // Imagen de fondo que se repite en cada página
         background: function (currentPage: number) {
@@ -90,48 +84,14 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
                 layout: 'noBorders'
             },
             
-            { text: 'ANÁLISIS RESUMIDO', style: 'h2' },
+            { text: 'ANÁLISIS EJECUTIVO DETALLADO', style: 'h2' },
             ...data.analisis.flatMap((item): Content[] => {
                 const contentBlock: Content[] = [];
                 if (item.title) {
                     contentBlock.push({ text: item.title, bold: true, fontSize: 11, margin: [0, 10, 0, 2], color: '#374151' });
                 }
                 if (item.text) {
-                    contentBlock.push({ text: item.text, style: 'p' });
-                }
-                if (item.barChartData && item.barChartData.length > 0 && item.barChartDataKey) {
-                     contentBlock.push({ text: item.barChartTitle || '', bold: true, fontSize: 10, margin: [0, 10, 0, 5] });
-                     contentBlock.push({
-                        canvas: [
-                            { type: 'rect', x: 0, y: 0, w: 510, h: 150, color: '#FAFAFA' },
-                            ...item.barChartData.map((d, i) => {
-                                const maxValue = Math.max(...item.barChartData!.map(v => v[item.barChartDataKey!]));
-                                const barHeight = (d[item.barChartDataKey!] / maxValue) * 120;
-                                const barWidth = 30;
-                                const barX = 40 + i * (barWidth + 20);
-                                return { type: 'rect', x: barX, y: 140 - barHeight, w: barWidth, h: barHeight, color: '#2563EB' };
-                            })
-                        ]
-                    });
-                     contentBlock.push({
-                        ul: item.barChartData.map(d => `${d.name}: ${d[item.barChartDataKey!]}`),
-                        margin: [10, 5, 0, 10],
-                        fontSize: 8,
-                    });
-                }
-                if (item.tableData && item.tableData.length > 0) {
-                     contentBlock.push({
-                        table: {
-                            headerRows: 1,
-                            widths: (item.tableHeaders || []).map(() => '*'),
-                            body: [
-                                (item.tableHeaders || []).map(h => ({ text: h, style: 'tableHeader' })),
-                                ...item.tableBody as any[],
-                            ],
-                        },
-                        layout: 'lightHorizontalLines',
-                        margin: [0, 5, 0, 15],
-                    });
+                    contentBlock.push({ text: item.text.replace(/\n\n/g, '\n'), style: 'p' });
                 }
                 return contentBlock;
             }),
