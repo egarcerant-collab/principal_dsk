@@ -31,8 +31,8 @@ export interface InformeDatos {
 function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
     const docDefinition: any = {
         pageSize: 'A4',
-        pageMargins: [40, 60, 40, 60], // [left, top, right, bottom]
-        
+        pageMargins: [40, 88, 40, 60], // [left, top, right, bottom] - Aumentado el margen superior
+
         // Imagen de fondo que se repite en cada página
         background: function (currentPage: number) {
             if (!backgroundImageBase64) return null;
@@ -122,7 +122,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
         ],
         // Evita que la sección de firmas se separe entre páginas
         unbreakable: true,
-        absolutePosition: { x: 40, y: 650 } // Posición fija para las firmas cerca del final
+        absolutePosition: { x: 40, y: 678 } // Posición fija para las firmas cerca del final - Ajustada
     });
 
 
