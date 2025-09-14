@@ -1,8 +1,7 @@
 
-
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-import type { Content, StyleDictionary } from 'pdfmake/interfaces';
+import type { Content, StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
 
 // Registra las fuentes necesarias para pdfmake.
 // Se realiza una asignación segura para compatibilidad con diferentes entornos de módulos.
@@ -12,6 +11,14 @@ if (pdfFonts.pdfMake && pdfMake.vfs) {
 
 
 // --- Interfaces de Datos ---
+export interface DeviatedCupInfo {
+    cup: string;
+    description?: string;
+    activityDescription?: string;
+    expectedFrequency: number;
+    realFrequency: number;
+    deviation: number;
+}
 export interface InformeDatos {
     titulo: string;
     subtitulo: string;
@@ -22,6 +29,8 @@ export interface InformeDatos {
         title: string; 
         text: string;
     }[];
+    topOverExecuted: DeviatedCupInfo[];
+    topUnexpected: { cup: string, realFrequency: number, description?: string }[];
     ciudad: string;
     fecha: string;
     firmas: { nombre: string; cargo: string; }[];
@@ -33,8 +42,8 @@ export interface InformeDatos {
  * @param backgroundImageBase64 La imagen de fondo en formato base64.
  * @returns El objeto de definición del documento para pdfmake.
  */
-function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
-    const docDefinition: any = {
+function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): TDocumentDefinitions {
+    const docDefinition: TDocumentDefinitions = {
         pageSize: 'A4',
         pageMargins: [58, 88, 28.35, 60], // [left, top, right, bottom] - Ajustado
 
@@ -61,7 +70,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
             firmaCargo: { fontSize: 9, color: '#6B7280' },
             tableHeader: { bold: true, fontSize: 9, color: 'black', fillColor: '#E5E7EB', margin: [0, 5, 0, 5] },
             tableCell: { fontSize: 8, margin: [0, 5, 0, 5] },
-        } as StyleDictionary,
+        },
 
         // Contenido del documento
         content: [
@@ -103,21 +112,73 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
                 { text: `${data.ciudad}, ${data.fecha}`, alignment: 'left', style: 'p' },
                 { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', style: 'p' }
             ],
-            margin: [40, 20, 40, 0]
+            margin: [58, 20, 28.35, 0]
         }),
-
-        // Secciones finales (firmas) que se intentan mantener juntas
-        pageBreakBefore: function (currentNode: any, followingNodesOnPage: any[]) {
-            // Si la sección de firmas está por empezar y no cabe, pasa a una nueva página.
-            if (currentNode.id === 'firmas_section' && followingNodesOnPage.length < 5) {
-                return true;
-            }
-            return false;
-        },
     };
+    
+    // TABLA DE SOBRE-EJECUTADOS
+    if (data.topOverExecuted && data.topOverExecuted.length > 0) {
+        (docDefinition.content as Content[]).push({
+            text: 'Top 5 CUPS Sobre-ejecutados',
+            style: 'h2',
+            margin: [0, 15, 0, 5],
+        });
+        (docDefinition.content as Content[]).push({
+            table: {
+                headerRows: 1,
+                widths: ['auto', '*', 'auto', 'auto', 'auto'],
+                body: [
+                    [
+                        { text: 'CUPS', style: 'tableHeader' },
+                        { text: 'Descripción', style: 'tableHeader' },
+                        { text: 'Frec. Esperada', style: 'tableHeader', alignment: 'center' },
+                        { text: 'Frec. Real', style: 'tableHeader', alignment: 'center' },
+                        { text: 'Desviación', style: 'tableHeader', alignment: 'center' },
+                    ],
+                    ...data.topOverExecuted.map(c => [
+                        { text: c.cup, style: 'tableCell' },
+                        { text: c.description || 'N/A', style: 'tableCell' },
+                        { text: c.expectedFrequency.toFixed(0), style: 'tableCell', alignment: 'center' },
+                        { text: c.realFrequency, style: 'tableCell', alignment: 'center' },
+                        { text: c.deviation.toFixed(0), style: 'tableCell', alignment: 'center', bold: true, color: 'red' },
+                    ]),
+                ]
+            },
+            layout: 'lightHorizontalLines'
+        });
+    }
+
+    // TABLA DE INESPERADOS
+    if (data.topUnexpected && data.topUnexpected.length > 0) {
+        (docDefinition.content as Content[]).push({
+            text: 'Top 5 CUPS Inesperados',
+            style: 'h2',
+            margin: [0, 15, 0, 5],
+        });
+        (docDefinition.content as Content[]).push({
+            table: {
+                headerRows: 1,
+                widths: ['auto', '*', 'auto'],
+                body: [
+                     [
+                        { text: 'CUPS', style: 'tableHeader' },
+                        { text: 'Descripción', style: 'tableHeader' },
+                        { text: 'Frecuencia Real', style: 'tableHeader', alignment: 'center' },
+                    ],
+                    ...data.topUnexpected.map(c => [
+                        { text: c.cup, style: 'tableCell' },
+                        { text: c.description || 'N/A', style: 'tableCell' },
+                        { text: c.realFrequency, style: 'tableCell', alignment: 'center', bold: true },
+                    ]),
+                ]
+            },
+            layout: 'lightHorizontalLines'
+        });
+    }
+
 
     // Añadir sección de firmas al final del contenido
-    docDefinition.content.push({
+    (docDefinition.content as Content[]).push({
         id: 'firmas_section',
         stack: [
             { text: 'FIRMAS', style: 'h2', margin: [0, 50, 0, 20] },

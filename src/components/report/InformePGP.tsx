@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -20,7 +19,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
-import type { DeviatedCupInfo } from "@/components/pgp-search/PgPsearchForm";
+import type { DeviatedCupInfo, ComparisonSummary } from "@/components/pgp-search/PgPsearchForm";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -56,7 +55,7 @@ export interface ReportData {
     totalFinal: number;
   };
   overExecutedCups?: DeviatedCupInfo[];
-  unexpectedCups?: { cup: string; realFrequency: number }[];
+  unexpectedCups?: { cup: string; realFrequency: number, description?: string }[];
 }
 
 // ======= Utilidades =======
@@ -64,6 +63,7 @@ const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "curren
 
 async function loadImageAsBase64(url: string): Promise<string> {
     try {
+        // Asumimos que la imagen está en la carpeta public
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Network response was not ok for ${url}`);
         const blob = await response.blob();
@@ -109,7 +109,11 @@ export const defaultData: ReportData = {
 };
 
 // ======= Componente (fusionado y reforzado) =======
-export default function InformePGP({ data = defaultData }: { data?: ReportData | null }) {
+export default function InformePGP({ comparisonSummary, pgpData, data = defaultData }: {
+    comparisonSummary: ComparisonSummary | null;
+    pgpData: any[];
+    data?: ReportData | null
+}) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   
@@ -128,8 +132,8 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
   const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
-  const getInformeData = (data: ReportData): InformeDatos => {
-    const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
+  const getInformeData = (reportData: ReportData): InformeDatos => {
+    const valorNotaTecnica = reportData.notaTecnica?.valor3m || 0;
     const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
 
     const kpis = [
@@ -141,22 +145,18 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
         { label: 'Costo Unitario Promedio (COP/CUPS)', value: formatCOP(unitAvg) },
     ];
     
-    const topOverExecuted = (data.overExecutedCups ?? [])
+    const topOverExecuted = (reportData.overExecutedCups ?? [])
         .sort((a,b) => b.deviation - a.deviation)
-        .slice(0, 5)
-        .map(c => `(${c.cup}, Desviación: ${c.deviation.toFixed(0)})`)
-        .join(', ');
+        .slice(0, 5);
 
-    const topUnexpected = (data.unexpectedCups ?? [])
+    const topUnexpected = (reportData.unexpectedCups ?? [])
         .sort((a, b) => b.realFrequency - a.realFrequency)
-        .slice(0, 5)
-        .map(c => `(${c.cup}, Frecuencia: ${c.realFrequency})`)
-        .join(', ');
+        .slice(0, 5);
 
     return {
         titulo: 'INFORME EJECUTIVO DE SEGUIMIENTO PGP',
-        subtitulo: `${data.header.empresa} | NIT ${data.header.nit}`,
-        referencia: `Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia} | Período Analizado: Trimestre II`,
+        subtitulo: `${reportData.header.empresa} | NIT ${reportData.header.nit}`,
+        referencia: `Contrato: ${reportData.header.contrato} | Vigencia: ${reportData.header.vigencia} | Período Analizado: Trimestre II`,
         objetivos: [
             'Evaluar la eficiencia en la ejecución de los recursos asignados bajo el modelo de Pago Global Prospectivo (PGP), contrastando el gasto real con la proyección actuarial de la nota técnica, para garantizar la sostenibilidad financiera y la disciplina presupuestal del acuerdo.',
             'Analizar el comportamiento epidemiológico y el perfil de morbilidad de la población adscrita a través del volumen, tipo y frecuencia de los servicios (CUPS) prestados, con el fin de identificar tendencias, necesidades de salud emergentes y posibles desviaciones respecto al perfil de riesgo inicial.',
@@ -175,19 +175,17 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
             },
             {
               title: 'Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados',
-              text: `A pesar de la estabilidad general, un análisis detallado de las desviaciones a nivel de procedimiento individual revela áreas críticas que requieren atención gerencial inmediata. Se identificaron un total de ${data.overExecutedCups?.length ?? 0} CUPS con una ejecución superior al 111% de lo presupuestado en la nota técnica y ${data.unexpectedCups?.length ?? 0} CUPS que fueron ejecutados sin estar previstos en la misma. Estos dos grupos de procedimientos constituyen los principales focos de riesgo financiero y operativo, y su análisis es fundamental para el control del contrato. \n\nLos procedimientos sobre-ejecutados pueden ser indicativos de varias situaciones: un aumento en la incidencia o prevalencia de ciertas patologías en la población, cambios en las guías de práctica clínica que favorecen un procedimiento sobre otro, o incluso posibles ineficiencias o sobre-utilización que deben ser auditadas. Entre los más relevantes, se observaron desviaciones significativas en los siguientes CUPS: ${topOverExecuted || 'ninguno destacado'}. Es imperativo iniciar un análisis de causa raíz sobre estos procedimientos, cruzando la información con datos de perfiles epidemiológicos y diagnósticos (CIE-10) para determinar si la sobre-ejecución está clínicamente justificada o si, por el contrario, representa una oportunidad de mejora en la gestión de la pertinencia médica. \n\nPor otro lado, los CUPS inesperados representan una desviación cualitativa del modelo. Estos procedimientos, al no estar en la nota técnica, no fueron contemplados en la prima y, por tanto, impactan directamente la siniestralidad. Entre los más frecuentes, encontramos: ${topUnexpected || 'ninguno destacado'}. La presencia de estos CUPS puede deberse a la aparición de nuevas necesidades terapéuticas, la codificación de tecnologías no incluidas en el plan de beneficios, o cambios en la práctica clínica local. Su análisis es crucial para determinar si la nota técnica requiere una actualización para incluir estas nuevas realidades o si se trata de eventos aislados que pueden ser gestionados caso a caso. Ambos tipos de desviación deben ser objeto de auditoría concurrente y de pares para validar su pertinencia y tomar las acciones correctivas o administrativas que correspondan.`
-            },
-            {
-              title: 'Conclusiones y Recomendaciones Estratégicas',
-              text: `El análisis integral del segundo trimestre demuestra un desempeño general robusto y alineado con los objetivos estratégicos del modelo PGP. La ejecución financiera y operacional se encuentra en un estado de equilibrio saludable, cumpliendo las metas contractuales y, lo más importante, garantizando la continuidad y oportunidad en la atención en salud de la población afiliada. La estabilidad observada es un testimonio de la madurez del modelo y la buena gestión de las partes. Sin embargo, el análisis de desviaciones a nivel micro revela la necesidad de una supervisión continua y proactiva. \n\nBasado en lo anterior, se emiten las siguientes recomendaciones estratégicas:\n1. **Auditoría y Pertinencia Médica:** Iniciar de forma inmediata auditorías concurrentes y de pares sobre el grupo de CUPS identificados como sobre-ejecutados y los inesperados de mayor frecuencia. El objetivo es validar la pertinencia médica de cada caso, asegurar la adherencia a las guías de práctica clínica y descartar posibles patrones de sobre-utilización. Los hallazgos de esta auditoría deben documentarse para la próxima junta de seguimiento.\n2. **Monitorización Continua y Alertas Tempranas:** Mantener y fortalecer la monitorización continua de los indicadores clave de gestión (KPIs), con especial atención al costo unitario por CUPS y la frecuencia de uso por grupos de riesgo. Se recomienda configurar alertas automáticas que notifiquen a la gerencia cuando un procedimiento específico exceda un umbral de desviación predefinido (ej. 110% de ejecución) para permitir una intervención temprana.\n3. **Insumo para la Actualización de la Nota Técnica:** Utilizar los datos de ejecución real de este período como base actuarial fundamental para la planificación y ajuste de la nota técnica del siguiente ciclo contractual. Los CUPS inesperados con alta frecuencia y justificación clínica deben ser considerados para su inclusión, y las frecuencias de los CUPS sobre-ejecutados deben ser re-evaluadas para reflejar con mayor precisión el perfil de riesgo y las necesidades reales de la población.\n4. **Análisis Cualitativo y Gestión de Salud Pública:** Realizar un análisis cualitativo de los diagnósticos asociados a los CUPS más frecuentes. Esto permitirá validar que la atención se está centrando en las prioridades de salud pública definidas para la región (ej. gestión de riesgo cardiovascular, salud materno-infantil, enfermedades crónicas no transmisibles) y no solo en la atención de eventos agudos de alto costo.`
+              text: `A pesar de la estabilidad general, un análisis detallado de las desviaciones a nivel de procedimiento individual revela áreas críticas que requieren atención gerencial inmediata. Se identificaron un total de ${reportData.overExecutedCups?.length ?? 0} CUPS con una ejecución superior al 111% de lo presupuestado en la nota técnica y ${reportData.unexpectedCups?.length ?? 0} CUPS que fueron ejecutados sin estar previstos en la misma. Estos dos grupos de procedimientos constituyen los principales focos de riesgo financiero y operativo, y su análisis es fundamental para el control del contrato. A continuación, se presenta una tabla con los procedimientos más críticos de cada grupo. \n\nLos procedimientos sobre-ejecutados pueden ser indicativos de varias situaciones: un aumento en la incidencia o prevalencia de ciertas patologías en la población, cambios en las guías de práctica clínica que favorecen un procedimiento sobre otro, o incluso posibles ineficiencias o sobre-utilización que deben ser auditadas. Es imperativo iniciar un análisis de causa raíz sobre estos procedimientos, cruzando la información con datos de perfiles epidemiológicos y diagnósticos (CIE-10) para determinar si la sobre-ejecución está clínicamente justificada o si, por el contrario, representa una oportunidad de mejora en la gestión de la pertinencia médica. \n\nPor otro lado, los CUPS inesperados representan una desviación cualitativa del modelo. Estos procedimientos, al no estar en la nota técnica, no fueron contemplados en la prima y, por tanto, impactan directamente la siniestralidad. La presencia de estos CUPS puede deberse a la aparición de nuevas necesidades terapéuticas, la codificación de tecnologías no incluidas en el plan de beneficios, o cambios en la práctica clínica local. Su análisis es crucial para determinar si la nota técnica requiere una actualización para incluir estas nuevas realidades o si se trata de eventos aislados que pueden ser gestionados caso a caso. Ambos tipos de desviación deben ser objeto de auditoría concurrente y de pares para validar su pertinencia y tomar las acciones correctivas o administrativas que correspondan.`
             },
         ],
-        ciudad: data.header.ciudad ?? '',
-        fecha: data.header.fecha ?? '',
+        topOverExecuted,
+        topUnexpected,
+        ciudad: reportData.header.ciudad ?? '',
+        fecha: reportData.header.fecha ?? '',
         firmas: [
-            data.header.responsable1 ?? { nombre: '________________', cargo: '________________' },
-            data.header.responsable2 ?? { nombre: '________________', cargo: '________________' },
-            data.header.responsable3 ?? { nombre: '________________', cargo: '________________' },
+            reportData.header.responsable1 ?? { nombre: '________________', cargo: '________________' },
+            reportData.header.responsable2 ?? { nombre: '________________', cargo: '________________' },
+            reportData.header.responsable3 ?? { nombre: '________________', cargo: '________________' },
         ]
     };
   }
