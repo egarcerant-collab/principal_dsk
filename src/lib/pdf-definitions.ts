@@ -46,7 +46,7 @@ export interface InformeDatos {
 function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): TDocumentDefinitions {
     const docDefinition: TDocumentDefinitions = {
         pageSize: 'A4',
-        pageMargins: [58, 88, 28.35, 14.175], // [left, top, right, bottom] - Ajustado
+        pageMargins: [58, 88, 28.35, 70.87], // [left, top, right, bottom] - Ajustado
 
         // Imagen de fondo que se repite en cada página
         background: function (currentPage: number) {

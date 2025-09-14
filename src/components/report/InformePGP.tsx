@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState, useRef } from "react";
@@ -256,7 +257,7 @@ export default function InformePGP({ comparisonSummary, pgpData, data = defaultD
         <div className="flex gap-2">
            <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
             {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
-            esto es inviable este infoeme no eta acorde al mes cargado
+            Vista Previa del Informe
           </Button>
         </div>
       </div>
