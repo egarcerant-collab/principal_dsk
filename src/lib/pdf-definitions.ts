@@ -94,19 +94,16 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                 layout: 'noBorders'
             },
             
-            { text: 'ANÁLISIS EJECUTIVO DETALLADO', style: 'h2' },
             ...data.analisis.flatMap((item): Content[] => {
                 const contentBlock: Content[] = [];
-                if (item.title) {
-                    contentBlock.push({ text: item.title, bold: true, fontSize: 11, margin: [0, 10, 0, 2], color: '#374151' });
-                }
-                 // Si hay una imagen de gráfico, la insertamos aquí
+                 contentBlock.push({ text: item.title, style: 'h2' });
+                
                 if (item.chartImage) {
                     contentBlock.push({
                         image: item.chartImage,
-                        width: 500, // Ancho del gráfico en el PDF
+                        width: 500,
                         alignment: 'center',
-                        margin: [0, 5, 0, 10], // Margen [arriba, derecha, abajo, izquierda]
+                        margin: [0, 5, 0, 10],
                     });
                 }
                 if (item.text) {
@@ -206,7 +203,6 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
         ],
         // Evita que la sección de firmas se separe entre páginas
         unbreakable: true,
-        absolutePosition: { x: 40, y: 678 } // Posición fija para las firmas cerca del final - Ajustada
     });
 
 
