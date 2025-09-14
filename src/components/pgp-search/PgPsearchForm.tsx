@@ -5,6 +5,7 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -19,7 +20,7 @@ import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
-import InformePGP from './InformePGP';
+import InformePGP from '../report/InformePGP';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
@@ -676,6 +677,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           totalPagar: totalEjecutado * 0.2, // Ejemplo
           totalFinal: totalEjecutado,
         },
+        overExecutedCups: comparisonSummary.overExecutedCups,
+        unexpectedCups: comparisonSummary.unexpectedCups,
       };
       setReportData(newReportData);
     } else {
@@ -838,7 +841,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} />
 
-                {reportData && <Report data={reportData} />}
+                {reportData && (
+                  <Report data={reportData} />
+                )}
               </>
             )}
           </div>

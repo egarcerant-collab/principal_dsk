@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud, X } from "lucide-react";
+import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud, X, BarChart2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   BarChart,
@@ -20,6 +21,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
+import type { DeviatedCupInfo } from "@/components/pgp-search/PgPsearchForm";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -54,6 +56,8 @@ export interface ReportData {
     totalPagar: number;
     totalFinal: number;
   };
+  overExecutedCups?: DeviatedCupInfo[];
+  unexpectedCups?: { cup: string; realFrequency: number }[];
 }
 
 // ======= Utilidades =======
@@ -137,6 +141,16 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
         { label: 'Total CUPS Ejecutados', value: totalCups.toLocaleString('es-CO') },
         { label: 'Costo Unitario Promedio (COP/CUPS)', value: formatCOP(unitAvg) },
     ];
+    
+    const topOverExecuted = (data.overExecutedCups ?? [])
+        .sort((a,b) => b.deviation - a.deviation)
+        .slice(0, 5)
+        .map(c => ({ name: c.cup, Desviación: c.deviation }));
+
+    const topUnexpected = (data.unexpectedCups ?? [])
+        .sort((a, b) => b.realFrequency - a.realFrequency)
+        .slice(0, 5)
+        .map(c => ({ name: c.cup, Frecuencia: c.realFrequency }));
 
     return {
         titulo: 'INFORME EJECUTIVO DE SEGUIMIENTO PGP',
@@ -159,8 +173,28 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
               text: `Se ejecutaron un total de ${totalCups.toLocaleString('es-CO')} CUPS durante el trimestre, con un costo unitario promedio ponderado de ${formatCOP(unitAvg)}. Este costo unitario es un indicador clave de la complejidad y el valor promedio de los servicios prestados. La estabilidad en la gráfica de CUPS a lo largo de los meses (Abril, Mayo, Junio) refleja una demanda de servicios constante y una capacidad de respuesta adecuada por parte de la IPS. Esta predictibilidad es fundamental en salud pública, ya que sugiere un acceso continuo a los servicios y una baja probabilidad de represamiento de la demanda. No se observan anomalías que sugieran brotes epidemiológicos inesperados o barreras de acceso significativas. Proyección: La estabilidad en el volumen de CUPS permite proyectar con alta confianza las necesidades de recursos (humanos, insumos, infraestructura) para los siguientes trimestres, facilitando una gestión proactiva de la capacidad instalada.`
             },
             {
+              title: 'Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados',
+              text: `El análisis de desviaciones revela áreas clave que requieren atención gerencial. Se identificaron ${data.overExecutedCups?.length ?? 0} CUPS con una ejecución superior al 111% de lo esperado y ${data.unexpectedCups?.length ?? 0} CUPS que fueron ejecutados sin estar previstos en la nota técnica. Estos eventos, aunque pueden estar justificados por necesidades de salud imprevistas, representan los principales focos de riesgo financiero y operativo. La sobre-ejecución puede indicar un aumento en la incidencia o prevalencia de ciertas patologías, mientras que los CUPS inesperados pueden señalar cambios en la práctica clínica o la aparición de nuevas necesidades terapéuticas no contempladas en el modelo inicial. Es crucial realizar un análisis de causa raíz sobre los CUPS con mayor desviación para determinar si se requieren ajustes en la nota técnica para futuros períodos o si es necesario implementar intervenciones de gestión de la demanda.`,
+              barChartData: topOverExecuted,
+              barChartDataKey: 'Desviación',
+              barChartTitle: 'Top 5 CUPS Sobre-ejecutados (por desviación)',
+              tableData: data.overExecutedCups,
+              tableHeaders: ['CUPS', 'Descripción', 'Frec. Esperada', 'Frec. Real', 'Desviación'],
+              tableBody: (data.overExecutedCups ?? []).map(item => [item.cup, item.description ?? 'N/A', item.expectedFrequency.toFixed(0), item.realFrequency, item.deviation.toFixed(0)]),
+            },
+            {
+                title: '',
+                text: '',
+                barChartData: topUnexpected,
+                barChartDataKey: 'Frecuencia',
+                barChartTitle: 'Top 5 CUPS Inesperados (por frecuencia)',
+                tableData: data.unexpectedCups,
+                tableHeaders: ['CUPS', 'Frecuencia Real'],
+                tableBody: (data.unexpectedCups ?? []).map(item => [item.cup, item.realFrequency]),
+            },
+            {
               title: 'Conclusiones y Recomendaciones Estratégicas',
-              text: `El análisis integral del segundo trimestre demuestra un desempeño robusto y alineado con los objetivos del modelo PGP. La ejecución financiera y operacional se encuentra en un estado de equilibrio, cumpliendo las metas contractuales y garantizando la atención en salud de la población afiliada.\n\nRecomendaciones:\n1. Mantener la monitorización continua de los indicadores clave, con especial atención al costo unitario, para detectar cualquier desviación temprana en la complejidad de los casos atendidos.\n2. Iniciar la planificación del siguiente ciclo de negociación del PGP utilizando los datos de ejecución de este período como base actuarial para ajustar la nota técnica futura, asegurando que refleje con precisión el perfil de riesgo y las necesidades de la población.\n3. Realizar un análisis cualitativo de los CUPS más frecuentes para validar que la atención se está centrando en las prioridades de salud pública definidas para la región.`
+              text: `El análisis integral del segundo trimestre demuestra un desempeño robusto y alineado con los objetivos del modelo PGP. La ejecución financiera y operacional se encuentra en un estado de equilibrio, cumpliendo las metas contractuales y garantizando la atención en salud de la población afiliada.\n\nRecomendaciones:\n1. Iniciar auditorías concurrentes y de pares sobre los CUPS con mayor sobre-ejecución y los inesperados más frecuentes para validar pertinencia médica y adherencia a guías de práctica clínica.\n2. Mantener la monitorización continua de los indicadores clave, con especial atención al costo unitario, para detectar cualquier desviación temprana en la complejidad de los casos atendidos.\n3. Iniciar la planificación del siguiente ciclo de negociación del PGP utilizando los datos de ejecución de este período como base actuarial para ajustar la nota técnica futura, asegurando que refleje con precisión el perfil de riesgo y las necesidades de la población.\n4. Realizar un análisis cualitativo de los CUPS más frecuentes para validar que la atención se está centrando en las prioridades de salud pública definidas para la región.`
             },
         ],
         ciudad: data.header.ciudad ?? '',
@@ -323,7 +357,7 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
 
           {/* Gráfico: Costo unitario */}
           <section>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><BarChart2 className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={unitData}>
