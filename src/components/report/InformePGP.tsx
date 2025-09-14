@@ -34,7 +34,7 @@ export interface ReportHeader {
   nit: string;
   municipio: string;
   contrato: string;
- Vigencia: string;
+  vigencia: string;
   ciudad?: string;
   fecha?: string; // DD/MM/AAAA
   logoEpsiUrl?: string; // opcional: URL o dataURI
@@ -256,7 +256,7 @@ export default function InformePGP({ comparisonSummary, pgpData, data = defaultD
         <div className="flex gap-2">
            <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
             {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
-            Generar PDF (Recomendado)
+            esto es inviable este infoeme no eta acorde al mes cargado
           </Button>
         </div>
       </div>
