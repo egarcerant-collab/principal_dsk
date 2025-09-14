@@ -80,41 +80,8 @@ async function loadImageAsBase64(url: string): Promise<string> {
     }
 }
 
-// ======= Datos de ejemplo (combinados y robustos) =======
-export const defaultData: ReportData = {
-  header: {
-    empresa: "DUSAKAWI EPSI",
-    nit: "901226064",
-    municipio: "URIBIA",
-    contrato: "44847_04_PGP",
-    vigencia: "01/01/2025–01/12/2025",
-    ciudad: "Uribia",
-    fecha: "30/06/2025",
-    responsable1: { nombre: "_________________________", cargo: "Representante EPSI" },
-    responsable2: { nombre: "_________________________", cargo: "Representante IPS" },
-    responsable3: { nombre: "_________________________", cargo: "Testigo" },
-  },
-  months: [
-    { month: "ABRIL", cups: 4497, valueCOP: 410_494_560.21 },
-    { month: "MAYO", cups: 4609, valueCOP: 418_866_468.86 },
-    { month: "JUNIO", cups: 4567, valueCOP: 408_704_877.86 },
-  ],
-  notaTecnica: {
-    min90: 1_173_299_917.73,
-    valor3m: 1_303_666_575.25,
-    max110: 1_434_033_272.78,
-    anticipos: 695_288_840.14,
-    totalPagar: 608_377_735,
-    totalFinal: 1_303_666_575.14,
-  },
-};
-
 // ======= Componente (fusionado y reforzado) =======
-export default function InformePGP({ comparisonSummary, pgpData, data = defaultData }: {
-    comparisonSummary: ComparisonSummary | null;
-    pgpData: any[];
-    data?: ReportData | null
-}) {
+export default function InformePGP({ data }: { data?: ReportData | null }) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
@@ -242,7 +209,16 @@ export default function InformePGP({ comparisonSummary, pgpData, data = defaultD
   };
 
   if (!data) {
-    return null; // O un placeholder si se prefiere
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="uppercase">Informe Ejecutivo PGP</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Cargue y procese los datos de la nota técnica y los archivos de ejecución para generar el informe.</p>
+            </CardContent>
+        </Card>
+    );
   }
 
   return (
@@ -414,3 +390,5 @@ export default function InformePGP({ comparisonSummary, pgpData, data = defaultD
     </div>
   );
 }
+
+    

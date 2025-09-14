@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState } from 'react';
@@ -12,8 +11,8 @@ import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-import { findColumnValue, formatCurrency, type ComparisonSummary } from './PgPsearchForm';
-import type { DeviatedCupInfo, MatrixRow } from './PgPsearchForm';
+import { findColumnValue, formatCurrency, type ComparisonSummary } from '../pgp-search/PgPsearchForm';
+import type { DeviatedCupInfo, MatrixRow } from '../pgp-search/PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 
@@ -269,7 +268,7 @@ const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo:
 };
 
 
-export default function InformePGP({ comparisonSummary, pgpData }: {
+export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     comparisonSummary: ComparisonSummary | null;
     pgpData: any[];
 }) {
