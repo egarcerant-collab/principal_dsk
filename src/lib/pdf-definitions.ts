@@ -2,8 +2,12 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
-// Registra las fuentes necesarias para pdfmake
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+// Registra las fuentes necesarias para pdfmake.
+// Se realiza una asignación segura para compatibilidad con diferentes entornos de módulos.
+if (pdfFonts.pdfMake && pdfMake.vfs) {
+    pdfMake.vfs = pdfFonts.pdfMake.vfs;
+}
+
 
 // --- Interfaces de Datos ---
 export interface InformeDatos {
