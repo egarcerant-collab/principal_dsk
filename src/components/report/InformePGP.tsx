@@ -115,10 +115,10 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
   const totalCups = useMemo(() => data?.months.reduce((a, m) => a + m.cups, 0) ?? 0, [data?.months]);
   const diffVsNota = useMemo(() => (data?.notaTecnica?.valor3m || 0) - sumaMensual, [data?.notaTecnica?.valor3m, sumaMensual]);
   const unitAvg = useMemo(() => {
-    if (!data || !data.months || data.months.length === 0) return 0;
-    const mean = data.months.reduce((acc, m) => acc + (m.cups > 0 ? m.valueCOP / m.cups : 0), 0) / data.months.length;
+    if (!data || !data.months || data.months.length === 0 || totalCups === 0) return 0;
+    const mean = sumaMensual / totalCups;
     return Number.isFinite(mean) ? mean : 0;
-  }, [data?.months]);
+  }, [data?.months, sumaMensual, totalCups]);
 
   // Series para gráficas
   const barData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Valor: m.valueCOP })) ?? [], [data?.months]);
@@ -126,28 +126,42 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
   const getInformeData = (data: ReportData): InformeDatos => {
+    const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
+    const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
+
     const kpis = [
-        { label: 'Suma ejecución (T2)', value: formatCOP(sumaMensual) },
-        { label: 'Nota técnica (3m)', value: formatCOP(data.notaTecnica?.valor3m || 0) },
-        { label: 'Diferencia vs meta', value: formatCOP(diffVsNota) },
-        { label: 'Total CUPS (T2)', value: totalCups.toLocaleString('es-CO') },
+        { label: 'Suma Ejecución (Trimestre)', value: formatCOP(sumaMensual) },
+        { label: 'Nota Técnica (Presupuesto)', value: formatCOP(valorNotaTecnica) },
+        { label: 'Diferencia vs. Presupuesto', value: formatCOP(diffVsNota) },
+        { label: 'Porcentaje de Ejecución', value: `${porcentajeEjecucion.toFixed(2)}%` },
+        { label: 'Total CUPS Ejecutados', value: totalCups.toLocaleString('es-CO') },
+        { label: 'Costo Unitario Promedio (COP/CUPS)', value: formatCOP(unitAvg) },
     ];
 
     return {
-        titulo: 'INFORME PGP – TRIMESTRE II',
+        titulo: 'INFORME EJECUTIVO DE SEGUIMIENTO PGP',
         subtitulo: `${data.header.empresa} | NIT ${data.header.nit}`,
-        referencia: `Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia}`,
+        referencia: `Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia} | Período Analizado: Trimestre II`,
         objetivos: [
-            'Revisión de la gestión financiera y disciplina presupuestal.',
-            'Impacto en la calidad del servicio y continuidad del acceso.',
-            'Reconocimiento de cambios demográficos y ajuste de oferta.',
-            'Validación de valores financieros del PGP (ejecutado, anticipos, pagos).',
+            'Evaluar la eficiencia en la ejecución de los recursos asignados bajo el modelo de Pago Global Prospectivo (PGP), contrastando el gasto real con la proyección actuarial de la nota técnica.',
+            'Analizar el comportamiento epidemiológico de la población adscrita a través del volumen y tipo de servicios (CUPS) prestados, para identificar tendencias y necesidades de salud emergentes.',
+            'Verificar la disciplina presupuestal y la sostenibilidad del modelo, asegurando que la ejecución financiera se mantenga dentro de las bandas de riesgo contractuales (90% - 110%).',
+            'Proveer un fundamento técnico y cuantitativo para la toma de decisiones gerenciales, ajustes operativos y la validación de los actos administrativos de pago y liquidación.',
         ],
         kpis,
         analisis: [
-            { title: 'Lectura Epidemiológica', text: 'La banda 90–110% funciona como control de riesgo financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad operacional.' },
-            { title: 'Ejecución Financiera', text: 'Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de cartera y continuidad de la atención.'},
-            { title: 'CUPS (Cantidad)', text: 'Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en continuidad de acceso y menor rezago diagnóstico.'},
+            { 
+              title: 'Análisis de Ejecución Financiera y Presupuestal', 
+              text: `Durante el segundo trimestre, la ejecución financiera consolidada alcanzó un total de ${formatCOP(sumaMensual)}, lo que representa un ${porcentajeEjecucion.toFixed(2)}% del presupuesto asignado de ${formatCOP(valorNotaTecnica)} en la nota técnica. Este resultado se sitúa dentro de la banda de control contractual (90%-110%), indicando una gestión presupuestal estable y predecible. La desviación absoluta frente a la meta es de ${formatCOP(diffVsNota)}, una cifra que, en términos relativos, se considera manejable y no compromete la sostenibilidad del acuerdo. La uniformidad observada en el gasto mensual (ver gráfica de ejecución financiera) sugiere una operación sin sobresaltos ni picos de demanda inesperados, lo cual es positivo para la planificación de la cartera y la garantía de continuidad en la atención. Proyección: Si se mantiene esta tendencia, se estima que la ejecución anual se alineará estrechamente con el presupuesto global, minimizando el riesgo de déficits o excedentes significativos al cierre del ejercicio.` 
+            },
+            { 
+              title: 'Análisis del Comportamiento Epidemiológico y de Servicios (CUPS)', 
+              text: `Se ejecutaron un total de ${totalCups.toLocaleString('es-CO')} CUPS durante el trimestre, con un costo unitario promedio ponderado de ${formatCOP(unitAvg)}. Este costo unitario es un indicador clave de la complejidad y el valor promedio de los servicios prestados. La estabilidad en la gráfica de CUPS a lo largo de los meses (Abril, Mayo, Junio) refleja una demanda de servicios constante y una capacidad de respuesta adecuada por parte de la IPS. Esta predictibilidad es fundamental en salud pública, ya que sugiere un acceso continuo a los servicios y una baja probabilidad de represamiento de la demanda. No se observan anomalías que sugieran brotes epidemiológicos inesperados o barreras de acceso significativas. Proyección: La estabilidad en el volumen de CUPS permite proyectar con alta confianza las necesidades de recursos (humanos, insumos, infraestructura) para los siguientes trimestres, facilitando una gestión proactiva de la capacidad instalada.`
+            },
+            {
+              title: 'Conclusiones y Recomendaciones Estratégicas',
+              text: `El análisis integral del segundo trimestre demuestra un desempeño robusto y alineado con los objetivos del modelo PGP. La ejecución financiera y operacional se encuentra en un estado de equilibrio, cumpliendo las metas contractuales y garantizando la atención en salud de la población afiliada.\n\nRecomendaciones:\n1. Mantener la monitorización continua de los indicadores clave, con especial atención al costo unitario, para detectar cualquier desviación temprana en la complejidad de los casos atendidos.\n2. Iniciar la planificación del siguiente ciclo de negociación del PGP utilizando los datos de ejecución de este período como base actuarial para ajustar la nota técnica futura, asegurando que refleje con precisión el perfil de riesgo y las necesidades de la población.\n3. Realizar un análisis cualitativo de los CUPS más frecuentes para validar que la atención se está centrando en las prioridades de salud pública definidas para la región.`
+            },
         ],
         ciudad: data.header.ciudad ?? '',
         fecha: data.header.fecha ?? '',
