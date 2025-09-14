@@ -4,7 +4,8 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud } from "lucide-react";
+import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   BarChart,
   Bar,
@@ -18,7 +19,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { descargarInformePDF, type InformeDatos } from "@/lib/pdf-definitions";
+import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -107,6 +108,7 @@ export const defaultData: ReportData = {
 // ======= Componente (fusionado y reforzado) =======
 export default function InformePGP({ data = defaultData }: { data?: ReportData | null }) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   
   // Derivados y KPIs
   const sumaMensual = useMemo(() => data?.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0, [data?.months]);
@@ -123,46 +125,55 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
   const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
+  const getInformeData = (data: ReportData): InformeDatos => {
+    const kpis = [
+        { label: 'Suma ejecución (T2)', value: formatCOP(sumaMensual) },
+        { label: 'Nota técnica (3m)', value: formatCOP(data.notaTecnica?.valor3m || 0) },
+        { label: 'Diferencia vs meta', value: formatCOP(diffVsNota) },
+        { label: 'Total CUPS (T2)', value: totalCups.toLocaleString('es-CO') },
+    ];
+
+    return {
+        titulo: 'INFORME PGP – TRIMESTRE II',
+        subtitulo: `${data.header.empresa} | NIT ${data.header.nit}`,
+        referencia: `Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia}`,
+        objetivos: [
+            'Revisión de la gestión financiera y disciplina presupuestal.',
+            'Impacto en la calidad del servicio y continuidad del acceso.',
+            'Reconocimiento de cambios demográficos y ajuste de oferta.',
+            'Validación de valores financieros del PGP (ejecutado, anticipos, pagos).',
+        ],
+        kpis,
+        analisis: [
+            { title: 'Lectura Epidemiológica', text: 'La banda 90–110% funciona como control de riesgo financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad operacional.' },
+            { title: 'Ejecución Financiera', text: 'Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de cartera y continuidad de la atención.'},
+            { title: 'CUPS (Cantidad)', text: 'Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en continuidad de acceso y menor rezago diagnóstico.'},
+        ],
+        ciudad: data.header.ciudad ?? '',
+        fecha: data.header.fecha ?? '',
+        firmas: [
+            data.header.responsable1 ?? { nombre: '________________', cargo: '________________' },
+            data.header.responsable2 ?? { nombre: '________________', cargo: '________________' },
+            data.header.responsable3 ?? { nombre: '________________', cargo: '________________' },
+        ]
+    };
+  }
+
   // Exportación a PDF con pdfmake
-  const handleGeneratePdf = async () => {
+  const handleGeneratePdf = async (action: 'preview' | 'download') => {
     if (!data) return;
     setIsGeneratingPdf(true);
     try {
-        const backgroundImage = await loadImageAsBase64('/IMAGEN_UNIFICADA.jpg');
-
-        const kpis = [
-            { label: 'Suma ejecución (T2)', value: formatCOP(sumaMensual) },
-            { label: 'Nota técnica (3m)', value: formatCOP(data.notaTecnica?.valor3m || 0) },
-            { label: 'Diferencia vs meta', value: formatCOP(diffVsNota) },
-            { label: 'Total CUPS (T2)', value: totalCups.toLocaleString('es-CO') },
-        ];
-
-        const informeData: InformeDatos = {
-            titulo: 'INFORME PGP – TRIMESTRE II',
-            subtitulo: `${data.header.empresa} | NIT ${data.header.nit}`,
-            referencia: `Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia}`,
-            objetivos: [
-                'Revisión de la gestión financiera y disciplina presupuestal.',
-                'Impacto en la calidad del servicio y continuidad del acceso.',
-                'Reconocimiento de cambios demográficos y ajuste de oferta.',
-                'Validación de valores financieros del PGP (ejecutado, anticipos, pagos).',
-            ],
-            kpis,
-            analisis: [
-                { title: 'Lectura Epidemiológica', text: 'La banda 90–110% funciona como control de riesgo financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad operacional.' },
-                { title: 'Ejecución Financiera', text: 'Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de cartera y continuidad de la atención.'},
-                { title: 'CUPS (Cantidad)', text: 'Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en continuidad de acceso y menor rezago diagnóstico.'},
-            ],
-            ciudad: data.header.ciudad ?? '',
-            fecha: data.header.fecha ?? '',
-            firmas: [
-                data.header.responsable1 ?? { nombre: '________________', cargo: '________________' },
-                data.header.responsable2 ?? { nombre: '________________', cargo: '________________' },
-                data.header.responsable3 ?? { nombre: '________________', cargo: '________________' },
-            ]
-        };
-
-        await descargarInformePDF(informeData, backgroundImage);
+        const backgroundImage = await loadImageAsBase64('/imagenes pdf/IMAGENEN UNIFICADA.jpg');
+        const informeData = getInformeData(data);
+        
+        if(action === 'preview') {
+            const url = await generarURLInformePDF(informeData, backgroundImage);
+            setPdfPreviewUrl(url);
+        } else if (action === 'download') {
+            await descargarInformePDF(informeData, backgroundImage);
+            setPdfPreviewUrl(null); // Cierra el modal si estaba abierto
+        }
 
     } catch (error) {
         console.error("Error generating PDF:", error);
@@ -185,12 +196,33 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData |
           <div>Vigencia: {data.header.vigencia}</div>
         </div>
         <div className="flex gap-2">
-           <Button variant="default" onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
+           <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
             {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
-            Generar PDF (Recomendado)
+            Generar PDF
           </Button>
         </div>
       </div>
+
+       <Dialog open={!!pdfPreviewUrl} onOpenChange={(isOpen) => !isOpen && setPdfPreviewUrl(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Vista Previa del Informe</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow border rounded-md overflow-hidden">
+            {pdfPreviewUrl && (
+              <iframe src={pdfPreviewUrl} className="w-full h-full" title="Vista previa del PDF" />
+            )}
+          </div>
+          <DialogFooter>
+             <Button variant="outline" onClick={() => setPdfPreviewUrl(null)}>Cerrar</Button>
+            <Button onClick={() => handleGeneratePdf('download')} disabled={isGeneratingPdf}>
+              {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <DownloadCloud className="h-4 w-4 mr-1" />}
+              Descargar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <Card className="shadow-xl">
         <CardHeader>

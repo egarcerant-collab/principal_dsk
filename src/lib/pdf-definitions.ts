@@ -129,16 +129,8 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string) {
     return docDefinition;
 }
 
-/**
- * Genera y descarga el informe en PDF.
- * @param data Los datos formateados para el informe.
- * @param backgroundImageBase64 La imagen de fondo en formato base64.
- */
-export async function descargarInformePDF(data: InformeDatos, backgroundImageBase64: string): Promise<void> {
-    const docDefinition = buildDocDefinition(data, backgroundImageBase64);
-    
-    // Configura las fuentes para que pdfmake pueda usarlas
-    pdfMake.fonts = {
+const configurePdfMake = () => {
+     pdfMake.fonts = {
         Roboto: {
             normal: 'Roboto-Regular.ttf',
             bold: 'Roboto-Medium.ttf',
@@ -146,6 +138,33 @@ export async function descargarInformePDF(data: InformeDatos, backgroundImageBas
             bolditalics: 'Roboto-MediumItalic.ttf'
         }
     };
-    
+}
+
+/**
+ * Genera y descarga el informe en PDF.
+ * @param data Los datos formateados para el informe.
+ * @param backgroundImageBase64 La imagen de fondo en formato base64.
+ */
+export async function descargarInformePDF(data: InformeDatos, backgroundImageBase64: string): Promise<void> {
+    configurePdfMake();
+    const docDefinition = buildDocDefinition(data, backgroundImageBase64);
     pdfMake.createPdf(docDefinition).download(`Informe_PGP_${data.referencia.split('|')[0].trim().replace(/\s/g, '_')}.pdf`);
+}
+
+/**
+ * Genera una URL de datos para el informe en PDF para previsualización.
+ * @param data Los datos formateados para el informe.
+ * @param backgroundImageBase64 La imagen de fondo en formato base64.
+ * @returns Una promesa que se resuelve con la URL de datos del PDF.
+ */
+export async function generarURLInformePDF(data: InformeDatos, backgroundImageBase64: string): Promise<string> {
+    configurePdfMake();
+    const docDefinition = buildDocDefinition(data, backgroundImageBase64);
+    return new Promise((resolve, reject) => {
+        pdfMake.createPdf(docDefinition).getDataUrl((dataUrl: string) => {
+            resolve(dataUrl);
+        }, (error: any) => {
+            reject(error);
+        });
+    });
 }
