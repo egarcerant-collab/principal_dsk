@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Info, Activity, Stamp } from "lucide-react";
+import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -18,7 +18,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import jsPDF from "jspdf";
+import { descargarInformePDF, type InformeDatos } from "@/lib/pdf-definitions";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -56,46 +56,23 @@ export interface ReportData {
 }
 
 // ======= Utilidades =======
-const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(n);
+const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
-function downloadPdfTexto(filename: string, content: string) {
-  const doc = new jsPDF({ unit: "mm", format: "letter" });
-  const margin = 12;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const textWidth = pageWidth - margin * 2;
-  doc.setFont("helvetica", "");
-  doc.setFontSize(11);
-  const lines = doc.splitTextToSize(content, textWidth);
-  let y = margin;
-  lines.forEach((line) => {
-    if (y > 270) { doc.addPage(); y = margin; }
-    doc.text(line, margin, y);
-    y += 6;
-  });
-  doc.save(filename);
-}
-
-async function downloadPdfVisual(filename: string, container: HTMLElement) {
-  const html2canvas = (await import("html2canvas")).default;
-  const sections = Array.from(container.querySelectorAll<HTMLElement>(".pdf-section"));
-  const doc = new jsPDF({ unit: "mm", format: "letter" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  let first = true;
-
-  for (const section of sections) {
-    const canvas = await html2canvas(section, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png", 1.0);
-    const imgW = pageW - 14; // márgenes
-    const ratio = (imgW / canvas.width) * canvas.height;
-    const imgH = Math.min(pageH - 14, ratio);
-
-    if (!first) doc.addPage();
-    first = false;
-    doc.addImage(imgData, "PNG", 7, 7, imgW, imgH);
-  }
-
-  doc.save(filename);
+async function loadImageAsBase64(url: string): Promise<string> {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Network response was not ok for ${url}`);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.warn(`Could not load image from ${url}:`, error);
+        return ""; // Devuelve una cadena vacía si hay un error
+    }
 }
 
 // ======= Datos de ejemplo (combinados y robustos) =======
@@ -108,8 +85,6 @@ export const defaultData: ReportData = {
     vigencia: "01/01/2025–01/12/2025",
     ciudad: "Uribia",
     fecha: "30/06/2025",
-    // logoEpsiUrl: "/logos/epsi.png",
-    // logoIpsUrl: "/logos/ips.png",
     responsable1: { nombre: "_________________________", cargo: "Representante EPSI" },
     responsable2: { nombre: "_________________________", cargo: "Representante IPS" },
     responsable3: { nombre: "_________________________", cargo: "Testigo" },
@@ -130,63 +105,78 @@ export const defaultData: ReportData = {
 };
 
 // ======= Componente (fusionado y reforzado) =======
-export default function InformePGP({ data = defaultData }: { data?: ReportData }) {
-  const actaRef = useRef<HTMLDivElement>(null);
-
+export default function InformePGP({ data = defaultData }: { data?: ReportData | null }) {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  
   // Derivados y KPIs
-  const sumaMensual = useMemo(() => data.months.reduce((acc, m) => acc + m.valueCOP, 0), [data.months]);
-  const totalCups = useMemo(() => data.months.reduce((a, m) => a + m.cups, 0), [data.months]);
-  const diffVsNota = useMemo(() => (data.notaTecnica?.valor3m || 0) - sumaMensual, [data.notaTecnica?.valor3m, sumaMensual]);
+  const sumaMensual = useMemo(() => data?.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0, [data?.months]);
+  const totalCups = useMemo(() => data?.months.reduce((a, m) => a + m.cups, 0) ?? 0, [data?.months]);
+  const diffVsNota = useMemo(() => (data?.notaTecnica?.valor3m || 0) - sumaMensual, [data?.notaTecnica?.valor3m, sumaMensual]);
   const unitAvg = useMemo(() => {
+    if (!data || !data.months || data.months.length === 0) return 0;
     const mean = data.months.reduce((acc, m) => acc + (m.cups > 0 ? m.valueCOP / m.cups : 0), 0) / data.months.length;
     return Number.isFinite(mean) ? mean : 0;
-  }, [data.months]);
+  }, [data?.months]);
 
   // Series para gráficas
-  const barData = useMemo(() => data.months.map((m) => ({ Mes: m.month, Valor: m.valueCOP })), [data.months]);
-  const cupsData = useMemo(() => data.months.map((m) => ({ Mes: m.month, CUPS: m.cups })), [data.months]);
-  const unitData = useMemo(() => data.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })), [data.months, unitAvg]);
+  const barData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Valor: m.valueCOP })) ?? [], [data?.months]);
+  const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
+  const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
-  // Exportación a PDF
-  const handleDownloadActaTexto = () => {
-    const texto = [
-      `ACTA/INFORME – PGP (Trimestre II)`,
-      `${data.header.empresa} | NIT ${data.header.nit} | Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato}`,
-      `Vigencia: ${data.header.vigencia}`,
-      ``,
-      `OBJETIVOS`,
-      `• Gestión financiera y validación de valores (ejecutado, descuentos, reconocimientos).`,
-      `• Calidad del servicio y continuidad del acceso.`,
-      `• Cambios demográficos y adecuación de oferta.`,
-      `• Eficiencia técnica (COP/CUPS) y análisis de resultados.`,
-      `• Recomendaciones para sostenibilidad.`,
-      ``,
-      `RESUMEN`,
-      `Total CUPS T2: ${totalCups.toLocaleString("es-CO")} | Total ejecutado T2: ${formatCOP(sumaMensual)}`,
-      `Nota técnica (3m): ${formatCOP(data.notaTecnica?.valor3m || 0)} (90%-110%: ${formatCOP(data.notaTecnica?.min90 || 0)} - ${formatCOP(data.notaTecnica?.max110 || 0)})`,
-      `Brecha vs nota: ${formatCOP(diffVsNota)}`,
-      ``,
-      `INTERPRETACIÓN`,
-      `Ejecución estable (finanzas, volumen y costo unitario), dentro de banda 90–110%; evidencia de control del riesgo y sostenibilidad del PGP.`,
-      ``,
-      `${data.header.ciudad || ""}${data.header.ciudad && data.header.fecha ? ", " : ""}${data.header.fecha || ""}`,
-    ].join("\n");
-    downloadPdfTexto(`Informe_PGP_${data.header?.municipio || ""}.pdf`, texto);
+  // Exportación a PDF con pdfmake
+  const handleGeneratePdf = async () => {
+    if (!data) return;
+    setIsGeneratingPdf(true);
+    try {
+        const backgroundImage = await loadImageAsBase64('/IMAGEN_UNIFICADA.jpg');
+
+        const kpis = [
+            { label: 'Suma ejecución (T2)', value: formatCOP(sumaMensual) },
+            { label: 'Nota técnica (3m)', value: formatCOP(data.notaTecnica?.valor3m || 0) },
+            { label: 'Diferencia vs meta', value: formatCOP(diffVsNota) },
+            { label: 'Total CUPS (T2)', value: totalCups.toLocaleString('es-CO') },
+        ];
+
+        const informeData: InformeDatos = {
+            titulo: 'INFORME PGP – TRIMESTRE II',
+            subtitulo: `${data.header.empresa} | NIT ${data.header.nit}`,
+            referencia: `Municipio: ${data.header.municipio} | Contrato: ${data.header.contrato} | Vigencia: ${data.header.vigencia}`,
+            objetivos: [
+                'Revisión de la gestión financiera y disciplina presupuestal.',
+                'Impacto en la calidad del servicio y continuidad del acceso.',
+                'Reconocimiento de cambios demográficos y ajuste de oferta.',
+                'Validación de valores financieros del PGP (ejecutado, anticipos, pagos).',
+            ],
+            kpis,
+            analisis: [
+                { title: 'Lectura Epidemiológica', text: 'La banda 90–110% funciona como control de riesgo financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad operacional.' },
+                { title: 'Ejecución Financiera', text: 'Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de cartera y continuidad de la atención.'},
+                { title: 'CUPS (Cantidad)', text: 'Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en continuidad de acceso y menor rezago diagnóstico.'},
+            ],
+            ciudad: data.header.ciudad ?? '',
+            fecha: data.header.fecha ?? '',
+            firmas: [
+                data.header.responsable1 ?? { nombre: '________________', cargo: '________________' },
+                data.header.responsable2 ?? { nombre: '________________', cargo: '________________' },
+                data.header.responsable3 ?? { nombre: '________________', cargo: '________________' },
+            ]
+        };
+
+        await descargarInformePDF(informeData, backgroundImage);
+
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+    } finally {
+        setIsGeneratingPdf(false);
+    }
   };
 
-  const handleDownloadActaVisual = async () => {
-    if (!actaRef.current) return;
-    await downloadPdfVisual(`Informe_PGP_${data.header?.municipio || ""}_visual.pdf`, actaRef.current);
-  };
+  if (!data) {
+    return null; // O un placeholder si se prefiere
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4">
-      {/* Estilos de impresión carta */}
-      <style>{`
-        @page { size: Letter; margin: 12mm; }
-        @media print { .no-print { display:none !important } }
-      `}</style>
-
       {/* Encabezado y acciones */}
       <div className="flex items-start justify-between no-print">
         <div className="text-sm">
@@ -195,21 +185,21 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
           <div>Vigencia: {data.header.vigencia}</div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadActaTexto}><FileText className="h-4 w-4 mr-1"/> PDF (texto)</Button>
-          <Button variant="default" onClick={handleDownloadActaVisual}><Stamp className="h-4 w-4 mr-1"/> PDF (visual)</Button>
+           <Button variant="default" onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
+            {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
+            Generar PDF (Recomendado)
+          </Button>
         </div>
       </div>
 
-      <Card ref={actaRef} className="shadow-xl">
-        <CardHeader className="pdf-section">
+      <Card className="shadow-xl">
+        <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {data.header.logoEpsiUrl && (<img src={data.header.logoEpsiUrl} alt="Logo EPSI" className="h-10 w-auto" />)}
               <CardTitle>INFORME PGP – TRIMESTRE II (Abr–Jun)</CardTitle>
-              {data.header.logoIpsUrl && (<img src={data.header.logoIpsUrl} alt="Logo IPS" className="h-10 w-auto" />)}
             </div>
             {(data.header.ciudad || data.header.fecha) && (
-              <div className="text-sm" style={{ color: "#4b5563" }}>
+              <div className="text-sm text-muted-foreground">
                 {data.header.ciudad ?? ""}{data.header.ciudad && data.header.fecha ? ", " : ""}{data.header.fecha ?? ""}
               </div>
             )}
@@ -217,155 +207,116 @@ export default function InformePGP({ data = defaultData }: { data?: ReportData }
         </CardHeader>
 
         <CardContent className="space-y-8">
-          {/* Objetivos (del archivo 2) */}
-          <section className="pdf-section">
+          {/* Objetivos */}
+          <section>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><Activity className="h-4 w-4"/> Objetivos del Acta</h3>
-            <ul className="list-disc pl-6 text-sm">
+            <ul className="list-disc pl-6 text-sm text-muted-foreground">
               <li>Revisión de la gestión financiera y disciplina presupuestal.</li>
               <li>Impacto en la calidad del servicio y continuidad del acceso.</li>
               <li>Reconocimiento de cambios demográficos y ajuste de oferta.</li>
               <li>Validación de valores financieros del PGP (ejecutado, anticipos, pagos).</li>
-              <li>Evaluación de resultados y eficiencia (COP por CUPS).</li>
-              <li>Recomendaciones para mejoras y sostenibilidad.</li>
             </ul>
           </section>
 
-          {/* Nota Técnica (tabla + explicación robusta) */}
-          <section className="pdf-section">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Nota Técnica</h3>
+          {/* Nota Técnica */}
+          <section>
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Nota Técnica y KPIs</h3>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left" style={{ color: "#6b7280" }}>
+                  <tr className="text-left text-muted-foreground">
                     <th>Concepto</th>
-                    <th>Valor</th>
+                    <th className="text-right">Valor</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr><td>90% mínimo permitido</td><td>{formatCOP(data.notaTecnica?.min90 || 0)}</td></tr>
-                  <tr><td>Meta 3 meses (nota técnica)</td><td>{formatCOP(data.notaTecnica?.valor3m || 0)}</td></tr>
-                  <tr><td>Suma ejecución (T2)</td><td>{formatCOP(sumaMensual)}</td></tr>
-                  <tr><td>Diferencia vs meta</td><td>{formatCOP(diffVsNota)}</td></tr>
-                  <tr><td>110% máximo permitido</td><td>{formatCOP(data.notaTecnica?.max110 || 0)}</td></tr>
-                  <tr><td>Anticipos (modelo 80/20)</td><td>{formatCOP(data.notaTecnica?.anticipos || 0)}</td></tr>
-                  <tr><td>Total a pagar (3er mes)</td><td>{formatCOP(data.notaTecnica?.totalPagar || 0)}</td></tr>
-                  <tr><td>Total final</td><td>{formatCOP(data.notaTecnica?.totalFinal || 0)}</td></tr>
+                <tbody className="[&>tr>td]:py-1">
+                  <tr><td>90% mínimo permitido</td><td className="text-right">{formatCOP(data.notaTecnica?.min90 || 0)}</td></tr>
+                  <tr><td>Meta 3 meses (nota técnica)</td><td className="text-right">{formatCOP(data.notaTecnica?.valor3m || 0)}</td></tr>
+                  <tr className="font-bold"><td>Suma ejecución (T2)</td><td className="text-right">{formatCOP(sumaMensual)}</td></tr>
+                  <tr><td>Diferencia vs meta</td><td className="text-right">{formatCOP(diffVsNota)}</td></tr>
+                  <tr><td>110% máximo permitido</td><td className="text-right">{formatCOP(data.notaTecnica?.max110 || 0)}</td></tr>
+                  <tr className="border-t mt-2 pt-2"><td>Anticipos (modelo 80/20)</td><td className="text-right">{formatCOP(data.notaTecnica?.anticipos || 0)}</td></tr>
+                  <tr><td>Total a pagar (3er mes)</td><td className="text-right">{formatCOP(data.notaTecnica?.totalPagar || 0)}</td></tr>
+                  <tr className="font-bold"><td>Total final</td><td className="text-right">{formatCOP(data.notaTecnica?.totalFinal || 0)}</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-sm mt-2">
-              <strong>Lectura epidemiológica:</strong> La banda 90–110% funciona como control de riesgo
-              financiero. La ejecución del T2 permanece dentro de los límites, lo que sugiere estabilidad
-              operacional y capacidad de absorción ante variaciones moderadas de la demanda. La coherencia
-              entre anticipos y pago del tercer mes evidencia disciplina del flujo de caja y disminuye la
-              probabilidad de desfinanciamiento por eventos de alto costo.
-            </p>
           </section>
 
           {/* Gráfico: Ejecución financiera */}
-          <section className="pdf-section">
+          <section>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="h-4 w-4"/> Ejecución Financiera (COP)</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                  <XAxis dataKey="Mes" stroke="#374151" />
-                  <YAxis stroke="#374151" tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="Valor" fill="#4a90e2" />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)}`} />
+                  <Tooltip formatter={(value) => formatCOP(value as number)} />
+                  <Bar dataKey="Valor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-sm mt-2">
-              Barras uniformes sin picos sugieren gasto controlado y predecible. Esto facilita programación de
-              cartera, negociación con prestadores y continuidad de la atención, reduciendo el riesgo de
-              racionamiento por restricciones financieras.
-            </p>
           </section>
 
           {/* Gráfico: CUPS (cantidad) */}
-          <section className="pdf-section">
+          <section>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> CUPS (Cantidad)</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={cupsData}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                  <XAxis dataKey="Mes" stroke="#374151" />
-                  <YAxis stroke="#374151" allowDecimals={false} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="CUPS" stroke="#16a34a" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(value) => `${(value as number).toLocaleString('es-CO')} CUPS`} />
+                  <Line type="monotone" dataKey="CUPS" stroke="hsl(var(--accent))" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-sm mt-2">
-              Comportamiento estable del volumen de servicios. Para salud pública, esto se traduce en
-              continuidad de acceso, menor rezago diagnóstico y oportunidad terapéutica sostenida. La
-              estabilidad respalda la planificación por microred y la asignación de talento humano.
-            </p>
           </section>
 
           {/* Gráfico: Costo unitario */}
-          <section className="pdf-section">
+          <section>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={unitData}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-                  <XAxis dataKey="Mes" stroke="#374151" />
-                  <YAxis stroke="#374151" tickFormatter={(v) => new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="Unit" stroke="#ef4444" strokeWidth={2} />
-                  <ReferenceLine y={unitAvg} label="Promedio" stroke="#111827" strokeDasharray="4 4" />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => formatCOP(v as number)} />
+                  <Tooltip formatter={(value) => formatCOP(value as number)} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Line type="monotone" dataKey="Unit" name="Costo Unitario" stroke="hsl(var(--destructive))" strokeWidth={2} />
+                  <ReferenceLine y={unitAvg} name="Promedio" label={{ value: `Promedio: ${formatCOP(unitAvg)}`, position: 'insideTopLeft' }} stroke="hsl(var(--foreground))" strokeDasharray="4 4" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-sm mt-2">
-              La cercanía al promedio indica eficiencia técnica y control de variaciones clínicas; disminuye
-              la probabilidad de desviaciones por cambio de mezcla de casos. Permite proyectar costos con
-              mayor certidumbre y orientar auditoría concurrente hacia códigos de alto impacto.
-            </p>
           </section>
 
-          {/* Conclusiones y Proyecciones (del archivo 1, ampliadas) */}
-          <section className="pdf-section">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> Conclusiones y Proyecciones</h3>
-            <p className="text-sm mt-2">
+          {/* Conclusiones y Proyecciones */}
+          <section>
+            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Conclusiones y Proyecciones</h3>
+            <p className="text-sm text-muted-foreground">
               El trimestre evidencia estabilidad financiera (COP), operacional (CUPS) y técnica (COP/CUPS), con
               ejecución dentro de la banda 90–110% de la Nota Técnica. Proyectando la tendencia observada, se
-              espera mantenimiento del equilibrio sin presiones significativas, sujeto a vigilancia de eventos
-              de alto costo y cambios demográficos. Se recomienda profundizar programas preventivos y
-              mantener tableros de control con alertas tempranas.
+              espera mantenimiento del equilibrio sin presiones significativas.
             </p>
           </section>
 
-          {/* Firmas (del archivo 2) */}
-          <section className="pdf-section">
+          {/* Firmas */}
+          <section>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><Stamp className="h-4 w-4"/> Firmas</h3>
             <div className="grid gap-8 md:grid-cols-3 pt-8">
               {[data.header.responsable1, data.header.responsable2, data.header.responsable3]
                 .filter((r): r is { nombre: string; cargo: string } => Boolean(r))
                 .map((r, idx) => (
                   <div key={idx} className="text-sm text-center">
-                    <div className="h-14 border-b" style={{ borderColor: "#d1d5db" }} />
+                    <div className="h-14 border-b border-muted" />
                     <div className="mt-2 font-semibold">{r.nombre}</div>
-                    <div style={{ color: "#6b7280" }}>{r.cargo}</div>
+                    <div className="text-muted-foreground">{r.cargo}</div>
                   </div>
                 ))}
             </div>
-          </section>
-
-          {/* Pruebas rápidas (sanity tests) del archivo 2 */}
-          <section className="pdf-section">
-            <h3 className="font-semibold mb-2">Pruebas rápidas</h3>
-            <ul className="list-disc pl-6 text-sm">
-              <li>Total CUPS = {totalCups.toLocaleString("es-CO")} – {totalCups === data.months.reduce((a, m) => a + m.cups, 0) ? "OK" : "FALLA"}</li>
-              <li>Suma mensual (COP) = {formatCOP(sumaMensual)} – {Math.abs(sumaMensual - data.months.reduce((a, m) => a + m.valueCOP, 0)) < 0.001 ? "OK" : "FALLA"}</li>
-              <li>Diferencia vs Nota Técnica = {formatCOP(diffVsNota)} – {Math.abs(diffVsNota - ((data.notaTecnica?.valor3m || 0) - sumaMensual)) < 0.001 ? "OK" : "FALLA"}</li>
-              <li>Promedio COP/CUPS calculado = {formatCOP(unitAvg)}</li>
-            </ul>
           </section>
         </CardContent>
       </Card>
