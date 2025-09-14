@@ -28,6 +28,7 @@ export interface InformeDatos {
     analisis: { 
         title: string; 
         text: string;
+        chartImage?: string; // Para la imagen del gráfico en base64
     }[];
     topOverExecuted: DeviatedCupInfo[];
     topUnexpected: { cup: string, realFrequency: number, description?: string }[];
@@ -98,6 +99,15 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                 const contentBlock: Content[] = [];
                 if (item.title) {
                     contentBlock.push({ text: item.title, bold: true, fontSize: 11, margin: [0, 10, 0, 2], color: '#374151' });
+                }
+                 // Si hay una imagen de gráfico, la insertamos aquí
+                if (item.chartImage) {
+                    contentBlock.push({
+                        image: item.chartImage,
+                        width: 500, // Ancho del gráfico en el PDF
+                        alignment: 'center',
+                        margin: [0, 5, 0, 10], // Margen [arriba, derecha, abajo, izquierda]
+                    });
                 }
                 if (item.text) {
                     contentBlock.push({ text: item.text.replace(/\n\n/g, '\n'), style: 'p' });
