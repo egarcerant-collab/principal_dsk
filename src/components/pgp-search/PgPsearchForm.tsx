@@ -23,7 +23,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import InformePGP, { type ReportData } from '@/components/report/InformePGP';
+import InformePGP from '@/components/report/InformePGP';
+import type { ReportData } from '@/components/report/InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -846,7 +847,15 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     pgpData={pgpData}
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
-                <InformePGP data={reportData} />
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Generación de Informe</CardTitle>
+                        <CardDescription>Crea un informe ejecutivo en formato PDF con los resultados del análisis.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <InformePGP data={reportData} />
+                    </CardContent>
+                </Card>
               </>
             )}
           </div>
@@ -871,5 +880,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    

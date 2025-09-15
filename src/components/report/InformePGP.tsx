@@ -208,11 +208,21 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             return '';
         };
 
+        // This div is hidden and used just for rendering charts for the PDF
+        const chartContainer = document.createElement('div');
+        chartContainer.style.position = 'absolute';
+        chartContainer.style.left = '-9999px';
+        chartContainer.style.width = '800px';
+        document.body.appendChild(chartContainer);
+
         const chartImages = {
             financial: await getChartImage(financialChartRef),
             cups: await getChartImage(cupsChartRef),
             unit: await getChartImage(unitChartRef),
         };
+        
+        document.body.removeChild(chartContainer);
+
 
         const informeData = getInformeData(data, chartImages);
         
@@ -236,20 +246,12 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4">
-      {/* Encabezado y acciones */}
-      <div className="flex items-start justify-between no-print">
-        <div className="text-sm">
-          <div className="font-semibold">{data.header.empresa} – NIT {data.header.nit}</div>
-          <div>Municipio: {data.header.municipio} | Contrato: {data.header.contrato}</div>
-          <div>Vigencia: {data.header.vigencia}</div>
-        </div>
-        <div className="flex gap-2">
-           <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
-            {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
-            Vista Previa del Informe
-          </Button>
-        </div>
+    <div className="space-y-6">
+      <div className="flex justify-center">
+         <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
+          {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
+          Generar Informe PDF
+        </Button>
       </div>
 
        <Dialog open={!!pdfPreviewUrl} onOpenChange={(isOpen) => !isOpen && setPdfPreviewUrl(null)}>
@@ -271,60 +273,9 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
-      <Card className="shadow-xl">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <CardTitle>{reportTitle}</CardTitle>
-            </div>
-            {(data.header.ciudad || data.header.fecha) && (
-              <div className="text-sm text-muted-foreground">
-                {data.header.ciudad ?? ""}{data.header.ciudad && data.header.fecha ? ", " : ""}{data.header.fecha ?? ""}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-8">
-          {/* Objetivos */}
-          <section>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Activity className="h-4 w-4"/> Objetivos del Acta</h3>
-            <ul className="list-disc pl-6 text-sm text-muted-foreground">
-              <li>Revisión de la gestión financiera y disciplina presupuestal.</li>
-              <li>Impacto en la calidad del servicio y continuidad del acceso.</li>
-              <li>Reconocimiento de cambios demográficos y ajuste de oferta.</li>
-              <li>Validación de valores financieros del PGP (ejecutado, anticipos, pagos).</li>
-            </ul>
-          </section>
-
-          {/* Nota Técnica */}
-          <section>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Nota Técnica y KPIs</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th>Concepto</th>
-                    <th className="text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody className="[&>tr>td]:py-1">
-                  <tr><td>90% mínimo permitido</td><td className="text-right">{formatCOP(data.notaTecnica?.min90 || 0)}</td></tr>
-                  <tr><td>Meta (nota técnica)</td><td className="text-right">{formatCOP(data.notaTecnica?.valor3m || 0)}</td></tr>
-                  <tr className="font-bold"><td>Suma ejecución</td><td className="text-right">{formatCOP(sumaMensual)}</td></tr>
-                  <tr><td>Diferencia vs meta</td><td className="text-right">{formatCOP(diffVsNota)}</td></tr>
-                  <tr><td>110% máximo permitido</td><td className="text-right">{formatCOP(data.notaTecnica?.max110 || 0)}</td></tr>
-                  <tr className="border-t mt-2 pt-2"><td>Anticipos (modelo 80/20)</td><td className="text-right">{formatCOP(data.notaTecnica?.anticipos || 0)}</td></tr>
-                  <tr><td>Total a pagar (conciliación)</td><td className="text-right">{formatCOP(data.notaTecnica?.totalPagar || 0)}</td></tr>
-                  <tr className="font-bold"><td>Total final</td><td className="text-right">{formatCOP(data.notaTecnica?.totalFinal || 0)}</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Gráfico: Ejecución financiera */}
+      
+      {/* Hidden container for rendering charts for PDF */}
+      <div className="absolute -left-[9999px] w-[800px] space-y-8 bg-background">
           <section ref={financialChartRef}>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="h-4 w-4"/> Ejecución Financiera (COP)</h3>
             <div className="h-72">
@@ -339,9 +290,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
               </ResponsiveContainer>
             </div>
           </section>
-
-          {/* Gráfico: CUPS (cantidad) */}
-          <section ref={cupsChartRef}>
+           <section ref={cupsChartRef}>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> CUPS (Cantidad)</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -355,8 +304,6 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
               </ResponsiveContainer>
             </div>
           </section>
-
-          {/* Gráfico: Costo unitario */}
           <section ref={unitChartRef}>
             <h3 className="font-semibold mb-2 flex items-center gap-2"><BarChart2 className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
             <div className="h-72">
@@ -373,34 +320,8 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
               </ResponsiveContainer>
             </div>
           </section>
+      </div>
 
-          {/* Conclusiones y Proyecciones */}
-          <section>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Info className="h-4 w-4"/> Conclusiones y Proyecciones</h3>
-            <p className="text-sm text-muted-foreground">
-              El periodo analizado evidencia estabilidad financiera (COP), operacional (CUPS) y técnica (COP/CUPS), con
-              ejecución dentro de la banda 90–110% de la Nota Técnica. Proyectando la tendencia observada, se
-              espera mantenimiento del equilibrio sin presiones significativas.
-            </p>
-          </section>
-
-          {/* Firmas */}
-          <section>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Stamp className="h-4 w-4"/> Firmas</h3>
-            <div className="grid gap-8 md:grid-cols-3 pt-8">
-              {[data.header.responsable1, data.header.responsable2, data.header.responsable3]
-                .filter((r): r is { nombre: string; cargo: string } => Boolean(r))
-                .map((r, idx) => (
-                  <div key={idx} className="text-sm text-center">
-                    <div className="h-14" />
-                    <div className="mt-2 font-semibold">{r.nombre}</div>
-                    <div className="text-muted-foreground">{r.cargo}</div>
-                  </div>
-                ))}
-            </div>
-          </section>
-        </CardContent>
-      </Card>
     </div>
   );
 }
