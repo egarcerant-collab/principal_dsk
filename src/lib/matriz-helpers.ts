@@ -38,23 +38,12 @@ const getNumericValue = (value: any): number => {
     let v = String(value).trim();
     if (!v) return 0;
 
+    // Eliminar símbolo de moneda y espacios
     v = v.replace(/\s+/g, '').replace(/\$/g, '');
-
-    const hasComma = v.includes(',');
-    const hasDot = v.includes('.');
     
-    if (hasComma && hasDot) {
-        const lastComma = v.lastIndexOf(',');
-        const lastDot = v.lastIndexOf('.');
-        if (lastComma > lastDot) {
-            v = v.replace(/\./g, '').replace(',', '.');
-        } else {
-            v = v.replace(/,/g, '');
-        }
-    } else if (hasComma) {
-      v = v.replace(',', '.');
-    }
-
+    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
+    v = v.replace(/\./g, '').replace(',', '.');
+    
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
 };

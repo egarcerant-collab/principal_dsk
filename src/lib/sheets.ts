@@ -18,6 +18,21 @@ const normalizeKey = (key: string): string => {
     return normalizeValue(key).replace(/\uFEFF/g, ''); // Remove BOM character
 }
 
+export const getNumericValue = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    let v = String(value).trim();
+    if (!v) return 0;
+
+    // Eliminar símbolo de moneda y espacios
+    v = v.replace(/\s+/g, '').replace(/\$/g, '');
+    
+    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
+    v = v.replace(/\./g, '').replace(',', '.');
+    
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+};
+
 /**
  * Fetches data from a Google Sheet URL and parses it as a CSV.
  * @param url The public URL of the Google Sheet.

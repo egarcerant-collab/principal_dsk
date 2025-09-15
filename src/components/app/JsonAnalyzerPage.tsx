@@ -13,7 +13,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { CupCountsMap, ExecutionDataByMonth } from '@/app/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getNumericValue } from '../pgp-search/PgPsearchForm';
+
 
 interface FileState {
   jsonData: any | null;
@@ -36,6 +36,21 @@ interface JsonAnalyzerPageProps {
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
+
+export const getNumericValue = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    let v = String(value).trim();
+    if (!v) return 0;
+
+    // Eliminar símbolo de moneda y espacios
+    v = v.replace(/\s+/g, '').replace(/\$/g, '');
+    
+    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
+    v = v.replace(/\./g, '').replace(',', '.');
+    
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+};
 
 /** Sanitiza para usar en nombres de archivo (sin espacios/acentos/caracteres raros) */
 const sanitizeForFilename = (v: string): string =>

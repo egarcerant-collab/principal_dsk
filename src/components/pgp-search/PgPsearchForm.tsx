@@ -154,27 +154,11 @@ export const getNumericValue = (value: any): number => {
     let v = String(value).trim();
     if (!v) return 0;
 
-    // Eliminar espacios y símbolo de moneda
+    // Eliminar símbolo de moneda y espacios
     v = v.replace(/\s+/g, '').replace(/\$/g, '');
-
-    const hasComma = v.includes(',');
-    const hasDot = v.includes('.');
-
-    // Caso complejo: 1.234.567,89 (formato es-CO)
-    if (hasComma && hasDot) {
-        const lastComma = v.lastIndexOf(',');
-        const lastDot = v.lastIndexOf('.');
-        // Si la coma está después del último punto, es el decimal
-        if (lastComma > lastDot) {
-            v = v.replace(/\./g, '').replace(',', '.');
-        } else {
-            // Si el punto está después de la última coma, es formato en-US (1,234,567.89)
-            v = v.replace(/,/g, '');
-        }
-    } else if (hasComma) {
-      // Si solo hay coma, se asume que es el separador decimal
-      v = v.replace(',', '.');
-    }
+    
+    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
+    v = v.replace(/\./g, '').replace(',', '.');
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
@@ -705,13 +689,13 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       const pgpRows: PgpRow[] = data.map(row => {
         const newRow: Partial<PgpRow> = {};
         for (const key in row) {
-          const trimmedKey = key.trim();
-          if (!trimmedKey) continue;
-          newRow[trimmedKey as keyof PgpRow] = row[key];
+            const trimmedKey = key.trim();
+            if (Object.prototype.hasOwnProperty.call(row, key) && trimmedKey) {
+                newRow[trimmedKey] = row[key];
+            }
         }
         return newRow as PgpRow;
       }).filter(item => {
-        // Flexible CUP column check
         const cupValue = findColumnValue(item, ['cup/cum', 'cups']);
         return !!cupValue;
       });
@@ -839,8 +823,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
             {prestadores.map((p, index) => (
               <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)} className="flex flex-col items-start p-2">
-                 <div className="font-medium">{p.PRESTADOR}</div>
-                 <div className="text-xs text-muted-foreground block">({p['ID DE ZONA']})</div>
+                 <span className="font-medium block">{p.PRESTADOR}</span>
+                 <span className="text-xs text-muted-foreground block">({p['ID DE ZONA']})</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -937,4 +921,5 @@ export default PgPsearchForm;
     
 
     
+
 
