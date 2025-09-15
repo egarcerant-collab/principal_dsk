@@ -20,9 +20,9 @@ import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/li
 import Papa from 'papaparse';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import Report, { type ReportData } from '@/components/report/InformePGP';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -220,55 +220,57 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData | n
   )
 };
 
-const AnalysisCard = ({ analysis, isLoading }: { analysis: AnalyzePgpDataOutput | null, isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />
-            Analizando Nota Técnica...
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-center text-muted-foreground">La IA está generando un análisis profesional de los datos.</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (!analysis) return null;
-
+const AnalysisModal = ({ analysis, isLoading, open, onOpenChange }: { analysis: AnalyzePgpDataOutput | null, isLoading: boolean, open: boolean, onOpenChange: (open: boolean) => void }) => {
   return (
-    <Card className="bg-blue-50/50 dark:bg-blue-900/20">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BrainCircuit className="h-6 w-6 text-blue-600" />
-          Análisis Profesional de la Nota Técnica
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <h3 className="font-semibold text-lg mb-2">Observaciones Clave</h3>
-          <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
-            {analysis.keyObservations.map((obs, i) => <li key={i}>{obs}</li>)}
-          </ul>
-        </div>
-        <div>
-          <h3 className="font-semibold text-lg mb-2">Potenciales Riesgos</h3>
-          <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
-            {analysis.potentialRisks.map((risk, i) => <li key={i}>{risk}</li>)}
-          </ul>
-        </div>
-        <div>
-          <h3 className="font-semibold text-lg mb-2">Recomendaciones Estratégicas</h3>
-          <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
-            {analysis.strategicRecommendations.map((rec, i) => <li key={i}>{rec}</li>)}
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BrainCircuit className="h-6 w-6 text-blue-600" />
+            Análisis Profesional de la Nota Técnica
+          </DialogTitle>
+          <DialogDescription>
+            La IA ha generado las siguientes observaciones y recomendaciones basadas en los datos.
+          </DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center p-8 gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-muted-foreground">Analizando Nota Técnica...</p>
+          </div>
+        ) : analysis ? (
+          <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Observaciones Clave</h3>
+              <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                {analysis.keyObservations.map((obs, i) => <li key={i}>{obs}</li>)}
+              </ul>
+            </div>
+            <Separator />
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Potenciales Riesgos</h3>
+              <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                {analysis.potentialRisks.map((risk, i) => <li key={i}>{risk}</li>)}
+              </ul>
+            </div>
+            <Separator />
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Recomendaciones Estratégicas</h3>
+              <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                {analysis.strategicRecommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center p-8">
+            <p>No se pudo generar el análisis.</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 };
 
@@ -505,7 +507,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEje
                 <AccordionContent className="px-4 pb-4">
                     <ScrollArea className="h-96">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
                                 <TableRow>
                                     <TableHead>Mes</TableHead>
                                     <TableHead>CUPS</TableHead>
@@ -558,10 +560,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isClient, setIsClient] = useState(false);
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
-  const [reportData, setReportData] = useState<ReportData | null>(null);
   const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
   const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
 
   const comparisonSummary = useMemo(() => {
     if (!isDataLoaded || executionDataByMonth.size === 0) {
@@ -600,9 +602,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   const performLoadPrestador = useCallback(async (prestador: Prestador) => {
     setLoading(true);
-    if (isAiEnabled) {
-      setLoadingAnalysis(true);
-    }
     setIsDataLoaded(false);
     setGlobalSummary(null);
     setAnalysis(null);
@@ -639,93 +638,56 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       setSelectedPrestador(prestador);
       toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
 
-      if (isAiEnabled && pgpRows.length > 0) {
-        try {
-          const analysisInput = pgpRows.slice(0, 50).map(row => ({
-            'SUBCATEGORIA': findColumnValue(row, ['subcategoria']),
-            'AMBITO': findColumnValue(row, ['ambito']),
-            'ID RESOLUCION 3100': findColumnValue(row, ['id resolucion 3100']),
-            'DESCRIPCION ID RESOLUCION': findColumnValue(row, ['descripcion id resolucion']),
-            'CUP/CUM': findColumnValue(row, ['cup/cum', 'cups']),
-            'DESCRIPCION CUPS': findColumnValue(row, ['descripcion cups', 'descripcion']),
-            'FRECUENCIA AÑO SERVICIO': getNumericValue(findColumnValue(row, ['frecuencia año servicio'])),
-            'FRECUENCIA USO': getNumericValue(findColumnValue(row, ['frecuencia uso'])),
-            'FRECUENCIA EVENTOS MES': getNumericValue(findColumnValue(row, ['frecuencia eventos mes'])),
-            'FRECUENCIA EVENTO DIA': getNumericValue(findColumnValue(row, ['frecuencia evento dia'])),
-            'COSTO EVENTO MES': getNumericValue(findColumnValue(row, ['costo evento mes'])),
-            'COSTO EVENTO DIA': getNumericValue(findColumnValue(row, ['costo evento dia'])),
-            'FRECUENCIA MINIMA MES': getNumericValue(findColumnValue(row, ['frecuencia minima mes'])),
-            'FRECUENCIA MAXIMA MES': getNumericValue(findColumnValue(row, ['frecuencia maxima mes'])),
-            'VALOR UNITARIO': getNumericValue(findColumnValue(row, ['valor unitario'])),
-            'VALOR MINIMO MES': getNumericValue(findColumnValue(row, ['valor minimo mes'])),
-            'VALOR MAXIMO MES': getNumericValue(findColumnValue(row, ['valor maximo mes'])),
-            'COSTO EVENTO MES (VALOR MES)': getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes'])),
-            'OBSERVACIONES': findColumnValue(row, ['observaciones'])
-          }));
-
-          const analysisResult = await analyzePgpData(analysisInput as PgpRowBE[]);
-          setAnalysis(analysisResult);
-        } catch (aiError: any) {
-          toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
-          setAnalysis(null);
-        } finally {
-          setLoadingAnalysis(false);
-        }
-      } else {
-        setLoadingAnalysis(false);
-      }
-
     } catch (error: any) {
       toast({ title: "Error al Cargar Datos de la Nota Técnica", description: error.message, variant: "destructive" });
       setIsDataLoaded(false);
     } finally {
       setLoading(false);
     }
-  }, [isAiEnabled, toast]);
+  }, [toast]);
 
-  useEffect(() => {
-    if (isDataLoaded && executionDataByMonth.size > 0 && selectedPrestador && globalSummary && comparisonSummary) {
-      const monthExecutions = Array.from(executionDataByMonth.entries()).map(([monthKey, monthData]) => {
-        const totalValue = comparisonSummary.monthlyFinancials.find(mf => mf.month === getMonthName(monthKey))?.totalValorEjecutado ?? 0;
-        let totalCups = 0;
-        monthData.cupCounts.forEach(count => totalCups += count);
-        return {
-          month: getMonthName(monthKey),
-          cups: totalCups,
-          valueCOP: totalValue,
-        };
-      });
-
-      const totalEjecutado = monthExecutions.reduce((sum, m) => sum + m.valueCOP, 0);
-      const valor3m = globalSummary.totalCostoMes * monthExecutions.length; // Asumimos que la nota técnica es mensual
-
-      const newReportData: ReportData = {
-        header: {
-          empresa: "DUSAKAWI EPSI",
-          nit: selectedPrestador.NIT,
-          municipio: 'URIBIA',
-          contrato: '44847_04_PGP',
-          vigencia: '01/01/2025–01/12/2025',
-          ciudad: "Uribia",
-          fecha: new Date().toLocaleDateString('es-CO'),
-        },
-        months: monthExecutions,
-        notaTecnica: {
-          min90: valor3m * 0.9,
-          valor3m: valor3m,
-          max110: valor3m * 1.1,
-          anticipos: totalEjecutado * 0.8, // Ejemplo, podría ser otro cálculo
-          totalPagar: totalEjecutado * 0.2, // Ejemplo
-          totalFinal: totalEjecutado,
-        },
-        overExecutedCups: comparisonSummary.overExecutedCups,
-        unexpectedCups: comparisonSummary.unexpectedCups,
-      };
-      setReportData(newReportData);
-    } else {
-      setReportData(null);
+  const handleRequestAnalysis = useCallback(async () => {
+    if (!isAiEnabled || pgpData.length === 0) {
+      toast({ title: "No se puede analizar", description: "El análisis con IA no está habilitado o no hay datos de PGP cargados.", variant: "destructive" });
+      return;
     }
-  }, [isDataLoaded, executionDataByMonth, selectedPrestador, globalSummary, comparisonSummary]);
+    
+    setLoadingAnalysis(true);
+    setIsAnalysisModalOpen(true);
+    setAnalysis(null);
+
+    try {
+      const analysisInput = pgpData.slice(0, 50).map(row => ({
+        'SUBCATEGORIA': findColumnValue(row, ['subcategoria']),
+        'AMBITO': findColumnValue(row, ['ambito']),
+        'ID RESOLUCION 3100': findColumnValue(row, ['id resolucion 3100']),
+        'DESCRIPCION ID RESOLUCION': findColumnValue(row, ['descripcion id resolucion']),
+        'CUP/CUM': findColumnValue(row, ['cup/cum', 'cups']),
+        'DESCRIPCION CUPS': findColumnValue(row, ['descripcion cups', 'descripcion']),
+        'FRECUENCIA AÑO SERVICIO': getNumericValue(findColumnValue(row, ['frecuencia año servicio'])),
+        'FRECUENCIA USO': getNumericValue(findColumnValue(row, ['frecuencia uso'])),
+        'FRECUENCIA EVENTOS MES': getNumericValue(findColumnValue(row, ['frecuencia eventos mes'])),
+        'FRECUENCIA EVENTO DIA': getNumericValue(findColumnValue(row, ['frecuencia evento dia'])),
+        'COSTO EVENTO MES': getNumericValue(findColumnValue(row, ['costo evento mes'])),
+        'COSTO EVENTO DIA': getNumericValue(findColumnValue(row, ['costo evento dia'])),
+        'FRECUENCIA MINIMA MES': getNumericValue(findColumnValue(row, ['frecuencia minima mes'])),
+        'FRECUENCIA MAXIMA MES': getNumericValue(findColumnValue(row, ['frecuencia maxima mes'])),
+        'VALOR UNITARIO': getNumericValue(findColumnValue(row, ['valor unitario'])),
+        'VALOR MINIMO MES': getNumericValue(findColumnValue(row, ['valor minimo mes'])),
+        'VALOR MAXIMO MES': getNumericValue(findColumnValue(row, ['valor maximo mes'])),
+        'COSTO EVENTO MES (VALOR MES)': getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes'])),
+        'OBSERVACIONES': findColumnValue(row, ['observaciones'])
+      }));
+
+      const analysisResult = await analyzePgpData(analysisInput as PgpRowBE[]);
+      setAnalysis(analysisResult);
+    } catch (aiError: any) {
+      toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
+      setAnalysis(null);
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  }, [isAiEnabled, pgpData, toast]);
 
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
@@ -867,8 +829,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
               title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`}
               description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
             />
-
-            {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
             
             {showComparison && comparisonSummary && (
               <>
@@ -882,9 +842,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
 
-                {reportData && (
-                  <Report data={reportData} />
-                )}
               </>
             )}
           </div>
@@ -896,9 +853,18 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             onOpenChange={setIsLookupModalOpen}
             isLoading={isLookupLoading}
         />
+        
+        <AnalysisModal 
+          analysis={analysis} 
+          isLoading={loadingAnalysis} 
+          open={isAnalysisModalOpen}
+          onOpenChange={setIsAnalysisModalOpen}
+        />
       </CardContent>
     </Card>
   );
 };
 
 export default PgPsearchForm;
+
+    
