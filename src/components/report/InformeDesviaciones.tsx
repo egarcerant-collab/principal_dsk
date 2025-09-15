@@ -241,7 +241,7 @@ const CupDetailsModal = ({ cupData, open, onOpenChange }: { cupData: any | null,
     );
 };
 
-const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo: CupDescription | null, open: boolean, onOpenChange: (open: boolean) => void, isLoading: boolean }) => {
+export const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo: CupDescription | null, open: boolean, onOpenChange: (open: boolean) => void, isLoading: boolean }) => {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -297,6 +297,9 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         if (cupDetails) {
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
+        } else {
+            // If not found in PGP data, maybe it's an unexpected cup, so we can still look it up
+            handleLookupClick(cup);
         }
     };
     
@@ -378,5 +381,3 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         </div>
     );
 }
-
-    

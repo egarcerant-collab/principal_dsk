@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { ExecutionDataByMonth } from '@/app/page';
-import InformeDesviaciones from '../report/InformeDesviaciones';
+import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
@@ -21,6 +21,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import Report, { type ReportData } from '@/components/report/InformePGP';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -441,7 +442,7 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const MatrizEjecucionCard = ({ matrizData }: { matrizData: MatrizEjecucionRow[] }) => {
+const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void; }) => {
     const [classificationFilter, setClassificationFilter] = useState('all');
 
     const classifications = useMemo(() => {
@@ -522,7 +523,11 @@ const MatrizEjecucionCard = ({ matrizData }: { matrizData: MatrizEjecucionRow[] 
                                 {filteredData.map((row, index) => (
                                     <TableRow key={index} className={getRowClass(row.Clasificacion)}>
                                         <TableCell className="text-xs">{row.Mes}</TableCell>
-                                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                                        <TableCell>
+                                            <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(row.CUPS)}>
+                                                {row.CUPS}
+                                            </Button>
+                                        </TableCell>
                                         <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
                                         <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                                         <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
@@ -557,6 +562,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
+  const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
 
   const comparisonSummary = useMemo(() => {
     if (!isDataLoaded || executionDataByMonth.size === 0) {
@@ -571,6 +579,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
     return buildMatrizEjecucion({ executionDataByMonth, pgpData });
   }, [pgpData, executionDataByMonth, isDataLoaded]);
+
+    const handleLookupClick = async (cup: string) => {
+        setIsLookupLoading(true);
+        setIsLookupModalOpen(true);
+        try {
+            const result = await describeCup(cup);
+            setLookedUpCupInfo(result);
+        } catch (error) {
+            setLookedUpCupInfo({ cup, description: "Error al buscar la descripción." });
+            console.error("Error looking up CUP:", error);
+        } finally {
+            setIsLookupLoading(false);
+        }
+    };
 
   useEffect(() => {
     setIsClient(true);
@@ -861,7 +883,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
                     monthlyFinancials={comparisonSummary.monthlyFinancials}
                 />
-                <MatrizEjecucionCard matrizData={matrizEjecucionMensual} />
+                <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
 
                 {reportData && (
                   <Report data={reportData} />
@@ -870,11 +892,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             )}
           </div>
         )}
+
+         <LookedUpCupModal
+            cupInfo={lookedUpCupInfo}
+            open={isLookupModalOpen}
+            onOpenChange={setIsLookupModalOpen}
+            isLoading={isLookupLoading}
+        />
       </CardContent>
     </Card>
   );
 };
 
 export default PgPsearchForm;
-
-    
