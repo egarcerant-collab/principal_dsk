@@ -59,6 +59,30 @@ const cie10Data: Cie10Record[] = [
         "Extra_I:AplicaASexo": "Ambos", "Extra_II:EdadMinima": "0", "Extra_III:EdadMaxima": "125",
         "Extra_IV:GrupoMortalidad": "Circulatorias", "Extra_V": "", "Extra_VI:Capitulo": "IX", "Extra_VII:Grupo": "I10-I15",
         "Extra_VIII:SubGrupo": "I10", "Extra_IX:Categoria": "I10X", "Extra_X:S": ""
+    },
+    {
+        "Tabla": "CIE10", "Codigo": "F200", "Nombre": "Esquizofrenia paranoide",
+        "Descripcion": "Es el tipo más frecuente de esquizofrenia. Predominan las ideas delirantes relativamente estables, a menudo de tipo paranoide, que suelen acompañarse de alucinaciones, en especial auditivas, y de perturbaciones de la percepción.",
+        "Habilitado": "TRUE", "Aplicacion": "S", "IsStandardGEL": "FALSE", "IsStandardMSPS": "FALSE",
+        "Extra_I:AplicaASexo": "Ambos", "Extra_II:EdadMinima": "0", "Extra_III:EdadMaxima": "125",
+        "Extra_IV:GrupoMortalidad": "No aplica", "Extra_V": "", "Extra_VI:Capitulo": "V", "Extra_VII:Grupo": "F20-F29",
+        "Extra_VIII:SubGrupo": "F20", "Extra_IX:Categoria": "F200", "Extra_X:S": ""
+    },
+    {
+        "Tabla": "CIE10", "Codigo": "F312", "Nombre": "Trastorno afectivo bipolar, episodio actual maníaco con síntomas psicóticos",
+        "Descripcion": "Episodio maníaco con síntomas psicóticos, como ideas delirantes o alucinaciones, dentro del contexto de un trastorno afectivo bipolar.",
+        "Habilitado": "TRUE", "Aplicacion": "S", "IsStandardGEL": "FALSE", "IsStandardMSPS": "FALSE",
+        "Extra_I:AplicaASexo": "Ambos", "Extra_II:EdadMinima": "0", "Extra_III:EdadMaxima": "125",
+        "Extra_IV:GrupoMortalidad": "No aplica", "Extra_V": "", "Extra_VI:Capitulo": "V", "Extra_VII:Grupo": "F30-F39",
+        "Extra_VIII:SubGrupo": "F31", "Extra_IX:Categoria": "F312", "Extra_X:S": ""
+    },
+    {
+        "Tabla": "CIE10", "Codigo": "F329", "Nombre": "Episodio depresivo, no especificado",
+        "Descripcion": "Episodio depresivo que no cumple los criterios para ser clasificado como leve, moderado o grave, o del que no se dispone de suficiente información.",
+        "Habilitado": "TRUE", "Aplicacion": "S", "IsStandardGEL": "FALSE", "IsStandardMSPS": "FALSE",
+        "Extra_I:AplicaASexo": "Ambos", "Extra_II:EdadMinima": "0", "Extra_III:EdadMaxima": "125",
+        "Extra_IV:GrupoMortalidad": "No aplica", "Extra_V": "", "Extra_VI:Capitulo": "V", "Extra_VII:Grupo": "F30-F39",
+        "Extra_VIII:SubGrupo": "F32", "Extra_IX:Categoria": "F329", "Extra_X:S": ""
     }
 ];
 
