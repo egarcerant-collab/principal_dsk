@@ -40,21 +40,8 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     
-    let v = String(value).trim().replace(/\$/g, '').replace(/\s/g, '');
-
-    // Formato colombiano: 1.234,56 -> 1234.56
-    if (v.includes('.') && v.includes(',')) {
-        // Asumimos que la coma es el decimal si está al final
-        if (v.lastIndexOf(',') > v.lastIndexOf('.')) {
-            v = v.replace(/\./g, '').replace(',', '.');
-        } else {
-             // Asumimos formato inglés: 1,234.56 -> 1234.56
-            v = v.replace(/,/g, '');
-        }
-    } else if (v.includes(',')) {
-        // Si solo hay coma, es decimal
-        v = v.replace(',', '.');
-    }
+    // Elimina el símbolo de moneda, espacios, y comas de miles.
+    const v = String(value).trim().replace(/\$/g, '').replace(/,/g, '');
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;

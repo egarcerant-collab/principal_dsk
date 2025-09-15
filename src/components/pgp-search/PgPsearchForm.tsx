@@ -152,11 +152,8 @@ const normalizeDigits = (v: unknown): string => {
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     
-    // Elimina el símbolo de moneda y espacios
-    let v = String(value).trim().replace(/\$/g, '').replace(/\s/g, '');
-
-    // Elimina los puntos de miles y reemplaza la coma decimal por un punto
-    v = v.replace(/\./g, '').replace(',', '.');
+    // Elimina el símbolo de moneda, espacios, y comas de miles.
+    const v = String(value).trim().replace(/\$/g, '').replace(/,/g, '');
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
@@ -858,7 +855,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
         {isDataLoaded && !loading && (
           <div className="space-y-6">
-             {showComparison && population > 0 && (
+             {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard
                         title="Cobertura Poblacional"
@@ -924,4 +921,5 @@ export default PgPsearchForm;
     
 
     
+
 
