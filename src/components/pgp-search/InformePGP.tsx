@@ -403,3 +403,5 @@ export default function InformePGP({ comparisonSummary, pgpData, reportData }: {
 }
 
     
+
+    

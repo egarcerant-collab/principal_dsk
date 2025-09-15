@@ -84,3 +84,5 @@ const FinancialMatrix: React.FC<FinancialMatrixProps> = ({ monthlyFinancials }) 
 };
 
 export default FinancialMatrix;
+
+    
