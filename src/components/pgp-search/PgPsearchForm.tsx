@@ -716,11 +716,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         }
         return newRow as PgpRow;
       }).filter(item => {
-        const cupKey = Object.keys(item).find(k => {
-          const kk = k.toLowerCase().trim();
-          return kk === 'cup/cum' || kk === 'cups';
-        });
-        return !!(cupKey && item[cupKey!]);
+        // Flexible CUP column check
+        const cupValue = findColumnValue(item, ['cup/cum', 'cups']);
+        return !!cupValue;
       });
 
       setPgpData(pgpRows);
@@ -847,7 +845,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             {prestadores.map((p, index) => (
               <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)} className="flex flex-col items-start p-2">
                  <span className="font-medium">{p.PRESTADOR}</span>
-                <span className="text-xs text-muted-foreground">({p['ID DE ZONA']})</span>
+                 <span className="text-xs text-muted-foreground block">({p['ID DE ZONA']})</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -944,3 +942,4 @@ export default PgPsearchForm;
     
 
     
+
