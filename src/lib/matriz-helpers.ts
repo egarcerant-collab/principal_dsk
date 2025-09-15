@@ -1,7 +1,5 @@
+import type { ExecutionDataByMonth, CupCountsMap } from "@/app/page";
 
-import type { ExecutionDataByMonth } from "@/app/page";
-
-// Define los tipos de datos para mayor claridad
 interface PgpRow {
   [key: string]: any;
 }
@@ -9,12 +7,17 @@ interface PgpRow {
 export interface MatrizRow {
   Mes: string;
   CUPS: string;
+  Descripcion?: string;
+  Diagnostico_Principal?: string;
   Cantidad_Esperada: number;
   Cantidad_Ejecutada: number;
   Diferencia: number;
-  'percentage_ejecucion': number; // Internal for sorting
+  percentage_ejecucion: number; 
   '%_Ejecucion': string;
   Clasificacion: string;
+  Valor_Unitario: number;
+  Valor_Esperado: number;
+  Valor_Ejecutado: number;
 }
 
 interface BuildMatrizArgs {
@@ -22,45 +25,29 @@ interface BuildMatrizArgs {
   pgpData: PgpRow[];
 }
 
-// Helper para encontrar valores en una fila con nombres de columna flexibles
 const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
-    if (key) return row[key];
+    if (key && row[key] !== undefined) return row[key];
   }
   return undefined;
 };
 
-// Helper para parsear números de forma segura
 const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    let v = String(value).trim();
-    if (!v) return 0;
-
-    // Eliminar símbolo de moneda y espacios
-    v = v.replace(/\s+/g, '').replace(/\$/g, '');
-    
-    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
-    v = v.replace(/\./g, '').replace(',', '.');
-    
+    const v = String(value).trim().replace(/\$/g, '').replace(/,/g, '');
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
 };
 
-
-/**
- * Construye una matriz comparando la ejecución mensual con los datos esperados de la nota técnica.
- * @param {BuildMatrizArgs} args - Los datos necesarios para construir la matriz.
- * @returns {MatrizRow[]} Un array de objetos que representa la matriz de ejecución.
- */
 export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMatrizArgs): MatrizRow[] {
   const matriz: MatrizRow[] = [];
   
   const pgpCupsMap = new Map<string, PgpRow>();
   pgpData.forEach(row => {
       const cup = findColumnValue(row, ['cup/cum', 'cups']);
-      if(cup) pgpCupsMap.set(cup, row);
+      if(cup) pgpCupsMap.set(String(cup), row);
   });
 
   const getMonthName = (monthNumber: string) => {
@@ -76,41 +63,46 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
 
     allCupsForMonth.forEach(cup => {
       const pgpRow = pgpCupsMap.get(cup);
-      
-      // SUPUESTO: La frecuencia esperada se toma de 'frecuencia eventos mes'.
-      // Si este campo no existe, se asume 0. No se distribuye un total trimestral.
+      const monthCupData = monthData.cupCounts.get(cup);
+
       const cantidadEsperada = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
-      const cantidadEjecutada = monthData.cupCounts.get(cup) || 0;
-      
+      const cantidadEjecutada = monthCupData?.total || 0;
+      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+
       const diferencia = cantidadEjecutada - cantidadEsperada;
       const percentage = cantidadEsperada > 0 ? (cantidadEjecutada / cantidadEsperada) * 100 : (cantidadEjecutada > 0 ? Infinity : 0);
 
       let clasificacion = "Ejecución Normal";
-      if (!pgpRow && cantidadEjecutada > 0) {
-          clasificacion = "Inesperado";
-      } else if (cantidadEjecutada === 0 && cantidadEsperada > 0) {
-          clasificacion = "Faltante";
-      } else if (percentage > 111) {
-          clasificacion = "Sobre-ejecutado";
-      } else if (percentage < 90 && cantidadEsperada > 0) {
-          clasificacion = "Sub-ejecutado";
+      if (!pgpRow && cantidadEjecutada > 0) clasificacion = "Inesperado";
+      else if (cantidadEjecutada === 0 && cantidadEsperada > 0) clasificacion = "Faltante";
+      else if (percentage > 111) clasificacion = "Sobre-ejecutado";
+      else if (percentage < 90 && cantidadEsperada > 0) clasificacion = "Sub-ejecutado";
+
+      let diagnosticoPrincipal: string | undefined = undefined;
+      if (monthCupData && monthCupData.diagnoses.size > 0) {
+        diagnosticoPrincipal = [...monthCupData.diagnoses.entries()].reduce((a, b) => a[1] > b[1] ? a : b)[0];
       }
 
       matriz.push({
         Mes: monthName,
         CUPS: cup,
+        Descripcion: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
+        Diagnostico_Principal: diagnosticoPrincipal,
         Cantidad_Esperada: cantidadEsperada,
         Cantidad_Ejecutada: cantidadEjecutada,
         Diferencia: diferencia,
-        'percentage_ejecucion': percentage,
+        percentage_ejecucion: percentage,
         '%_Ejecucion': cantidadEsperada > 0 ? `${percentage.toFixed(0)}%` : 'N/A',
         Clasificacion: clasificacion,
+        Valor_Unitario: unitValue,
+        Valor_Esperado: cantidadEsperada * unitValue,
+        Valor_Ejecutado: cantidadEjecutada * unitValue,
       });
     });
   });
 
-  // Ordenar la matriz para mostrar lo más crítico (sobre-ejecutado) primero
   matriz.sort((a, b) => b.percentage_ejecucion - a.percentage_ejecucion);
 
   return matriz;
 }
+    

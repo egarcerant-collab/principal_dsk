@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -247,7 +245,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
         } else {
-            // If not found in PGP data, maybe it's an unexpected cup, so we can still look it up
             handleLookupClick(cup);
         }
     };
@@ -447,3 +444,4 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         </div>
     );
 }
+    

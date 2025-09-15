@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -13,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
-import { ExecutionDataByMonth } from '@/app/page';
+import { type ExecutionDataByMonth, type CupCountsMap } from '@/app/page';
 import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
@@ -25,30 +23,7 @@ import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import InformePGP from '../report/InformePGP';
 import StatCard from '../shared/StatCard';
-
-
-interface PgpRowBE { // Para el backend de IA
-  SUBCATEGORIA?: string;
-  AMBITO?: string;
-  'ID RESOLUCION 3100'?: string;
-  'DESCRIPCION ID RESOLUCION'?: string;
-  'CUP/CUM'?: string;
-  'DESCRIPCION CUPS'?: string;
-  'FRECUENCIA AÑO SERVICIO'?: number;
-  'FRECUENCIA USO'?: number;
-  'FRECUENCIA EVENTOS MES'?: number;
-  'FRECUENCIA EVENTO DIA'?: number;
-  'COSTO EVENTO MES'?: number;
-  'COSTO EVENTO DIA'?: number;
-  'FRECUENCIA MINIMA MES'?: number;
-  'FRECUENCIA MAXIMA MES'?: number;
-  'VALOR UNITARIO'?: number;
-  'VALOR MINIMO MES'?: number;
-  'VALOR MAXIMO MES'?: number;
-  'COSTO EVENTO MES (VALOR MES)'?: number;
-  OBSERVACIONES?: string;
-  [key: string]: any;
-}
+import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow';
 
 interface AnalyzePgpDataOutput {
   keyObservations: string[];
@@ -82,6 +57,8 @@ export interface DeviatedCupInfo {
 export interface MatrixRow {
     Mes: string;
     CUPS: string;
+    Descripcion?: string;
+    Diagnostico_Principal?: string;
     Cantidad_Esperada: number;
     Cantidad_Ejecutada: number;
     Diferencia: number;
@@ -137,24 +114,14 @@ interface PgPsearchFormProps {
   uniqueUserCount: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?usp=sharing";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?gid=0#gid=0";
 
-/** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
-const normalizeDigits = (v: unknown): string => {
-  return String(v ?? "")
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/\D/g, ""); // deja solo dígitos
-};
+const normalizeDigits = (v: unknown): string => String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
 
-/** Parser numérico robusto para formatos es-CO y en-US */
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    
-    // Elimina el símbolo de moneda, espacios, y comas de miles.
     const v = String(value).trim().replace(/\$/g, '').replace(/,/g, '');
-    
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
 };
@@ -168,17 +135,12 @@ export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   return undefined;
 };
 
-/** =====================  RESUMEN GLOBAL  ===================== **/
 const calculateSummary = (data: PgpRow[]): SummaryData | null => {
   if (data.length === 0) return null;
-
   const totalCostoMes = data.reduce((acc, row) => {
-    const costo = getNumericValue(
-      findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes'])
-    );
+    const costo = getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']));
     return acc + costo;
   }, 0);
-
   return {
     totalCostoMes,
     totalAnual: totalCostoMes * 12,
@@ -187,10 +149,8 @@ const calculateSummary = (data: PgpRow[]): SummaryData | null => {
   };
 };
 
-/** =====================  UI CARDS  ===================== **/
 const SummaryCard = ({ summary, title, description }: { summary: SummaryData | null, title: string, description: string }) => {
   if (!summary) return null;
-
   return (
     <Card className="mb-6 shadow-lg border-primary/20">
       <CardHeader>
@@ -287,8 +247,6 @@ const AnalysisModal = ({ analysis, isLoading, open, onOpenChange }: { analysis: 
   )
 };
 
-
-/** =====================  MONEDA  ===================== **/
 export const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return '$0';
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
@@ -324,71 +282,30 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
 
   const allRelevantCups = new Set([...pgpCupsMap.keys(), ...executedCupsSet]);
   
-  // Populate Execution Matrix first, month by month
-  executionDataByMonth.forEach((monthData, monthKey) => {
-    const monthName = getMonthName(monthKey);
-    const relevantCupsForMonth = new Set([...pgpCupsMap.keys(), ...monthData.cupCounts.keys()]);
-    
-    let monthTotalExpected = 0;
-    let monthTotalExecuted = 0;
+  const matrizData = buildMatrizEjecucion({ executionDataByMonth, pgpData });
 
-    relevantCupsForMonth.forEach(cup => {
-        const pgpRow = pgpCupsMap.get(cup);
-        const expectedFrequency = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
-        const realFrequency = monthData.cupCounts.get(cup) || 0;
-        const difference = realFrequency - expectedFrequency;
-        const percentage = expectedFrequency > 0 ? (realFrequency / expectedFrequency) * 100 : (realFrequency > 0 ? Infinity : 0);
-        const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
-        const valorEsperado = expectedFrequency * unitValue;
-        const valorEjecutado = realFrequency * unitValue;
-
-        monthTotalExpected += valorEsperado;
-        monthTotalExecuted += valorEjecutado;
-
-        let classification = "Ejecución Normal";
-        if (!pgpRow && realFrequency > 0) {
-            classification = "Inesperado";
-        } else if (realFrequency === 0 && expectedFrequency > 0) {
-            classification = "Faltante";
-        } else if (percentage > 111) {
-            classification = "Sobre-ejecutado";
-        } else if (percentage < 90 && expectedFrequency > 0) {
-            classification = "Sub-ejecutado";
-        }
-
-        executionMatrix.push({
-            Mes: monthName,
-            CUPS: cup,
-            Cantidad_Esperada: expectedFrequency,
-            Cantidad_Ejecutada: realFrequency,
-            Diferencia: difference,
-            '%_Ejecucion': expectedFrequency > 0 ? `${percentage.toFixed(0)}%` : 'N/A',
-            Clasificacion: classification,
-            Valor_Unitario: unitValue,
-            Valor_Esperado: valorEsperado,
-            Valor_Ejecutado: valorEjecutado,
-            percentage_numeric: percentage,
-        });
-    });
-    const executionPercentage = monthTotalExpected > 0 ? (monthTotalExecuted / monthTotalExpected) * 100 : 0;
-    monthlyFinancialsMap.set(monthName, { 
-        totalValorEsperado: monthTotalExpected, 
-        totalValorEjecutado: monthTotalExecuted,
-        percentage: executionPercentage,
-    });
+  matrizData.forEach(row => {
+      const monthName = row.Mes;
+      let monthFinance = monthlyFinancialsMap.get(monthName);
+      if (!monthFinance) {
+          monthFinance = { totalValorEsperado: 0, totalValorEjecutado: 0, percentage: 0 };
+          monthlyFinancialsMap.set(monthName, monthFinance);
+      }
+      monthFinance.totalValorEsperado += row.Valor_Esperado;
+      monthFinance.totalValorEjecutado += row.Valor_Ejecutado;
   });
-  
-  // Sort the matrix by over-execution percentage, descending
-  executionMatrix.sort((a, b) => b.percentage_numeric - a.percentage_numeric);
+
+  monthlyFinancialsMap.forEach((finance, month) => {
+    finance.percentage = finance.totalValorEsperado > 0 ? (finance.totalValorEjecutado / finance.totalValorEsperado) * 100 : 0;
+  });
 
   const monthlyFinancials = Array.from(monthlyFinancialsMap, ([month, data]) => ({ month, ...data }));
 
-  // Calculate summaries (over, under, etc.) based on totals
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
     let totalRealFrequency = 0;
     executionDataByMonth.forEach(monthData => {
-      totalRealFrequency += monthData.cupCounts.get(cup) || 0;
+      totalRealFrequency += monthData.cupCounts.get(cup)?.total || 0;
     });
 
     if (pgpRow) {
@@ -396,7 +313,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       const totalExpectedFrequency = expectedFrequencyPerMonth * executionDataByMonth.size;
       const unitValue = getNumericValue(findColumnValue(pgpRow, ['valor unitario']));
 
-      if (totalRealFrequency > 0 || totalExpectedFrequency > 0) { // Process if there's any activity
+      if (totalRealFrequency > 0 || totalExpectedFrequency > 0) {
         const deviation = totalRealFrequency - totalExpectedFrequency;
         const percentage = totalExpectedFrequency > 0 ? (totalRealFrequency / totalExpectedFrequency) : Infinity;
         
@@ -412,7 +329,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         
         if (percentage > 1.11) {
             overExecutedCups.push(cupInfo);
-        } else if (percentage < 0.90) { // Changed to use percentage for sub-execution
+        } else if (percentage < 0.90 && totalExpectedFrequency > 0) {
             underExecutedCups.push(cupInfo);
         }
         
@@ -437,7 +354,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     underExecutedCups,
     missingCups,
     unexpectedCups,
-    Matriz_Ejecucion_vs_Esperado: executionMatrix,
+    Matriz_Ejecucion_vs_Esperado: matrizData,
     monthlyFinancials,
   };
 };
@@ -456,7 +373,7 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void; }) => {
+const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void, onCie10Click: (cie10: string) => void }) => {
     const [classificationFilter, setClassificationFilter] = useState('all');
 
     const classifications = useMemo(() => {
@@ -526,6 +443,8 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEje
                                 <TableRow>
                                     <TableHead>Mes</TableHead>
                                     <TableHead>CUPS</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead>Diagnóstico Principal (CIE-10)</TableHead>
                                     <TableHead className="text-center">Cant. Esperada</TableHead>
                                     <TableHead className="text-center">Cant. Ejecutada</TableHead>
                                     <TableHead className="text-center">Diferencia</TableHead>
@@ -541,6 +460,14 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEje
                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(row.CUPS)}>
                                                 {row.CUPS}
                                             </Button>
+                                        </TableCell>
+                                        <TableCell className="text-xs">{row.Descripcion}</TableCell>
+                                        <TableCell>
+                                            {row.Diagnostico_Principal && (
+                                                <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCie10Click(row.Diagnostico_Principal!)}>
+                                                   <Search className="h-3 w-3 mr-1" /> {row.Diagnostico_Principal}
+                                                </Button>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
                                         <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
@@ -559,7 +486,6 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEje
 };
 
 
-/** =====================  COMPONENTE PRINCIPAL  ===================== **/
 const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode, uniqueUserCount }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
@@ -579,130 +505,96 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [cie10Info, setCie10Info] = useState<Cie10Description | null>(null);
+  const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
+  const [isCie10Loading, setIsCie10Loading] = useState(false);
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
 
   const comparisonSummary = useMemo(() => {
-    if (!showComparison) {
-      return null;
-    }
+    if (!showComparison) return null;
     return calculateComparison(pgpData, executionDataByMonth);
   }, [pgpData, executionDataByMonth, showComparison]);
 
-  const matrizEjecucionMensual = useMemo(() => {
-    if (!showComparison) {
-        return [];
-    }
-    return buildMatrizEjecucion({ executionDataByMonth, pgpData });
-  }, [pgpData, executionDataByMonth, showComparison]);
-
   const reportData = useMemo((): ReportData | null => {
-        if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) {
-            return null;
-        }
-
-        const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
-            let totalMonthValue = 0;
-            const monthMatrix = comparisonSummary.Matriz_Ejecucion_vs_Esperado.filter(row => getMonthName(month) === row.Mes);
-            monthMatrix.forEach(row => {
-                totalMonthValue += row.Valor_Ejecutado;
-            });
-
-
-            return {
-                month: getMonthName(month),
-                cups: data.summary.numConsultas + data.summary.numProcedimientos, // Simplified
-                valueCOP: totalMonthValue,
-            };
-        });
-
-        const totalExecution = monthsData.reduce((acc, m) => acc + m.valueCOP, 0);
-
-        return {
-            header: {
-                empresa: "Dusakawi EPSI",
-                nit: "8240001398",
-                ipsNombre: selectedPrestador.PRESTADOR,
-                ipsNit: selectedPrestador.NIT,
-                municipio: "Uribia", //TODO: Make this dynamic if possible
-                contrato: "CW-052-2024-P", //TODO: Make this dynamic if possible
-                vigencia: "2024",
-                ciudad: "Uribia",
-                fecha: new Date().toLocaleDateString('es-CO'),
-            },
-            months: monthsData,
-            notaTecnica: {
-                min90: globalSummary.totalCostoMes * 0.9,
-                valor3m: globalSummary.totalCostoMes,
-                max110: globalSummary.totalCostoMes * 1.1,
-                anticipos: totalExecution * 0.8,
-                totalPagar: totalExecution * 0.2,
-                totalFinal: totalExecution,
-            },
-            overExecutedCups: comparisonSummary.overExecutedCups,
-            underExecutedCups: comparisonSummary.underExecutedCups,
-            missingCups: comparisonSummary.missingCups,
-            unexpectedCups: comparisonSummary.unexpectedCups,
-        };
-    }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
-
-    const handleLookupClick = async (cup: string) => {
-        setIsLookupLoading(true);
-        setIsLookupModalOpen(true);
-        try {
-            const result = await describeCup(cup);
-            setLookedUpCupInfo(result);
-        } catch (error) {
-            setLookedUpCupInfo({ cup, description: "Error al buscar la descripción." });
-            console.error("Error looking up CUP:", error);
-        } finally {
-            setIsLookupLoading(false);
-        }
+    if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
+    const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => ({
+      month: getMonthName(month),
+      cups: data.summary.numConsultas + data.summary.numProcedimientos,
+      valueCOP: comparisonSummary.monthlyFinancials.find(m => m.month === getMonthName(month))?.totalValorEjecutado ?? 0,
+    }));
+    const totalExecution = monthsData.reduce((acc, m) => acc + m.valueCOP, 0);
+    return {
+      header: {
+        empresa: "Dusakawi EPSI", nit: "8240001398",
+        ipsNombre: selectedPrestador.PRESTADOR, ipsNit: selectedPrestador.NIT,
+        municipio: "Uribia", contrato: "CW-052-2024-P", vigencia: "2024",
+        ciudad: "Uribia", fecha: new Date().toLocaleDateString('es-CO'),
+      },
+      months: monthsData,
+      notaTecnica: {
+        min90: globalSummary.totalCostoMes * 0.9, valor3m: globalSummary.totalCostoMes, max110: globalSummary.totalCostoMes * 1.1,
+        anticipos: totalExecution * 0.8, totalPagar: totalExecution * 0.2, totalFinal: totalExecution,
+      },
+      overExecutedCups: comparisonSummary.overExecutedCups,
+      underExecutedCups: comparisonSummary.underExecutedCups,
+      missingCups: comparisonSummary.missingCups,
+      unexpectedCups: comparisonSummary.unexpectedCups,
     };
+  }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
+
+  const handleLookupClick = async (cup: string) => {
+    setIsLookupLoading(true);
+    setIsLookupModalOpen(true);
+    try {
+      const result = await describeCup(cup);
+      setLookedUpCupInfo(result);
+    } catch (error) {
+      setLookedUpCupInfo({ cup, description: "Error al buscar la descripción." });
+    } finally {
+      setIsLookupLoading(false);
+    }
+  };
+
+  const handleCie10Lookup = async (code: string) => {
+    if (!code) return;
+    setIsCie10Loading(true);
+    setIsCie10ModalOpen(true);
+    try {
+        const result = await describeCie10(code);
+        setCie10Info(result);
+    } catch (error) {
+        setCie10Info({ code, description: "Error al buscar la descripción." });
+    } finally {
+        setIsCie10Loading(false);
+    }
+  }
 
   useEffect(() => {
     setIsClient(true);
-    fetch('/api/check-env').then(res => res.json()).then(data => {
-      setIsAiEnabled(data.isAiEnabled);
-    });
+    fetch('/api/check-env').then(res => res.json()).then(data => setIsAiEnabled(data.isAiEnabled));
   }, []);
 
   const performLoadPrestador = useCallback(async (prestador: Prestador) => {
-    setLoading(true);
-    setIsDataLoaded(false);
-    setGlobalSummary(null);
-    setAnalysis(null);
-    setMismatchWarning(null);
-    toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...`, description: "Espere un momento, por favor." });
+    setLoading(true); setIsDataLoaded(false); setGlobalSummary(null); setAnalysis(null); setMismatchWarning(null);
+    toast({ title: `Cargando Nota Técnica: ${prestador.PRESTADOR}...` });
 
     try {
-      if (!prestador.WEB || String(prestador.WEB).trim() === '') {
-        throw new Error("La URL de la nota técnica no está definida para este prestador.");
-      }
-
+      if (!prestador.WEB || String(prestador.WEB).trim() === '') throw new Error("URL de nota técnica no definida.");
       const data = await fetchSheetData<PgpRow>(prestador.WEB);
-
-      const pgpRows: PgpRow[] = data.map(row => {
+      const pgpRows = data.map(row => {
         const newRow: Partial<PgpRow> = {};
         for (const key in row) {
-            const trimmedKey = key.trim();
-            if (Object.prototype.hasOwnProperty.call(row, key) && trimmedKey) {
-                newRow[trimmedKey] = row[key];
-            }
+          const trimmedKey = key.trim();
+          if (Object.prototype.hasOwnProperty.call(row, key) && trimmedKey) newRow[trimmedKey] = row[key];
         }
         return newRow as PgpRow;
-      }).filter(item => {
-        const cupValue = findColumnValue(item, ['cup/cum', 'cups']);
-        return !!cupValue;
-      });
+      }).filter(item => !!findColumnValue(item, ['cup/cum', 'cups']));
 
-      if (pgpRows.length === 0) {
-        toast({ title: "Atención: No se cargaron registros", description: "La nota técnica parece estar vacía o en un formato no reconocido. Revise la hoja de cálculo.", variant: "destructive"});
-      }
-
+      if (pgpRows.length === 0) toast({ title: "Atención: No se cargaron registros", description: "La nota técnica parece vacía o en un formato no reconocido.", variant: "destructive"});
+      
       setPgpData(pgpRows);
-      const summary = calculateSummary(pgpRows)
-      setGlobalSummary(summary);
+      setGlobalSummary(calculateSummary(pgpRows));
       setIsDataLoaded(true);
       setSelectedPrestador(prestador);
       toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
@@ -719,54 +611,35 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     setMismatchWarning(null);
     setIsDataLoaded(false);
     setPrestadorToLoad(prestador);
-
     const pgpZoneId = prestador['ID DE ZONA'] ? normalizeDigits(prestador['ID DE ZONA']) : null;
     const jsonId = jsonPrestadorCode ? normalizeDigits(jsonPrestadorCode) : null;
-
     if (jsonId && pgpZoneId && jsonId !== pgpZoneId) {
-      const warningMsg = `¡Advertencia! El código del JSON (${jsonId}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`;
-      setMismatchWarning(warningMsg);
+      setMismatchWarning(`¡Advertencia! El código del JSON (${jsonId}) no coincide con el ID de la nota técnica (${pgpZoneId}). Los datos podrían no ser comparables.`);
     } else {
       performLoadPrestador(prestador);
     }
   }, [jsonPrestadorCode, performLoadPrestador]);
 
   const handleForceLoad = () => {
-    if (prestadorToLoad) {
-      performLoadPrestador(prestadorToLoad);
-    }
+    if (prestadorToLoad) performLoadPrestador(prestadorToLoad);
   };
 
   useEffect(() => {
     if (!isClient) return;
-
     const fetchPrestadores = async () => {
       setLoadingPrestadores(true);
       toast({ title: "Cargando lista de prestadores..." });
       try {
         const data = await fetchSheetData<Prestador>(PRESTADORES_SHEET_URL);
-        const typedData = data
-            .map(p => {
-                const cleaned: Prestador = {
-                    'NIT': normalizeString(p.NIT),
-                    'PRESTADOR': normalizeString(p.PRESTADOR),
-                    'ID DE ZONA': normalizeString(p['ID DE ZONA']),
-                    'WEB': normalizeString(p.WEB),
-                    'POBLACION': getNumericValue(p.POBLACION)
-                };
-                return cleaned;
-            })
-            .filter(p => p.PRESTADOR && p['ID DE ZONA']);
-
+        const typedData = data.map(p => ({
+          'NIT': normalizeString(p.NIT), 'PRESTADOR': normalizeString(p.PRESTADOR),
+          'ID DE ZONA': normalizeString(p['ID DE ZONA']), 'WEB': normalizeString(p.WEB),
+          'POBLACION': getNumericValue(p.POBLACION)
+        })).filter(p => p.PRESTADOR && p['ID DE ZONA']);
         setPrestadores(typedData);
-        if (typedData.length > 0) {
-          toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
-        } else {
-          toast({ title: "Atención: No se encontraron prestadores.", description: "Verifique la hoja de cálculo o la conexión.", variant: "destructive" });
-        }
+        toast({ title: "Lista de prestadores cargada.", description: `Se encontraron ${typedData.length} prestadores.` });
       } catch (error: any) {
         toast({ title: "Error al Cargar la Lista de Prestadores", description: error.message, variant: "destructive" });
-        console.error("Error fetching providers:", error);
       } finally {
         setLoadingPrestadores(false);
       }
@@ -776,33 +649,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   useEffect(() => {
     if (!jsonPrestadorCode || prestadores.length === 0 || loading || selectedPrestador) return;
-
     const normalizedJsonCode = normalizeDigits(jsonPrestadorCode);
     const matchById = prestadores.find(p => normalizeDigits(p['ID DE ZONA']) === normalizedJsonCode);
-    
     if (matchById) {
-      toast({
-        title: "Prestador Sugerido Encontrado",
-        description: `Cargando automáticamente la nota técnica para ${matchById.PRESTADOR}.`
-      });
+      toast({ title: "Prestador Sugerido Encontrado", description: `Cargando automáticamente la nota técnica para ${matchById.PRESTADOR}.` });
       handleSelectPrestador(matchById);
     }
   }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleSelectPrestador, toast]);
 
-
   if (!isClient) {
-    return (
-      <div className="flex items-center justify-center py-6">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        <p>Cargando analizador...</p>
-      </div>
-    );
+    return <div className="flex items-center justify-center py-6"><Loader2 className="mr-2 h-6 w-6 animate-spin" /> <p>Cargando analizador...</p></div>;
   }
-
   
   const population = selectedPrestador?.POBLACION ?? 0;
   const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
-
 
   return (
     <Card>
@@ -832,94 +692,60 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         {mismatchWarning && (
           <Alert variant="destructive">
             <div className="flex flex-col sm:flex-row items-center justify-between">
-              <div className="flex items-center">
-                <AlertTriangle className="h-4 w-4 mr-2" />
+              <div className="flex items-center"><AlertTriangle className="h-4 w-4 mr-2" />
                 <div>
                   <AlertTitle>Advertencia de Coincidencia</AlertTitle>
                   <AlertDescription>{mismatchWarning}</AlertDescription>
                 </div>
               </div>
-              <Button onClick={handleForceLoad} variant="secondary" className="mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">
-                Cargar de todos modos
-              </Button>
+              <Button onClick={handleForceLoad} variant="secondary" className="mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">Cargar de todos modos</Button>
             </div>
           </Alert>
         )}
 
-        {loading && (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-            <p>Cargando datos de la nota técnica...</p>
-          </div>
-        )}
+        {loading && <div className="flex items-center justify-center py-6"><Loader2 className="mr-2 h-6 w-6 animate-spin" /><p>Cargando datos de la nota técnica...</p></div>}
 
         {isDataLoaded && !loading && (
           <div className="space-y-6">
              {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <StatCard
-                        title="Cobertura Poblacional"
-                        value={`${coveragePercentage.toFixed(1)}%`}
-                        icon={Users}
-                        footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`}
-                    />
+                    <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
                 </div>
             )}
-            <SummaryCard
-              summary={globalSummary}
-              title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`}
-              description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica."
-            />
+            <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
             
             {showComparison && comparisonSummary && (
               <>
-                <FinancialMatrix 
-                    monthlyFinancials={comparisonSummary.monthlyFinancials}
-                />
-                <InformeDesviaciones 
-                    comparisonSummary={comparisonSummary}
-                    pgpData={pgpData}
-                />
-                <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
+                <FinancialMatrix monthlyFinancials={comparisonSummary.monthlyFinancials} />
+                <InformeDesviaciones comparisonSummary={comparisonSummary} pgpData={pgpData} />
+                <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} />
                 <InformePGP data={reportData} />
               </>
             )}
           </div>
         )}
 
-         <LookedUpCupModal
-            cupInfo={lookedUpCupInfo}
-            open={isLookupModalOpen}
-            onOpenChange={setIsLookupModalOpen}
-            isLoading={isLookupLoading}
-        />
-        
-        <AnalysisModal 
-          analysis={analysis} 
-          isLoading={loadingAnalysis} 
-          open={isAnalysisModalOpen}
-          onOpenChange={setIsAnalysisModalOpen}
-        />
+        <LookedUpCupModal cupInfo={lookedUpCupInfo} open={isLookupModalOpen} onOpenChange={setIsLookupModalOpen} isLoading={isLookupLoading} />
+        <AlertDialog open={isCie10ModalOpen} onOpenChange={setIsCie10ModalOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>{isCie10Loading ? "Buscando diagnóstico..." : `Resultado para: ${cie10Info?.code}`}</AlertDialogTitle>
+                </AlertDialogHeader>
+                {isCie10Loading ? (
+                    <div className="flex justify-center items-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : (
+                    <AlertDialogDescription>{cie10Info?.description || "No se encontró una descripción."}</AlertDialogDescription>
+                )}
+                <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => setIsCie10ModalOpen(false)}>Cerrar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        <AnalysisModal analysis={analysis} isLoading={loadingAnalysis} open={isAnalysisModalOpen} onOpenChange={setIsAnalysisModalOpen} />
       </CardContent>
     </Card>
   );
 };
 
 export default PgPsearchForm;
-
     
-
-    
-
-    
-
-
-
-
-    
-
-    
-
-    
-
-

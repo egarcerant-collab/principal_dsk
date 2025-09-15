@@ -5,7 +5,12 @@ import { useState } from "react";
 import JsonAnalyzerPage, { type MonthlyExecutionData } from "@/components/app/JsonAnalyzerPage";
 import PgpSearchPage from "@/components/app/PgpSearchPage";
 
-export type CupCountsMap = Map<string, number>;
+export type CupCountInfo = {
+  total: number;
+  diagnoses: Map<string, number>; // Map<diagnosisCode, count>
+};
+
+export type CupCountsMap = Map<string, CupCountInfo>;
 export type ExecutionDataByMonth = Map<string, MonthlyExecutionData>;
 
 
@@ -52,3 +57,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
