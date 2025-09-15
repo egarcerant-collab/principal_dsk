@@ -16,8 +16,22 @@ import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const handleDownloadXls = (data: any[], filename: string) => {
-    const csv = Papa.unparse(data);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Deep copy to avoid modifying the original data
+    const dataToExport = JSON.parse(JSON.stringify(data));
+
+    // Iterate over the data and format numbers for Latin American Excel
+    const formattedData = dataToExport.map((row: any) => {
+        for (const key in row) {
+            if (typeof row[key] === 'number') {
+                // Convert number to string with comma as decimal separator
+                row[key] = row[key].toString().replace('.', ',');
+            }
+        }
+        return row;
+    });
+
+    const csv = Papa.unparse(formattedData);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -66,7 +80,8 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
                                 e.stopPropagation();
                                 const downloadData = data.map(item => ({
                                     ...item,
-                                    deviation: item.deviation.toFixed(0) // Ensure deviation is formatted
+                                    deviation: item.deviation,
+                                    deviationValue: item.deviationValue
                                 }));
                                 onDownload(downloadData, `${title.toLowerCase().replace(/ /g, '_')}.xls`);
                             }}

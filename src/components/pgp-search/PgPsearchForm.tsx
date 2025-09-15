@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -364,8 +363,22 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
 };
 
 const handleDownloadXls = (data: any[], filename: string) => {
-    const csv = Papa.unparse(data);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Deep copy to avoid modifying the original data
+    const dataToExport = JSON.parse(JSON.stringify(data));
+
+    // Iterate over the data and format numbers for Latin American Excel
+    const formattedData = dataToExport.map((row: any) => {
+        for (const key in row) {
+            if (typeof row[key] === 'number') {
+                // Convert number to string with comma as decimal separator
+                row[key] = row[key].toString().replace('.', ',');
+            }
+        }
+        return row;
+    });
+
+    const csv = Papa.unparse(formattedData);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
