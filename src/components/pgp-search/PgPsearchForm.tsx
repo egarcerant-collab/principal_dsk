@@ -168,7 +168,7 @@ export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
-    if (key) return row[key];
+    if (key && row[key] !== undefined) return row[key];
   }
   return undefined;
 };
@@ -923,3 +923,6 @@ export default PgPsearchForm;
     
 
 
+
+
+    
