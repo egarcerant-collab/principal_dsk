@@ -24,6 +24,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import InformePGP from '../report/InformePGP';
 import StatCard from '../shared/StatCard';
 import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 interface AnalyzePgpDataOutput {
   keyObservations: string[];
@@ -748,4 +750,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-    
