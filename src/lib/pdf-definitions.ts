@@ -62,8 +62,8 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
 
         // Estilos de texto
         styles: {
-            h1: { fontSize: 16, bold: true, margin: [0, 0, 0, 10], color: '#1E3A8A' },
-            h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5], color: '#1E3A8A' },
+            h1: { fontSize: 16, bold: true, margin: [0, 0, 0, 10], color: 'black' },
+            h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5], color: 'black' },
             p: { fontSize: 10, margin: [0, 0, 0, 8], alignment: 'justify', lineHeight: 1.25 },
             ref: { fontSize: 9, italic: true, margin: [0, 0, 0, 20], color: '#6B7280' },
             kpiLabel: { fontSize: 10, color: '#374151' },
