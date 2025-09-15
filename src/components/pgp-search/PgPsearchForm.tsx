@@ -137,7 +137,7 @@ interface PgPsearchFormProps {
   uniqueUserCount: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?gid=0#gid=0";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?usp=sharing";
 
 /** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
@@ -600,12 +600,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   }, [pgpData, executionDataByMonth, showComparison]);
 
   const reportData = useMemo((): ReportData | null => {
-        if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary || !comparisonSummary) {
+        if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) {
             return null;
         }
 
         const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
-            const totalValue = data.summary.numFactura; // This seems incorrect. Let's fix it.
             let totalMonthValue = 0;
             const monthMatrix = comparisonSummary.Matriz_Ejecucion_vs_Esperado.filter(row => getMonthName(month) === row.Mes);
             monthMatrix.forEach(row => {
@@ -648,7 +647,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             missingCups: comparisonSummary.missingCups,
             unexpectedCups: comparisonSummary.unexpectedCups,
         };
-    }, [isDataLoaded, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
+    }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
 
     const handleLookupClick = async (cup: string) => {
         setIsLookupLoading(true);
@@ -885,15 +884,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     pgpData={pgpData}
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Generación de Informe</CardTitle>
-                        <CardDescription>Crea un informe ejecutivo en formato PDF con los resultados del análisis.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <InformePGP data={reportData} />
-                    </CardContent>
-                </Card>
+                <InformePGP data={reportData} />
               </>
             )}
           </div>

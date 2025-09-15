@@ -268,10 +268,29 @@ const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo:
   );
 };
 
+// This is a placeholder for the actual InformePGP component from the other file
+const InformePGPPdfGenerator = ({ data }: { data: any }) => {
+    // The actual PDF generation logic will be in the real component.
+    // This is just a placeholder to avoid breaking the UI.
+    if (!data) return null;
+    return (
+         <Card>
+            <CardHeader>
+                <CardTitle>Generación de Informe</CardTitle>
+                <CardDescription>Crea un informe ejecutivo en formato PDF con los resultados del análisis.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">La generación de informes PDF está disponible en la página principal.</p>
+            </CardContent>
+        </Card>
+    )
+}
 
-export default function InformePGP({ comparisonSummary, pgpData }: {
+
+export default function InformePGP({ comparisonSummary, pgpData, reportData }: {
     comparisonSummary: ComparisonSummary | null;
     pgpData: any[];
+    reportData: any;
 }) {
     const [selectedCupData, setSelectedCupData] = useState<any | null>(null);
     const [isCupModalOpen, setIsCupModalOpen] = useState(false);
@@ -363,6 +382,9 @@ export default function InformePGP({ comparisonSummary, pgpData }: {
                     />
                 </CardContent>
             </Card>
+
+             <InformePGPPdfGenerator data={reportData} />
+
 
             <CupDetailsModal
                 cupData={selectedCupData}
