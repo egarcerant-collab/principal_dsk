@@ -27,8 +27,11 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
     const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
     if (!idMatch) throw new Error("URL de Google Sheets inválida.");
     const sheetId = idMatch[1];
-    const gidMatch = url.match(/gid=(\d+)/);
+    
+    // Improved GID matching to handle various URL formats
+    const gidMatch = url.match(/[#&]gid=(\d+)/);
     const gid = gidMatch ? gidMatch[1] : '0';
+    
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
     
     const response = await fetch(csvUrl);
@@ -60,7 +63,7 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
                         }
                     }
                     return cleanedRow as T;
-                }).filter(row => Object.values(row).some(val => val !== '')); // Filter out completely empty rows
+                }).filter(row => Object.values(row).some(val => normalizeValue(val) !== '')); // Filter out completely empty rows
                 
                 resolve(cleanedData);
             },
