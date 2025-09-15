@@ -46,7 +46,7 @@ export interface InformeDatos {
 function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): TDocumentDefinitions {
     const docDefinition: TDocumentDefinitions = {
         pageSize: 'A4',
-        pageMargins: [58, 88, 28.35, 70.87], // [left, top, right, bottom] - Ajustado
+        pageMargins: [58, 110, 40, 70], // [left, top, right, bottom] - Ajustado
 
         // Imagen de fondo que se repite en cada página
         background: function (currentPage: number) {
@@ -63,7 +63,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
         styles: {
             h1: { fontSize: 16, bold: true, margin: [0, 0, 0, 10], color: '#1E3A8A' },
             h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5], color: '#1E3A8A' },
-            p: { fontSize: 10, margin: [0, 0, 0, 5], alignment: 'justify', lineHeight: 1.15 },
+            p: { fontSize: 10, margin: [0, 0, 0, 8], alignment: 'justify', lineHeight: 1.25 },
             ref: { fontSize: 9, italic: true, margin: [0, 0, 0, 20], color: '#6B7280' },
             kpiLabel: { fontSize: 10, color: '#374151' },
             kpiValue: { fontSize: 10, bold: true, color: '#111827', alignment: 'right' },
@@ -101,13 +101,13 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                 if (item.chartImage) {
                     contentBlock.push({
                         image: item.chartImage,
-                        width: 500,
+                        width: 480,
                         alignment: 'center',
                         margin: [0, 5, 0, 10],
                     });
                 }
                 if (item.text) {
-                    contentBlock.push({ text: item.text.replace(/\n\n/g, '\n'), style: 'p' });
+                    contentBlock.push({ text: item.text, style: 'p' });
                 }
                 return contentBlock;
             }),
@@ -119,7 +119,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                 { text: `${data.ciudad}, ${data.fecha}`, alignment: 'left', style: 'p' },
                 { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', style: 'p' }
             ],
-            margin: [58, 20, 28.35, 0]
+            margin: [58, 20, 40, 0]
         }),
     };
     

@@ -22,6 +22,8 @@ import {
 } from "recharts";
 import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
 import type { DeviatedCupInfo, ComparisonSummary } from "@/components/pgp-search/PgPsearchForm";
+import { generateReportAnalysis, type ReportAnalysisInput, type ReportAnalysisOutput } from "@/ai/flows/generate-report-analysis-flow";
+import { useToast } from "@/hooks/use-toast";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -84,6 +86,7 @@ async function loadImageAsBase64(url: string): Promise<string> {
 export default function InformePGP({ data }: { data?: ReportData | null }) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const financialChartRef = useRef<HTMLDivElement>(null);
   const cupsChartRef = useRef<HTMLDivElement>(null);
@@ -125,7 +128,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
-  const getInformeData = (reportData: ReportData, charts: { [key: string]: string }): InformeDatos => {
+  const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput): InformeDatos => {
     const valorNotaTecnica = reportData.notaTecnica?.valor3m || 0;
     const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
      const periodoAnalizado = reportTitle.split('–')[1]?.trim() || 'Periodo Analizado';
@@ -163,12 +166,12 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             { 
               title: 'Análisis de Ejecución Financiera y Presupuestal', 
               chartImage: charts.financial,
-              text: `Durante el periodo analizado, la ejecución financiera consolidada del contrato PGP ascendió a un total de ${formatCOP(sumaMensual)}. Este valor, al ser contrastado con el presupuesto proyectado en la nota técnica para el mismo período, que es de ${formatCOP(valorNotaTecnica)}, revela una ejecución del ${porcentajeEjecucion.toFixed(2)}%. Este resultado es de suma importancia estratégica, ya que se sitúa cómodamente dentro de la banda de control contractual, establecida entre el 90% y el 110% del valor técnico. Dicha alineación indica, en primera instancia, una gestión presupuestal estable, predecible y disciplinada, minimizando los riesgos de desviaciones financieras significativas que pudieran comprometer la sostenibilidad del modelo de atención. \n\nLa desviación absoluta frente a la meta presupuestal es de ${formatCOP(diffVsNota)}, una cifra que, en términos relativos, se considera manejable y no genera alertas sobre desequilibrios estructurales en el corto plazo. La uniformidad observada en el gasto mensual, sin picos abruptos o valles pronunciados, sugiere una operación consistente y una demanda de servicios regularizada, lo cual es altamente positivo para la planificación de la cartera, el flujo de caja de la IPS y la garantía de continuidad en la atención al usuario. \n\nDesde una perspectiva de proyección, si se mantiene esta tendencia de ejecución controlada y estable, es plausible estimar que la ejecución anualizada del contrato se alineará estrechamente con el presupuesto global definido en la nota técnica. Este escenario es ideal, pues minimiza el riesgo de incurrir en déficits operativos o generar excedentes que podrían indicar una sub-utilización de los recursos y, potencialmente, barreras de acceso no identificadas. La predictibilidad del gasto es un pilar para la confianza entre las partes y la viabilidad a largo plazo del modelo PGP.` 
+              text: analysisTexts.financialAnalysis,
             },
             { 
               title: 'Análisis del Comportamiento Epidemiológico y de Servicios (CUPS)', 
               chartImage: charts.cups,
-              text: `Desde el punto de vista operacional y epidemiológico, se autorizaron y prestaron un total de ${totalCups.toLocaleString('es-CO')} CUPS (Clasificación Única de Procedimientos en Salud) durante el trimestre. Este volumen de servicios, al ser analizado, nos permite obtener una radiografía del estado de salud de la población y la respuesta del prestador. El costo unitario promedio ponderado, que se calcula dividiendo el valor total ejecutado entre el número de CUPS, se situó en ${formatCOP(unitAvg)}. Este KPI es un indicador clave de la complejidad y el valor promedio de cada servicio prestado, y su estabilidad a lo largo del tiempo es un síntoma de una cartera de servicios controlada. \n\nLa consistencia en el volumen de CUPS a lo largo de los meses analizados refleja una demanda de servicios constante y una capacidad de respuesta adecuada por parte de la red prestadora. Esta predictibilidad es fundamental en la gestión de la salud pública, ya que sugiere un acceso continuo y oportuno a los servicios, y una baja probabilidad de represamiento de la demanda o de 'demanda oculta' que pudiera emerger abruptamente en períodos posteriores. No se observan en los datos agregados anomalías que sugieran brotes epidemiológicos inesperados o la instauración de barreras de acceso significativas que hubieran podido contraer la utilización. \n\nLa proyección basada en esta estabilidad operativa es favorable: permite estimar con un alto grado de confianza las necesidades de recursos para los siguientes periodos, no solo financieros, sino también de talento humano, insumos médicos, y capacidad instalada. Esta información es vital para una gestión proactiva que anticipe las necesidades en lugar de reaccionar a ellas, garantizando así la calidad y oportunidad en la prestación del servicio.`
+              text: analysisTexts.epidemiologicalAnalysis,
             },
              {
               title: 'Análisis de Costo Unitario (Complejidad Promedio)',
@@ -177,7 +180,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             },
             {
               title: 'Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados',
-              text: `A pesar de la estabilidad general, un análisis detallado de las desviaciones a nivel de procedimiento individual revela áreas críticas que requieren atención gerencial inmediata. Se identificaron un total de ${reportData.overExecutedCups?.length ?? 0} CUPS con una ejecución superior al 111% de lo presupuestado en la nota técnica y ${reportData.unexpectedCups?.length ?? 0} CUPS que fueron ejecutados sin estar previstos en la misma. Estos dos grupos de procedimientos constituyen los principales focos de riesgo financiero y operativo, y su análisis es fundamental para el control del contrato. A continuación, se presenta una tabla con los procedimientos más críticos de cada grupo. \n\nLos procedimientos sobre-ejecutados pueden ser indicativos de varias situaciones: un aumento en la incidencia o prevalencia de ciertas patologías en la población, cambios en las guías de práctica clínica que favorecen un procedimiento sobre otro, o incluso posibles ineficiencias o sobre-utilización que deben ser auditadas. Es imperativo iniciar un análisis de causa raíz sobre estos procedimientos, cruzando la información con datos de perfiles epidemiológicos y diagnósticos (CIE-10) para determinar si la sobre-ejecución está clínicamente justificada o si, por el contrario, representa una oportunidad de mejora en la gestión de la pertinencia médica. \n\nPor otro lado, los CUPS inesperados representan una desviación cualitativa del modelo. Estos procedimientos, al no estar en la nota técnica, no fueron contemplados en la prima y, por tanto, impactan directamente la siniestralidad. La presencia de estos CUPS puede deberse a la aparición de nuevas necesidades terapéuticas, la codificación de tecnologías no incluidas en el plan de beneficios, o cambios en la práctica clínica local. Su análisis es crucial para determinar si la nota técnica requiere una actualización para incluir estas nuevas realidades o si se trata de eventos aislados que pueden ser gestionados caso a caso. Ambos tipos de desviación deben ser objeto de auditoría concurrente y de pares para validar su pertinencia y tomar las acciones correctivas o administrativas que correspondan.`
+              text: analysisTexts.deviationAnalysis,
             },
         ],
         topOverExecuted,
@@ -196,35 +199,44 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const handleGeneratePdf = async (action: 'preview' | 'download') => {
     if (!data) return;
     setIsGeneratingPdf(true);
+    if(action === 'preview') setPdfPreviewUrl(null);
+
+    toast({ title: 'Generando informe...', description: 'La IA está redactando el análisis. Esto puede tardar un momento.' });
 
     try {
+        const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
+        const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
+
+        const analysisTexts = await generateReportAnalysis({
+            sumaMensual,
+            valorNotaTecnica,
+            diffVsNota,
+            porcentajeEjecucion,
+            totalCups,
+            unitAvg,
+            overExecutedCount: data.overExecutedCups?.length ?? 0,
+            unexpectedCount: data.unexpectedCups?.length ?? 0,
+        });
+
+        toast({ title: 'Análisis completo.', description: 'Generando gráficos y PDF.' });
+
         const backgroundImage = await loadImageAsBase64('/imagenes pdf/IMAGENEN UNIFICADA.jpg');
 
         const getChartImage = async (ref: React.RefObject<HTMLDivElement>) => {
             if (ref.current) {
-                const canvas = await html2canvas(ref.current, { backgroundColor: null });
+                const canvas = await html2canvas(ref.current, { backgroundColor: null, scale: 2 });
                 return canvas.toDataURL('image/png');
             }
             return '';
         };
-
-        // This div is hidden and used just for rendering charts for the PDF
-        const chartContainer = document.createElement('div');
-        chartContainer.style.position = 'absolute';
-        chartContainer.style.left = '-9999px';
-        chartContainer.style.width = '800px';
-        document.body.appendChild(chartContainer);
-
+        
         const chartImages = {
             financial: await getChartImage(financialChartRef),
             cups: await getChartImage(cupsChartRef),
             unit: await getChartImage(unitChartRef),
         };
-        
-        document.body.removeChild(chartContainer);
 
-
-        const informeData = getInformeData(data, chartImages);
+        const informeData = getInformeData(data, chartImages, analysisTexts);
         
         if(action === 'preview') {
             const url = await generarURLInformePDF(informeData, backgroundImage);
@@ -234,8 +246,9 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             setPdfPreviewUrl(null); // Cierra el modal si estaba abierto
         }
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error generating PDF:", error);
+        toast({ title: 'Error al generar el informe', description: error.message, variant: 'destructive' });
     } finally {
         setIsGeneratingPdf(false);
     }
@@ -247,12 +260,18 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-center">
-         <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
-          {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
-          Generar Informe PDF
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Generación de Informe Ejecutivo PDF</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center">
+            <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
+                {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
+                Generar Informe PDF
+            </Button>
+        </CardContent>
+      </Card>
+      
 
        <Dialog open={!!pdfPreviewUrl} onOpenChange={(isOpen) => !isOpen && setPdfPreviewUrl(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
@@ -275,12 +294,11 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
       </Dialog>
       
       {/* Hidden container for rendering charts for PDF */}
-      <div className="absolute -left-[9999px] w-[800px] space-y-8 bg-background">
+      <div className="absolute -left-[9999px] top-0 w-[600px] space-y-8 bg-background p-4">
           <section ref={financialChartRef}>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="h-4 w-4"/> Ejecución Financiera (COP)</h3>
-            <div className="h-72">
+            <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData}>
+                <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${new Intl.NumberFormat("es-CO", { notation: "compact" }).format(v as number)}`} />
@@ -291,31 +309,29 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             </div>
           </section>
            <section ref={cupsChartRef}>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><FileText className="h-4 w-4"/> CUPS (Cantidad)</h3>
-            <div className="h-72">
+            <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={cupsData}>
+                <LineChart data={cupsData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => `${(value as number).toLocaleString('es-CO')} CUPS`} />
-                  <Line type="monotone" dataKey="CUPS" stroke="hsl(var(--accent))" strokeWidth={2} />
+                  <Line type="monotone" dataKey="CUPS" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </section>
           <section ref={unitChartRef}>
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><BarChart2 className="h-4 w-4"/> Costo Unitario (COP/CUPS)</h3>
-            <div className="h-72">
+            <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={unitData}>
+                <LineChart data={unitData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => formatCOP(v as number)} />
+                  <YAxis domain={['dataMin - 1000', 'dataMax + 1000']} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => formatCOP(v as number)} />
                   <Tooltip formatter={(value) => formatCOP(value as number)} />
                   <Legend verticalAlign="top" height={36} />
-                  <Line type="monotone" dataKey="Unit" name="Costo Unitario" stroke="hsl(var(--destructive))" strokeWidth={2} />
-                  <ReferenceLine y={unitAvg} name="Promedio" label={{ value: `Promedio: ${formatCOP(unitAvg)}`, position: 'insideTopLeft' }} stroke="hsl(var(--foreground))" strokeDasharray="4 4" />
+                  <Line type="monotone" dataKey="Unit" name="Costo Unitario" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+                  <ReferenceLine y={unitAvg} name="Promedio" stroke="hsl(var(--foreground))" strokeDasharray="4 4" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
