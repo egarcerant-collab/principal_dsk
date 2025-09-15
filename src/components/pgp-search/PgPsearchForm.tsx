@@ -870,7 +870,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
             {isAiEnabled && <AnalysisCard analysis={analysis} isLoading={loadingAnalysis} />}
             
-            {showComparison && (
+            {showComparison && comparisonSummary && (
               <>
                 <InformeDesviaciones 
                     comparisonSummary={comparisonSummary}
