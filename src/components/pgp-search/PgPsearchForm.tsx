@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +20,7 @@ import Papa from 'papaparse';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import Report, { type ReportData } from '@/components/report/InformePGP';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -441,73 +442,101 @@ const handleDownloadXls = (data: any[], filename: string) => {
 
 
 const MatrizEjecucionCard = ({ matrizData }: { matrizData: MatrizEjecucionRow[] }) => {
-  const getRowClass = (classification: string) => {
-      switch (classification) {
-          case "Sobre-ejecutado": return "text-red-600";
-          case "Sub-ejecutado": return "text-blue-600";
-          case "Faltante": return "text-yellow-600";
-          default: return "";
-      }
-  };
+    const [classificationFilter, setClassificationFilter] = useState('all');
 
-  return (
-    <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
-      <AccordionItem value="item-1" className="border-0">
-        <div className="flex items-center justify-between p-4">
-          <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-            <div className="flex items-center">
-              <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
-              <h3 className="text-base font-medium text-left">Matriz Ejecución vs Esperado (mensual)</h3>
-            </div>
-          </AccordionTrigger>
-          <div className='flex items-center gap-4 pl-4'>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDownloadXls(matrizData, `matriz_ejecucion_mensual.xls`);
-              }}
-              className="h-7 w-7"
-              aria-label="Descargar Matriz Mensual"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        <AccordionContent className="px-4 pb-4">
-          <ScrollArea className="h-96">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                <TableRow>
-                  <TableHead>Mes</TableHead>
-                  <TableHead>CUPS</TableHead>
-                  <TableHead className="text-center">Cant. Esperada</TableHead>
-                  <TableHead className="text-center">Cant. Ejecutada</TableHead>
-                  <TableHead className="text-center">Diferencia</TableHead>
-                  <TableHead className="text-center">% Ejecución</TableHead>
-                  <TableHead>Clasificación</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matrizData.map((row, index) => (
-                  <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                    <TableCell className="text-xs">{row.Mes}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                    <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
-                    <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                    <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
-                    <TableCell className="text-center">{row['%_Ejecucion']}</TableCell>
-                    <TableCell className="font-medium">{row.Clasificacion}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
+    const classifications = useMemo(() => {
+        const unique = new Set(matrizData.map(d => d.Clasificacion));
+        return ['all', ...Array.from(unique)];
+    }, [matrizData]);
+
+    const filteredData = useMemo(() => {
+        if (classificationFilter === 'all') {
+            return matrizData;
+        }
+        return matrizData.filter(d => d.Clasificacion === classificationFilter);
+    }, [matrizData, classificationFilter]);
+
+    const getRowClass = (classification: string) => {
+        switch (classification) {
+            case "Sobre-ejecutado": return "text-red-600";
+            case "Sub-ejecutado": return "text-blue-600";
+            case "Faltante": return "text-yellow-600";
+            case "Inesperado": return "text-purple-600";
+            default: return "";
+        }
+    };
+
+    return (
+        <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
+            <AccordionItem value="item-1" className="border-0">
+                <div className="flex flex-wrap items-center justify-between p-4 gap-4">
+                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
+                        <div className="flex items-center">
+                            <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
+                            <h3 className="text-base font-medium text-left">Matriz Ejecución vs Esperado (mensual)</h3>
+                        </div>
+                    </AccordionTrigger>
+                    <div className='flex items-center gap-2 pl-4'>
+                        <Select value={classificationFilter} onValueChange={setClassificationFilter}>
+                            <SelectTrigger className="w-[200px] h-8 text-xs">
+                                <Filter className="h-3 w-3 mr-2" />
+                                <SelectValue placeholder="Filtrar por clasificación..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {classifications.map(c => (
+                                    <SelectItem key={c} value={c} className="text-xs">
+                                        {c === 'all' ? 'Ver Todos' : c}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadXls(filteredData, `matriz_ejecucion_mensual_${classificationFilter}.xls`);
+                            }}
+                            className="h-8 w-8"
+                            aria-label="Descargar Matriz Mensual"
+                        >
+                            <Download className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                <AccordionContent className="px-4 pb-4">
+                    <ScrollArea className="h-96">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                                <TableRow>
+                                    <TableHead>Mes</TableHead>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead className="text-center">Cant. Esperada</TableHead>
+                                    <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                                    <TableHead className="text-center">Diferencia</TableHead>
+                                    <TableHead className="text-center">% Ejecución</TableHead>
+                                    <TableHead>Clasificación</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredData.map((row, index) => (
+                                    <TableRow key={index} className={getRowClass(row.Clasificacion)}>
+                                        <TableCell className="text-xs">{row.Mes}</TableCell>
+                                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                                        <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                                        <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center font-mono text-xs">{row['%_Ejecucion']}</TableCell>
+                                        <TableCell className="font-medium">{row.Clasificacion}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
+    );
 };
 
 
@@ -847,3 +876,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
