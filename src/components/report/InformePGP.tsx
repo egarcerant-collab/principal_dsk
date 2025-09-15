@@ -59,6 +59,8 @@ export interface ReportData {
     totalFinal: number;
   };
   overExecutedCups?: DeviatedCupInfo[];
+  underExecutedCups?: DeviatedCupInfo[];
+  missingCups?: DeviatedCupInfo[];
   unexpectedCups?: { cup: string; realFrequency: number, description?: string }[];
 }
 
@@ -182,6 +184,10 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
               title: 'Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados',
               text: analysisTexts.deviationAnalysis,
             },
+            {
+              title: 'Análisis Clínico y de Pertinencia Médica',
+              text: analysisTexts.clinicalAnalysis,
+            },
         ],
         topOverExecuted,
         topUnexpected,
@@ -207,7 +213,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
         const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
 
-        const analysisTexts = await generateReportAnalysis({
+        const analysisInput: ReportAnalysisInput = {
             sumaMensual,
             valorNotaTecnica,
             diffVsNota,
@@ -216,7 +222,13 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             unitAvg,
             overExecutedCount: data.overExecutedCups?.length ?? 0,
             unexpectedCount: data.unexpectedCups?.length ?? 0,
-        });
+            overExecutedCups: data.overExecutedCups ?? [],
+            underExecutedCups: data.underExecutedCups ?? [],
+            missingCups: data.missingCups ?? [],
+            unexpectedCups: data.unexpectedCups ?? [],
+        };
+
+        const analysisTexts = await generateReportAnalysis(analysisInput);
 
         toast({ title: 'Análisis completo.', description: 'Generando gráficos y PDF.' });
 

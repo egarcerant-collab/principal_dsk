@@ -403,7 +403,9 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             overExecutedCups.push(cupInfo);
         } else if (percentage < 0.90) { // Changed to use percentage for sub-execution
             underExecutedCups.push(cupInfo);
-        } else if (totalRealFrequency === 0 && totalExpectedFrequency > 0) {
+        }
+        
+        if (totalRealFrequency === 0 && totalExpectedFrequency > 0) {
             missingCups.push(cupInfo);
         }
       }
@@ -624,6 +626,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 totalFinal: totalExecution,
             },
             overExecutedCups: comparisonSummary.overExecutedCups,
+            underExecutedCups: comparisonSummary.underExecutedCups,
+            missingCups: comparisonSummary.missingCups,
             unexpectedCups: comparisonSummary.unexpectedCups,
         };
     }, [isDataLoaded, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
@@ -839,7 +843,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             {showComparison && comparisonSummary && (
               <>
                 <FinancialMatrix 
-                    matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
                     monthlyFinancials={comparisonSummary.monthlyFinancials}
                 />
                 <InformeDesviaciones 
