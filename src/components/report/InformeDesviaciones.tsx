@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState } from 'react';
@@ -96,22 +97,26 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
                                     <TableHead className="text-center">Frec. Esperada</TableHead>
                                     <TableHead className="text-center">Frec. Real</TableHead>
                                     <TableHead className="text-center">Desviación</TableHead>
+                                    <TableHead className="text-right">Valor Desviación</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data.map(({ cup, description, activityDescription, expectedFrequency, realFrequency, deviation }) => (
-                                    <TableRow key={cup}>
+                                {data.map((item) => (
+                                    <TableRow key={item.cup}>
                                         <TableCell>
-                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(cup)}>
-                                                {cup}
+                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(item.cup)}>
+                                                {item.cup}
                                             </Button>
                                         </TableCell>
-                                        <TableCell className="text-xs">{activityDescription}</TableCell>
-                                        <TableCell className="text-xs">{description}</TableCell>
-                                        <TableCell className="text-center">{expectedFrequency.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center">{realFrequency}</TableCell>
-                                        <TableCell className={`text-center font-bold ${deviation > 0 ? 'text-red-600' : 'text-green-700'}`}>
-                                            {deviation.toFixed(0)}
+                                        <TableCell className="text-xs">{item.activityDescription}</TableCell>
+                                        <TableCell className="text-xs">{item.description}</TableCell>
+                                        <TableCell className="text-center">{item.expectedFrequency.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
+                                        <TableCell className={`text-center font-bold ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                                            {item.deviation.toFixed(0)}
+                                        </TableCell>
+                                         <TableCell className={`text-right font-bold ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                                            {formatCurrency(item.deviationValue)}
                                         </TableCell>
                                     </TableRow>
                                 ))}

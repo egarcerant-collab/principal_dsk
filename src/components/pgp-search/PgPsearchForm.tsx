@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -73,6 +74,7 @@ export interface DeviatedCupInfo {
     expectedFrequency: number;
     realFrequency: number;
     deviation: number;
+    deviationValue: number;
 }
 
 export interface MatrixRow {
@@ -377,8 +379,9 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     if (pgpRow) {
       const expectedFrequencyPerMonth = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
       const totalExpectedFrequency = expectedFrequencyPerMonth * executionDataByMonth.size;
+      const unitValue = getNumericValue(findColumnValue(pgpRow, ['valor unitario']));
 
-      if (totalRealFrequency > 0) {
+      if (totalRealFrequency > 0 || totalExpectedFrequency > 0) { // Process if there's any activity
         const deviation = totalRealFrequency - totalExpectedFrequency;
         const percentage = totalExpectedFrequency > 0 ? (totalRealFrequency / totalExpectedFrequency) : Infinity;
         
@@ -389,22 +392,16 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           expectedFrequency: totalExpectedFrequency,
           realFrequency: totalRealFrequency,
           deviation: deviation,
+          deviationValue: deviation * unitValue,
         };
         
         if (percentage > 1.11) {
             overExecutedCups.push(cupInfo);
-        } else if (totalRealFrequency < totalExpectedFrequency * 0.90) { 
+        } else if (percentage < 0.90) { // Changed to use percentage for sub-execution
             underExecutedCups.push(cupInfo);
+        } else if (totalRealFrequency === 0 && totalExpectedFrequency > 0) {
+            missingCups.push(cupInfo);
         }
-      } else if (totalExpectedFrequency > 0) {
-        missingCups.push({
-          cup,
-          description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
-          activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']),
-          expectedFrequency: totalExpectedFrequency,
-          realFrequency: 0,
-          deviation: -totalExpectedFrequency,
-        });
       }
     } else if (totalRealFrequency > 0) {
       unexpectedCups.push({
@@ -414,8 +411,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     }
   });
   
-  overExecutedCups.sort((a, b) => b.deviation - a.deviation);
-  underExecutedCups.sort((a, b) => a.deviation - b.deviation);
+  overExecutedCups.sort((a, b) => b.deviationValue - a.deviationValue);
+  underExecutedCups.sort((a, b) => a.deviationValue - b.deviationValue);
 
 
   return {
