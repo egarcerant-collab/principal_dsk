@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,7 +31,7 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload, onDoubleClick }: {
+const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload, onDoubleClick, totalDeviationValue }: {
     title: string;
     icon: React.ElementType;
     data: DeviatedCupInfo[];
@@ -40,6 +40,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     onCupClick: (cup: string) => void;
     onDownload: (data: any[], filename: string) => void;
     onDoubleClick: () => void;
+    totalDeviationValue?: number;
 }) => {
     const Icon = icon;
     const hasData = data && data.length > 0;
@@ -52,6 +53,12 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
                     <CardTitle className="text-base font-medium">{title}</CardTitle>
                 </div>
                 <div className='flex items-center gap-4 pl-4'>
+                    {totalDeviationValue !== undefined && hasData && (
+                        <div className="text-right">
+                             <p className="text-sm font-bold text-red-600">{formatCurrency(totalDeviationValue)}</p>
+                             <p className="text-xs text-muted-foreground">Valor Desviación</p>
+                        </div>
+                    )}
                     {hasData && (
                         <Button
                             variant="ghost"
@@ -178,7 +185,7 @@ export const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { c
 };
 
 
-const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onOpenChange: (open: boolean) => void, title: string, content: React.ReactNode }) => {
+const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onOpenChange: (open: boolean) => void, title: React.ReactNode, content: React.ReactNode }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
@@ -205,7 +212,13 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
-    const [modalContent, setModalContent] = useState<{ title: string, data: any, type: string } | null>(null);
+    const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
+
+
+    const totalOverExecutionValue = useMemo(() => {
+        if (!comparisonSummary || !comparisonSummary.overExecutedCups) return 0;
+        return comparisonSummary.overExecutedCups.reduce((sum, cup) => sum + cup.deviationValue, 0);
+    }, [comparisonSummary]);
 
 
     if (!comparisonSummary) {
@@ -246,9 +259,19 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         }
     };
     
-    const handleDoubleClick = (type: string, title: string, data: any) => {
+    const handleDoubleClick = (type: string, title: React.ReactNode, data: any) => {
         setModalContent({ type, title, data });
     }
+    
+    const overExecutedTitle = (
+        <div className="flex items-center justify-between w-full">
+            <span>CUPS Sobreejecutados (&gt;111%)</span>
+            {totalOverExecutionValue > 0 && (
+                 <span className="text-red-500 font-bold ml-4">{formatCurrency(totalOverExecutionValue)}</span>
+            )}
+        </div>
+    );
+
 
     const renderModalContent = () => {
         if (!modalContent) return null;
@@ -348,7 +371,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('over-executed', 'CUPS Sobreejecutados (>111%)', comparisonSummary.overExecutedCups)}
+                        onDoubleClick={() => handleDoubleClick('over-executed', overExecutedTitle, comparisonSummary.overExecutedCups)}
+                        totalDeviationValue={totalOverExecutionValue}
                     />
                     <DeviatedCupsAccordion
                         title="CUPS Subejecutados (<90%)"
