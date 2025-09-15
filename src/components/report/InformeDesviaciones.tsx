@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2, TableIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2, TableIcon, X } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -16,7 +16,7 @@ import { findColumnValue, formatCurrency, type ComparisonSummary } from '../pgp-
 import type { DeviatedCupInfo, MatrixRow } from '../pgp-search/PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const csv = Papa.unparse(data);
@@ -32,7 +32,7 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload }: {
+const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload, onDoubleClick }: {
     title: string;
     icon: React.ElementType;
     data: DeviatedCupInfo[];
@@ -40,6 +40,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     pgpData: any[];
     onCupClick: (cup: string) => void;
     onDownload: (data: any[], filename: string) => void;
+    onDoubleClick: () => void;
 }) => {
     const Icon = icon;
     if (!data || data.length === 0) {
@@ -59,7 +60,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                 <div className="flex items-center justify-between p-4">
+                 <div className="flex items-center justify-between p-4" onDoubleClick={onDoubleClick}>
                     <AccordionTrigger className="p-0 flex-1 hover:no-underline">
                         <div className="flex items-center">
                             <Icon className={`h-6 w-6 mr-3 ${badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500'}`} />
@@ -130,7 +131,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
 };
 
 
-const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText }: {
+const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText, onDoubleClick }: {
     title: string;
     icon: React.ElementType;
     data: any[];
@@ -138,6 +139,7 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
     onLookupClick?: (cup: string) => void;
     onDownload: (data: any[], filename: string) => void;
     emptyText: string;
+    onDoubleClick: () => void;
 }) => {
     const Icon = icon;
     if (!data || data.length === 0) {
@@ -157,7 +159,7 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg">
             <AccordionItem value="item-1" className="border-0">
-                 <div className="flex items-center justify-between p-4">
+                 <div className="flex items-center justify-between p-4" onDoubleClick={onDoubleClick}>
                     <AccordionTrigger className="p-0 flex-1 hover:no-underline">
                         <div className="flex items-center">
                             <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
@@ -273,6 +275,24 @@ export const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { c
 };
 
 
+const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onOpenChange: (open: boolean) => void, title: string, content: React.ReactNode }) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-grow overflow-hidden">
+          {content}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     comparisonSummary: ComparisonSummary | null;
     pgpData: any[];
@@ -282,6 +302,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
+    const [modalContent, setModalContent] = useState<{ title: string, data: any, type: string } | null>(null);
 
 
     if (!comparisonSummary) {
@@ -321,6 +342,77 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
             setIsLookupLoading(false);
         }
     };
+    
+    const handleDoubleClick = (type: string, title: string, data: any) => {
+        setModalContent({ type, title, data });
+    }
+
+    const renderModalContent = () => {
+        if (!modalContent) return null;
+
+        const { type, data } = modalContent;
+
+        switch (type) {
+            case 'over-executed':
+            case 'under-executed':
+                return (
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead>Actividad</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead className="text-center">Frec. Esperada</TableHead>
+                                    <TableHead className="text-center">Frec. Real</TableHead>
+                                    <TableHead className="text-center">Desviación</TableHead>
+                                    <TableHead className="text-right">Valor Desviación</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.map((item: DeviatedCupInfo) => (
+                                    <TableRow key={item.cup}>
+                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
+                                        <TableCell className="text-xs">{item.activityDescription}</TableCell>
+                                        <TableCell className="text-xs">{item.description}</TableCell>
+                                        <TableCell className="text-center">{item.expectedFrequency.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
+                                        <TableCell className={`text-center font-bold ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
+                                        <TableCell className={`text-right font-bold ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                )
+             case 'missing':
+             case 'unexpected':
+                 return (
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead className="text-center">{type === "missing" ? "Frec. Esperada" : "Frec. Real"}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.map((item: any) => (
+                                    <TableRow key={item.cup}>
+                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
+                                        <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
+                                        <TableCell className="text-center">{type === "missing" ? item.expectedFrequency : item.realFrequency}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                 )
+            default:
+                return null;
+        }
+    }
 
 
     return (
@@ -329,7 +421,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                 <CardHeader>
                     <CardTitle className="uppercase">Análisis de Frecuencias y Desviaciones</CardTitle>
                     <CardDescription>
-                        Comparación entre la frecuencia de servicios esperada (nota técnica) y la real (archivos JSON).
+                        Comparación entre la frecuencia de servicios esperada (nota técnica) y la real (archivos JSON). Doble clic para expandir la tabla.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -341,6 +433,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
+                        onDoubleClick={() => handleDoubleClick('over-executed', 'CUPS Sobreejecutados (>111%)', comparisonSummary.overExecutedCups)}
                     />
                     <DeviatedCupsAccordion
                         title="CUPS Subejecutados (<90%)"
@@ -350,6 +443,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
+                        onDoubleClick={() => handleDoubleClick('under-executed', 'CUPS Subejecutados (<90%)', comparisonSummary.underExecutedCups)}
                     />
                      <DiscrepancyAccordion
                         title="CUPS Faltantes"
@@ -358,6 +452,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         badgeVariant="secondary"
                         onDownload={handleDownloadXls}
                         emptyText="No hay CUPS planificados que falten en la ejecución."
+                        onDoubleClick={() => handleDoubleClick('missing', 'CUPS Faltantes', comparisonSummary.missingCups)}
                     />
                      <DiscrepancyAccordion
                         title="CUPS Inesperados"
@@ -367,6 +462,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         onLookupClick={handleLookupClick}
                         onDownload={handleDownloadXls}
                         emptyText="No se encontraron CUPS ejecutados que no estuvieran en la nota técnica."
+                        onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups)}
                     />
                 </CardContent>
             </Card>
@@ -383,6 +479,15 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                 onOpenChange={setIsLookupModalOpen}
                 isLoading={isLookupLoading}
             />
+
+            {modalContent && (
+                <TableModal
+                    open={!!modalContent}
+                    onOpenChange={() => setModalContent(null)}
+                    title={modalContent.title}
+                    content={renderModalContent()}
+                />
+            )}
         </div>
     );
 }
