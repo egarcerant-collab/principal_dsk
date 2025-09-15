@@ -55,7 +55,7 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
                         if (Object.prototype.hasOwnProperty.call(row, key)) {
                             const trimmedKey = normalizeKey(key);
                             if (trimmedKey) {
-                                cleanedRow[trimmedKey] = normalizeValue((row as any)[key]);
+                                cleanedRow[trimmedKey] = (row as any)[key];
                             }
                         }
                     }
@@ -72,4 +72,5 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
     });
 };
 
+    
     
