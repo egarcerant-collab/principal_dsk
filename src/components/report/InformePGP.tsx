@@ -22,7 +22,7 @@ import {
 } from "recharts";
 import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
 import type { DeviatedCupInfo, ComparisonSummary } from "@/components/pgp-search/PgPsearchForm";
-import { generateReportAnalysis, type ReportAnalysisInput, type ReportAnalysisOutput } from "@/ai/flows/generate-report-analysis-flow";
+import { generateReportAnalysis } from "@/ai/flows/generate-report-analysis-flow";
 import { useToast } from "@/hooks/use-toast";
 
 // ======= Tipos =======
@@ -35,6 +35,8 @@ export interface MonthExecution {
 export interface ReportHeader {
   empresa: string;
   nit: string;
+  ipsNombre: string;
+  ipsNit: string;
   municipio: string;
   contrato: string;
   vigencia: string;
@@ -62,6 +64,28 @@ export interface ReportData {
   underExecutedCups?: DeviatedCupInfo[];
   missingCups?: DeviatedCupInfo[];
   unexpectedCups?: { cup: string; realFrequency: number, description?: string }[];
+}
+
+interface ReportAnalysisInput {
+    sumaMensual: number;
+    valorNotaTecnica: number;
+    diffVsNota: number;
+    porcentajeEjecucion: number;
+    totalCups: number;
+    unitAvg: number;
+    overExecutedCount: number;
+    unexpectedCount: number;
+    overExecutedCups: DeviatedCupInfo[];
+    underExecutedCups: DeviatedCupInfo[];
+    missingCups: DeviatedCupInfo[];
+    unexpectedCups: { cup: string, realFrequency: number }[];
+}
+
+interface ReportAnalysisOutput {
+  financialAnalysis: string;
+  epidemiologicalAnalysis: string;
+  deviationAnalysis: string;
+  clinicalAnalysis: string;
 }
 
 // ======= Utilidades =======
@@ -154,8 +178,8 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         .slice(0, 5);
 
     return {
-        titulo: 'INFORME EJECUTIVO DE SEGUIMIENTO PGP',
-        subtitulo: `${reportData.header.empresa} | NIT ${reportData.header.nit}`,
+        titulo: `INFORME PGP: ${reportData.header.empresa}`,
+        subtitulo: `Auditoría a IPS: ${reportData.header.ipsNombre} | NIT: ${reportData.header.ipsNit}`,
         referencia: `Contrato: ${reportData.header.contrato} | Vigencia: ${reportData.header.vigencia} | Período Analizado: ${periodoAnalizado}`,
         objetivos: [
             'Evaluar la eficiencia en la ejecución de los recursos asignados bajo el modelo de Pago Global Prospectivo (PGP), contrastando el gasto real con la proyección actuarial de la nota técnica, para garantizar la sostenibilidad financiera y la disciplina presupuestal del acuerdo.',
@@ -353,5 +377,3 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     </div>
   );
 }
-
-    

@@ -608,10 +608,12 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
         return {
             header: {
-                empresa: selectedPrestador.PRESTADOR,
-                nit: selectedPrestador.NIT,
-                municipio: "Uribia",
-                contrato: "CW-052-2024-P",
+                empresa: "Dusakawi EPSI",
+                nit: "8240001398",
+                ipsNombre: selectedPrestador.PRESTADOR,
+                ipsNit: selectedPrestador.NIT,
+                municipio: "Uribia", //TODO: Make this dynamic if possible
+                contrato: "CW-052-2024-P", //TODO: Make this dynamic if possible
                 vigencia: "2024",
                 ciudad: "Uribia",
                 fecha: new Date().toLocaleDateString('es-CO'),
@@ -883,5 +885,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    
