@@ -137,7 +137,7 @@ interface PgPsearchFormProps {
   uniqueUserCount: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/1g3f_d2-LZHsNCVdG1o23N7bdywzG2v1s_Tf3a-3r-Jw/gviz/tq?tqx=out:csv&sheet=Hoja1";
 
 /** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
