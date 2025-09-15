@@ -1,4 +1,5 @@
 
+
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import type { Content, StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
@@ -115,11 +116,15 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
 
         // Pie de página
         footer: (currentPage: number, pageCount: number) => ({
-            columns: [
-                { text: `${data.ciudad}, ${data.fecha}`, alignment: 'left', style: 'p' },
-                { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', style: 'p' }
+            stack: [
+                {
+                    columns: [
+                        { text: `${data.ciudad}, ${data.fecha}`, alignment: 'left', style: 'p' },
+                        { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', style: 'p' }
+                    ],
+                }
             ],
-            margin: [58, 20, 40, 0]
+            margin: [58, 0, 40, 0] // Margen ajustado para bajar el footer
         }),
     };
     
