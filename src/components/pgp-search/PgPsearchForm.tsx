@@ -646,49 +646,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   }, [toast]);
 
-  const handleRequestAnalysis = useCallback(async () => {
-    if (!isAiEnabled || pgpData.length === 0) {
-      toast({ title: "No se puede analizar", description: "El análisis con IA no está habilitado o no hay datos de PGP cargados.", variant: "destructive" });
-      return;
-    }
-    
-    setLoadingAnalysis(true);
-    setIsAnalysisModalOpen(true);
-    setAnalysis(null);
-
-    try {
-      const analysisInput = pgpData.slice(0, 50).map(row => ({
-        'SUBCATEGORIA': findColumnValue(row, ['subcategoria']),
-        'AMBITO': findColumnValue(row, ['ambito']),
-        'ID RESOLUCION 3100': findColumnValue(row, ['id resolucion 3100']),
-        'DESCRIPCION ID RESOLUCION': findColumnValue(row, ['descripcion id resolucion']),
-        'CUP/CUM': findColumnValue(row, ['cup/cum', 'cups']),
-        'DESCRIPCION CUPS': findColumnValue(row, ['descripcion cups', 'descripcion']),
-        'FRECUENCIA AÑO SERVICIO': getNumericValue(findColumnValue(row, ['frecuencia año servicio'])),
-        'FRECUENCIA USO': getNumericValue(findColumnValue(row, ['frecuencia uso'])),
-        'FRECUENCIA EVENTOS MES': getNumericValue(findColumnValue(row, ['frecuencia eventos mes'])),
-        'FRECUENCIA EVENTO DIA': getNumericValue(findColumnValue(row, ['frecuencia evento dia'])),
-        'COSTO EVENTO MES': getNumericValue(findColumnValue(row, ['costo evento mes'])),
-        'COSTO EVENTO DIA': getNumericValue(findColumnValue(row, ['costo evento dia'])),
-        'FRECUENCIA MINIMA MES': getNumericValue(findColumnValue(row, ['frecuencia minima mes'])),
-        'FRECUENCIA MAXIMA MES': getNumericValue(findColumnValue(row, ['frecuencia maxima mes'])),
-        'VALOR UNITARIO': getNumericValue(findColumnValue(row, ['valor unitario'])),
-        'VALOR MINIMO MES': getNumericValue(findColumnValue(row, ['valor minimo mes'])),
-        'VALOR MAXIMO MES': getNumericValue(findColumnValue(row, ['valor maximo mes'])),
-        'COSTO EVENTO MES (VALOR MES)': getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes'])),
-        'OBSERVACIONES': findColumnValue(row, ['observaciones'])
-      }));
-
-      const analysisResult = await analyzePgpData(analysisInput as PgpRowBE[]);
-      setAnalysis(analysisResult);
-    } catch (aiError: any) {
-      toast({ title: "Error en el Análisis de IA", description: aiError.message, variant: "destructive" });
-      setAnalysis(null);
-    } finally {
-      setLoadingAnalysis(false);
-    }
-  }, [isAiEnabled, pgpData, toast]);
-
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
     setIsDataLoaded(false);
@@ -778,7 +735,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     <Card>
       <CardHeader>
         <CardTitle>Análisis de Notas Técnicas PGP</CardTitle>
-        <CardDescription>Selecciona un prestador para cargar su nota técnica, analizarla con IA y visualizar los datos.</CardDescription>
+        <CardDescription>Selecciona un prestador para cargar su nota técnica y visualizar los datos.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <DropdownMenu>
@@ -832,13 +789,13 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             
             {showComparison && comparisonSummary && (
               <>
-                <InformeDesviaciones 
-                    comparisonSummary={comparisonSummary}
-                    pgpData={pgpData}
-                />
                 <FinancialMatrix 
                     matrixData={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
                     monthlyFinancials={comparisonSummary.monthlyFinancials}
+                />
+                <InformeDesviaciones 
+                    comparisonSummary={comparisonSummary}
+                    pgpData={pgpData}
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
 
@@ -866,5 +823,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    
