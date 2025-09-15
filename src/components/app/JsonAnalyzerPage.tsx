@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -12,6 +13,7 @@ import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { CupCountsMap, ExecutionDataByMonth } from '@/app/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { getNumericValue } from '../pgp-search/PgPsearchForm';
 
 interface FileState {
   jsonData: any | null;
@@ -28,6 +30,7 @@ export interface MonthlyExecutionData {
 interface JsonAnalyzerPageProps {
   setExecutionData: (data: ExecutionDataByMonth) => void;
   setJsonPrestadorCode: (code: string | null) => void;
+  setUniqueUserCount: (count: number) => void;
 }
 
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
@@ -65,7 +68,8 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
         'NIT': normalizeString(provider.NIT),
         'PRESTADOR': normalizeString(provider.PRESTADOR),
         'ID DE ZONA': key,
-        'WEB': normalizeString(provider.WEB)
+        'WEB': normalizeString(provider.WEB),
+        'POBLACION': getNumericValue(provider.POBLACION),
       };
       map.set(key, cleanedProvider);
     }
@@ -151,7 +155,7 @@ export const calculateCupCounts = (jsonData: any): CupCountsMap => {
   return counts;
 };
 
-export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCode }: JsonAnalyzerPageProps) {
+export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCode, setUniqueUserCount }: JsonAnalyzerPageProps) {
   const [files, setFiles] = useState<FileState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Map<string, PrestadorInfo> | null>(null);
@@ -261,6 +265,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   useEffect(() => {
     const dataByMonth: ExecutionDataByMonth = new Map();
     const allNits: string[] = [];
+    const uniqueUserIdentifiers = new Set<string>();
+
 
     files.forEach(file => {
       if (file.jsonData) {
@@ -268,8 +274,17 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         if (nit) {
             allNits.push(nit);
         }
+         // Contar usuarios únicos
+        file.jsonData.usuarios?.forEach((user: any) => {
+            const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+            uniqueUserIdentifiers.add(id);
+        });
       }
     });
+
+    setUniqueUserCount(uniqueUserIdentifiers.size);
+
+
     const uniqueNits = new Set(allNits);
     setShowDuplicateAlert(allNits.length > uniqueNits.size);
 
@@ -315,7 +330,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     });
 
     setExecutionData(dataByMonth);
-  }, [files, filesByMonth, setExecutionData, setJsonPrestadorCode]);
+  }, [files, filesByMonth, setExecutionData, setJsonPrestadorCode, setUniqueUserCount]);
 
   const handleReset = () => {
     setFiles([]);
@@ -323,6 +338,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     setShowDuplicateAlert(false);
     setExecutionData(new Map());
     setJsonPrestadorCode(null);
+    setUniqueUserCount(0);
   };
 
   if (!isClient) {

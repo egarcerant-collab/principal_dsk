@@ -12,6 +12,7 @@ export type ExecutionDataByMonth = Map<string, MonthlyExecutionData>;
 export default function Home() {
   const [executionData, setExecutionData] = useState<ExecutionDataByMonth>(new Map());
   const [jsonPrestadorCode, setJsonPrestadorCode] = useState<string | null>(null);
+  const [uniqueUserCount, setUniqueUserCount] = useState<number>(0);
 
 
   return (
@@ -33,6 +34,7 @@ export default function Home() {
              <JsonAnalyzerPage 
                 setExecutionData={setExecutionData} 
                 setJsonPrestadorCode={setJsonPrestadorCode}
+                setUniqueUserCount={setUniqueUserCount}
               />
           </div>
 
@@ -42,6 +44,7 @@ export default function Home() {
              <PgpSearchPage 
                 executionDataByMonth={executionData}
                 jsonPrestadorCode={jsonPrestadorCode}
+                uniqueUserCount={uniqueUserCount}
               />
           </div>
         </div>

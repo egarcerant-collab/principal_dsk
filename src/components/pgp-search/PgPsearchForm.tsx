@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +25,7 @@ import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import InformePGP from '@/components/report/InformePGP';
 import type { ReportData } from '@/components/report/InformePGP';
+import StatCard from '../shared/StatCard';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -106,6 +107,7 @@ export interface ComparisonSummary {
 interface PgPsearchFormProps {
   executionDataByMonth: ExecutionDataByMonth;
   jsonPrestadorCode: string | null;
+  uniqueUserCount: number;
 }
 
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
@@ -549,7 +551,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick }: { matrizData: MatrizEje
 
 
 /** =====================  COMPONENTE PRINCIPAL  ===================== **/
-const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode }) => {
+const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jsonPrestadorCode, uniqueUserCount }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState<boolean>(false);
   const [loadingPrestadores, setLoadingPrestadores] = useState<boolean>(true);
@@ -737,7 +739,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     'NIT': normalizeString(p.NIT),
                     'PRESTADOR': normalizeString(p.PRESTADOR),
                     'ID DE ZONA': normalizeString(p['ID DE ZONA']),
-                    'WEB': normalizeString(p.WEB)
+                    'WEB': normalizeString(p.WEB),
+                    'POBLACION': getNumericValue(p.POBLACION)
                 };
                 return cleaned;
             })
@@ -785,6 +788,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   }
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0 && comparisonSummary;
+
+  const population = selectedPrestador?.POBLACION ?? 0;
+  const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
+
 
   return (
     <Card>
@@ -836,6 +843,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
         {isDataLoaded && !loading && (
           <div className="space-y-6">
+             {showComparison && population > 0 && (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <StatCard
+                        title="Cobertura Poblacional"
+                        value={`${coveragePercentage.toFixed(1)}%`}
+                        icon={Users}
+                        footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`}
+                    />
+                </div>
+            )}
             <SummaryCard
               summary={globalSummary}
               title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`}
