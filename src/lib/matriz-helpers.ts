@@ -44,22 +44,20 @@ const getNumericValue = (value: any): number => {
     const hasDot = v.includes('.');
     
     if (hasComma && hasDot) {
-      const lastComma = v.lastIndexOf(',');
-      const lastDot = v.lastIndexOf('.');
-      if (lastComma > lastDot) {
-        v = v.replace(/\./g, '').replace(',', '.');
-      } else {
-        v = v.replace(/,/g, '');
-      }
-    } else if (hasComma && !v.match(/^\d{1,3}(,\d{3})*$/)) {
-      v = v.replace(',', '.');
+        const lastComma = v.lastIndexOf(',');
+        const lastDot = v.lastIndexOf('.');
+        if (lastComma > lastDot) {
+            v = v.replace(/\./g, '').replace(',', '.');
+        } else {
+            v = v.replace(/,/g, '');
+        }
     } else if (hasComma) {
-        v = v.replace(/,/g, '');
+      v = v.replace(',', '.');
     }
 
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
-  };
+};
 
 
 /**

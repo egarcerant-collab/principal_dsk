@@ -172,13 +172,8 @@ export const getNumericValue = (value: any): number => {
             v = v.replace(/,/g, '');
         }
     } else if (hasComma) {
-        // Si solo hay comas, puede ser separador de miles o decimal
-        // Asumimos que si no sigue el patrón de miles (e.g., 1,234), es un decimal
-        if (v.lastIndexOf(',') === v.length - 3 && v.match(/^\d{1,3}(,\d{3})*,\d{2}$/)) {
-             v = v.replace(/\./g, '').replace(',', '.');
-        } else if (v.includes(',')) {
-            v = v.replace(',', '.');
-        }
+      // Si solo hay coma, se asume que es el separador decimal
+      v = v.replace(',', '.');
     }
     
     const n = parseFloat(v);
@@ -844,8 +839,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
             {prestadores.map((p, index) => (
               <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)} className="flex flex-col items-start p-2">
-                 <span className="font-medium">{p.PRESTADOR}</span>
-                 <span className="text-xs text-muted-foreground block">({p['ID DE ZONA']})</span>
+                 <div className="font-medium">{p.PRESTADOR}</div>
+                 <div className="text-xs text-muted-foreground block">({p['ID DE ZONA']})</div>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -942,5 +937,4 @@ export default PgPsearchForm;
     
 
     
-
 
