@@ -1,3 +1,4 @@
+
 import type { ExecutionDataByMonth, CupCountsMap } from "@/app/page";
 
 interface PgpRow {
@@ -26,6 +27,7 @@ interface BuildMatrizArgs {
 }
 
 const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
+  if (!row) return undefined; // Return undefined if row is null or undefined
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
@@ -68,6 +70,8 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
       const cantidadEsperada = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
       const cantidadEjecutada = monthCupData?.total || 0;
       const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+
+      if(cantidadEsperada === 0 && cantidadEjecutada === 0) return;
 
       const diferencia = cantidadEjecutada - cantidadEsperada;
       const percentage = cantidadEsperada > 0 ? (cantidadEjecutada / cantidadEsperada) * 100 : (cantidadEjecutada > 0 ? Infinity : 0);

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -77,7 +78,7 @@ export interface ComparisonSummary {
     underExecutedCups: DeviatedCupInfo[];
     missingCups: DeviatedCupInfo[];
     unexpectedCups: { cup: string, realFrequency: number }[];
-    Matriz_Ejecucion_vs_Esperado: MatrixRow[];
+    Matriz_Ejecucion_vs_Esperado: MatrizEjecucionRow[];
     monthlyFinancials: MonthlyFinancialSummary[];
 }
 
@@ -129,6 +130,7 @@ export const getNumericValue = (value: any): number => {
 };
 
 export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
+  if (!row) return undefined;
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
