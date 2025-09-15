@@ -154,28 +154,36 @@ export const getNumericValue = (value: any): number => {
     let v = String(value).trim();
     if (!v) return 0;
 
+    // Eliminar espacios y símbolo de moneda
     v = v.replace(/\s+/g, '').replace(/\$/g, '');
 
     const hasComma = v.includes(',');
     const hasDot = v.includes('.');
-    
-    if (hasComma && hasDot) {
-      const lastComma = v.lastIndexOf(',');
-      const lastDot = v.lastIndexOf('.');
-      if (lastComma > lastDot) {
-        v = v.replace(/\./g, '').replace(',', '.');
-      } else {
-        v = v.replace(/,/g, '');
-      }
-    } else if (hasComma && !v.match(/^\d{1,3}(,\d{3})*$/)) {
-      v = v.replace(',', '.');
-    } else if (hasComma) {
-        v = v.replace(/,/g, '');
-    }
 
+    // Caso complejo: 1.234.567,89 (formato es-CO)
+    if (hasComma && hasDot) {
+        const lastComma = v.lastIndexOf(',');
+        const lastDot = v.lastIndexOf('.');
+        // Si la coma está después del último punto, es el decimal
+        if (lastComma > lastDot) {
+            v = v.replace(/\./g, '').replace(',', '.');
+        } else {
+            // Si el punto está después de la última coma, es formato en-US (1,234,567.89)
+            v = v.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        // Si solo hay comas, puede ser separador de miles o decimal
+        // Asumimos que si no sigue el patrón de miles (e.g., 1,234), es un decimal
+        if (v.lastIndexOf(',') === v.length - 3 && v.match(/^\d{1,3}(,\d{3})*,\d{2}$/)) {
+             v = v.replace(/\./g, '').replace(',', '.');
+        } else if (v.includes(',')) {
+            v = v.replace(',', '.');
+        }
+    }
+    
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
-  };
+};
 
 export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   const keys = Object.keys(row);
