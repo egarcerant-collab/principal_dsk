@@ -52,19 +52,19 @@ const prompt = ai.definePrompt({
   name: 'pgpAnalysisPrompt',
   input: {schema: AnalyzePgpDataInputSchema},
   output: {schema: AnalyzePgpDataOutputSchema},
-  prompt: `Eres un analista experto en contratos PGP (Pago Global Prospectivo) en el sector salud de Colombia.
-  Analiza la siguiente muestra de datos de una nota técnica y proporciona un resumen conciso y profesional.
-  Tu análisis debe ser estratégico y centrado en la toma de decisiones.
+  prompt: `Eres un analista financiero experto en contratos de salud PGP en Colombia.
+  Analiza los siguientes datos de una nota técnica para un contrato de Pago Global Prospectivo.
+  Tu objetivo es producir un análisis estratégico, conciso y de alto nivel para la gerencia.
 
-  Datos de la Nota Técnica (en formato JSON):
+  Datos de la Nota Técnica (JSON):
   {{{jsonData}}}
 
-  Basado en estos datos, por favor, genera:
-  1.  **Observaciones Clave:** Identifica las tendencias más importantes. ¿Qué servicios tienen el mayor costo? ¿Hay alguna frecuencia que parezca inusual? ¿Existen grandes diferencias entre los valores mínimos y máximos?
-  2.  **Riesgos Potenciales:** ¿Qué podría salir mal? ¿Hay riesgos de desviación financiera? ¿Hay servicios con alta variabilidad que podrían impactar el presupuesto?
-  3.  **Recomendaciones Estratégicas:** ¿Qué acciones se deberían tomar? ¿Dónde se debería enfocar la gestión? ¿Hay oportunidades de optimización?
+  Genera la siguiente información en el formato JSON especificado:
+  1.  **Observaciones Clave:** Identifica 3-5 tendencias críticas. Enfócate en los servicios de mayor costo, frecuencias inusuales, y grandes variaciones entre valores mínimos/máximos.
+  2.  **Riesgos Potenciales:** Detecta 2-3 riesgos financieros clave, como desviaciones presupuestarias o servicios con alta variabilidad que amenacen la estabilidad del contrato.
+  3.  **Recomendaciones Estratégicas:** Propón 2-3 acciones concretas y de alto impacto. Sugiere áreas para optimización, gestión de riesgos o negociación contractual.
 
-  Sé claro, conciso y profesional en tu respuesta. Proporciona los resultados en el formato JSON especificado.`,
+  Sé directo, profesional y utiliza un lenguaje ejecutivo.`,
 });
 
 const analyzePgpDataFlow = ai.defineFlow(
