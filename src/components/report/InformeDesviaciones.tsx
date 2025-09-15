@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2, TableIcon, X } from "lucide-react";
@@ -43,31 +42,17 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
     onDoubleClick: () => void;
 }) => {
     const Icon = icon;
-    if (!data || data.length === 0) {
-        return (
-             <Card className="bg-gray-50 dark:bg-gray-800/20">
-                <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <div className='flex items-center'>
-                        <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
-                        <CardTitle className="text-base font-medium">{title}</CardTitle>
-                    </div>
-                    <Badge variant="secondary">0</Badge>
-                </CardHeader>
-            </Card>
-        )
-    }
+    const hasData = data && data.length > 0;
 
     return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg">
-            <AccordionItem value="item-1" className="border-0">
-                 <div className="flex items-center justify-between p-4" onDoubleClick={onDoubleClick}>
-                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-                        <div className="flex items-center">
-                            <Icon className={`h-6 w-6 mr-3 ${badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500'}`} />
-                            <h3 className="text-base font-medium text-left">{title}</h3>
-                        </div>
-                    </AccordionTrigger>
-                    <div className='flex items-center gap-4 pl-4'>
+        <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors" onDoubleClick={onDoubleClick}>
+            <CardHeader className="flex flex-row items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                    <Icon className={`h-6 w-6 ${hasData ? (badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500') : 'text-muted-foreground'}`} />
+                    <CardTitle className="text-base font-medium">{title}</CardTitle>
+                </div>
+                <div className='flex items-center gap-4 pl-4'>
+                    {hasData && (
                         <Button
                             variant="ghost"
                             size="icon"
@@ -84,50 +69,12 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
                         >
                             <Download className="h-4 w-4" />
                         </Button>
-                        <Badge variant={badgeVariant}>{data.length}</Badge>
-                    </div>
+                    )}
+                    <Badge variant={hasData ? badgeVariant : 'secondary'}>{data.length}</Badge>
                 </div>
-                <AccordionContent className="px-4 pb-4">
-                    <ScrollArea className="h-72">
-                        <Table>
-                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                                <TableRow>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Actividad</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">Frec. Esperada</TableHead>
-                                    <TableHead className="text-center">Frec. Real</TableHead>
-                                    <TableHead className="text-center">Desviación</TableHead>
-                                    <TableHead className="text-right">Valor Desviación</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.map((item) => (
-                                    <TableRow key={item.cup}>
-                                        <TableCell>
-                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(item.cup)}>
-                                                {item.cup}
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-xs">{item.activityDescription}</TableCell>
-                                        <TableCell className="text-xs">{item.description}</TableCell>
-                                        <TableCell className="text-center">{item.expectedFrequency.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
-                                        <TableCell className={`text-center font-bold ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                                            {item.deviation.toFixed(0)}
-                                        </TableCell>
-                                         <TableCell className={`text-right font-bold ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                                            {formatCurrency(item.deviationValue)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-    );
+            </CardHeader>
+        </Card>
+    )
 };
 
 
@@ -142,31 +89,17 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
     onDoubleClick: () => void;
 }) => {
     const Icon = icon;
-    if (!data || data.length === 0) {
-        return (
-             <Card className="bg-gray-50 dark:bg-gray-800/20">
-                <CardHeader className="flex flex-row items-center justify-between p-4">
-                     <div className='flex items-center'>
-                        <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
-                        <CardTitle className="text-base font-medium">{title}</CardTitle>
-                    </div>
-                    <Badge variant="secondary">0</Badge>
-                </CardHeader>
-            </Card>
-        )
-    }
+    const hasData = data && data.length > 0;
 
     return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg">
-            <AccordionItem value="item-1" className="border-0">
-                 <div className="flex items-center justify-between p-4" onDoubleClick={onDoubleClick}>
-                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-                        <div className="flex items-center">
-                            <Icon className="h-6 w-6 mr-3 text-muted-foreground" />
-                            <h3 className="text-base font-medium text-left">{title}</h3>
-                        </div>
-                    </AccordionTrigger>
-                     <div className='flex items-center gap-4 pl-4'>
+        <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors" onDoubleClick={onDoubleClick}>
+            <CardHeader className="flex flex-row items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                    <Icon className="h-6 w-6 text-muted-foreground" />
+                    <CardTitle className="text-base font-medium">{title}</CardTitle>
+                </div>
+                 <div className='flex items-center gap-4 pl-4'>
+                    {hasData && (
                         <Button
                             variant="ghost"
                             size="icon"
@@ -179,41 +112,11 @@ const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, 
                         >
                             <Download className="h-4 w-4" />
                         </Button>
-                        <Badge variant={badgeVariant}>{data.length}</Badge>
-                    </div>
+                    )}
+                    <Badge variant={hasData ? badgeVariant : 'secondary'}>{data.length}</Badge>
                 </div>
-                <AccordionContent className="px-4 pb-4">
-                    <ScrollArea className="h-72">
-                        <Table>
-                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                                <TableRow>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">{title.includes("Faltantes") ? "Frec. Esperada" : "Frec. Real"}</TableHead>
-                                     {onLookupClick && <TableHead className="text-center">Acción</TableHead>}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.map((item) => (
-                                    <TableRow key={item.cup}>
-                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
-                                        <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
-                                        <TableCell className="text-center">{title.includes("Faltantes") ? item.expectedFrequency : item.realFrequency}</TableCell>
-                                         {onLookupClick && (
-                                            <TableCell className="text-center">
-                                                <Button variant="outline" size="sm" onClick={() => onLookupClick(item.cup)}>
-                                                    <Search className="mr-2 h-4 w-4" /> Buscar
-                                                </Button>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
+            </CardHeader>
+        </Card>
     );
 };
 
@@ -372,7 +275,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                             <TableBody>
                                 {data.map((item: DeviatedCupInfo) => (
                                     <TableRow key={item.cup}>
-                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
+                                        <TableCell>
+                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => handleCupClick(item.cup)}>
+                                                {item.cup}
+                                            </Button>
+                                        </TableCell>
                                         <TableCell className="text-xs">{item.activityDescription}</TableCell>
                                         <TableCell className="text-xs">{item.description}</TableCell>
                                         <TableCell className="text-center">{item.expectedFrequency.toFixed(0)}</TableCell>
@@ -395,6 +302,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                                     <TableHead>CUPS</TableHead>
                                     <TableHead>Descripción</TableHead>
                                     <TableHead className="text-center">{type === "missing" ? "Frec. Esperada" : "Frec. Real"}</TableHead>
+                                     {type === 'unexpected' && <TableHead className="text-center">Acción</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -403,6 +311,13 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                                         <TableCell className="font-mono text-xs">{item.cup}</TableCell>
                                         <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
                                         <TableCell className="text-center">{type === "missing" ? item.expectedFrequency : item.realFrequency}</TableCell>
+                                        {type === 'unexpected' && (
+                                            <TableCell className="text-center">
+                                                <Button variant="outline" size="sm" onClick={() => handleLookupClick(item.cup)}>
+                                                    <Search className="mr-2 h-4 w-4" /> Buscar
+                                                </Button>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 ))}
                             </TableBody>
