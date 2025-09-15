@@ -137,7 +137,7 @@ interface PgPsearchFormProps {
   uniqueUserCount: number;
 }
 
-const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/gviz/tq?tqx=out:csv&sheet=Hoja1";
+const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?gid=0#gid=0";
 
 /** =====================  HELPERS DE NORMALIZACIÓN  ===================== **/
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
@@ -151,14 +151,22 @@ const normalizeDigits = (v: unknown): string => {
 /** Parser numérico robusto para formatos es-CO y en-US */
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    let v = String(value).trim();
-    if (!v) return 0;
-
-    // Eliminar símbolo de moneda y espacios
-    v = v.replace(/\s+/g, '').replace(/\$/g, '');
     
-    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
-    v = v.replace(/\./g, '').replace(',', '.');
+    let v = String(value).trim().replace(/\$/g, '').replace(/\s/g, '');
+
+    // Formato colombiano: 1.234,56 -> 1234.56
+    if (v.includes('.') && v.includes(',')) {
+        // Asumimos que la coma es el decimal si está al final
+        if (v.lastIndexOf(',') > v.lastIndexOf('.')) {
+            v = v.replace(/\./g, '').replace(',', '.');
+        } else {
+             // Asumimos formato inglés: 1,234.56 -> 1234.56
+            v = v.replace(/,/g, '');
+        }
+    } else if (v.includes(',')) {
+        // Si solo hay coma, es decimal
+        v = v.replace(',', '.');
+    }
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
@@ -700,6 +708,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         return !!cupValue;
       });
 
+      if (pgpRows.length === 0) {
+        toast({ title: "Atención: No se cargaron registros", description: "La nota técnica parece estar vacía o en un formato no reconocido. Revise la hoja de cálculo.", variant: "destructive"});
+      }
+
       setPgpData(pgpRows);
       const summary = calculateSummary(pgpRows)
       setGlobalSummary(summary);
@@ -924,5 +936,7 @@ export default PgPsearchForm;
 
 
 
+
+    
 
     
