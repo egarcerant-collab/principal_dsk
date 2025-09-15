@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import InformePGP, { type ReportData } from '@/components/report/InformePGP';
 
 
 interface PgpRowBE { // Para el backend de IA
@@ -579,6 +580,53 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return buildMatrizEjecucion({ executionDataByMonth, pgpData });
   }, [pgpData, executionDataByMonth, isDataLoaded]);
 
+  const reportData = useMemo((): ReportData | null => {
+        if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary || !comparisonSummary) {
+            return null;
+        }
+
+        const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
+            const totalValue = data.summary.numFactura; // This seems incorrect. Let's fix it.
+            let totalMonthValue = 0;
+            const monthMatrix = comparisonSummary.Matriz_Ejecucion_vs_Esperado.filter(row => getMonthName(month) === row.Mes);
+            monthMatrix.forEach(row => {
+                totalMonthValue += row.Valor_Ejecutado;
+            });
+
+
+            return {
+                month: getMonthName(month),
+                cups: data.summary.numConsultas + data.summary.numProcedimientos, // Simplified
+                valueCOP: totalMonthValue,
+            };
+        });
+
+        const totalExecution = monthsData.reduce((acc, m) => acc + m.valueCOP, 0);
+
+        return {
+            header: {
+                empresa: 'EPSI-I ANAS WAYUU',
+                nit: selectedPrestador.NIT,
+                municipio: "Uribia",
+                contrato: "CW-052-2024-P",
+                vigencia: "2024",
+                ciudad: "Uribia",
+                fecha: new Date().toLocaleDateString('es-CO'),
+            },
+            months: monthsData,
+            notaTecnica: {
+                min90: globalSummary.totalCostoMes * 0.9,
+                valor3m: globalSummary.totalCostoMes,
+                max110: globalSummary.totalCostoMes * 1.1,
+                anticipos: totalExecution * 0.8,
+                totalPagar: totalExecution * 0.2,
+                totalFinal: totalExecution,
+            },
+            overExecutedCups: comparisonSummary.overExecutedCups,
+            unexpectedCups: comparisonSummary.unexpectedCups,
+        };
+    }, [isDataLoaded, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
+
     const handleLookupClick = async (cup: string) => {
         setIsLookupLoading(true);
         setIsLookupModalOpen(true);
@@ -798,7 +846,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     pgpData={pgpData}
                 />
                 <MatrizEjecucionCard matrizData={matrizEjecucionMensual} onCupClick={handleLookupClick} />
-
+                <InformePGP data={reportData} />
               </>
             )}
           </div>
@@ -823,3 +871,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
