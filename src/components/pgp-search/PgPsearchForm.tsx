@@ -24,7 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import InformePGP from '@/components/report/InformePGP';
-import type { ReportData } from '@/components/report/InformePGP';
 import StatCard from '../shared/StatCard';
 
 
@@ -102,6 +101,34 @@ export interface ComparisonSummary {
     Matriz_Ejecucion_vs_Esperado: MatrixRow[];
     monthlyFinancials: MonthlyFinancialSummary[];
 }
+
+export interface ReportData {
+  header: {
+    empresa: string;
+    nit: string;
+    ipsNombre: string;
+    ipsNit: string;
+    municipio: string;
+    contrato: string;
+    vigencia: string;
+    ciudad?: string;
+    fecha?: string;
+  };
+  months: { month: string; cups: number; valueCOP: number; }[];
+  notaTecnica: {
+    min90: number;
+    valor3m: number;
+    max110: number;
+    anticipos: number;
+    totalPagar: number;
+    totalFinal: number;
+  };
+  overExecutedCups: DeviatedCupInfo[];
+  underExecutedCups: DeviatedCupInfo[];
+  missingCups: DeviatedCupInfo[];
+  unexpectedCups: { cup: string, realFrequency: number }[];
+}
+
 
 
 interface PgPsearchFormProps {
@@ -810,8 +837,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-full md:w-[300px] max-h-72 overflow-y-auto">
             {prestadores.map((p, index) => (
-              <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)}>
-                {p.PRESTADOR} ({p['ID DE ZONA']})
+              <DropdownMenuItem key={`${p['ID DE ZONA']}-${index}`} onSelect={() => handleSelectPrestador(p)} className="flex flex-col items-start p-2">
+                 <span className="font-medium">{p.PRESTADOR}</span>
+                <span className="text-xs text-muted-foreground">({p['ID DE ZONA']})</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -902,3 +930,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
