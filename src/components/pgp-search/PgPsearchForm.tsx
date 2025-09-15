@@ -152,21 +152,11 @@ const normalizeDigits = (v: unknown): string => {
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     
+    // Elimina el símbolo de moneda y espacios
     let v = String(value).trim().replace(/\$/g, '').replace(/\s/g, '');
 
-    // Formato colombiano: 1.234,56 -> 1234.56
-    if (v.includes('.') && v.includes(',')) {
-        // Asumimos que la coma es el decimal si está al final
-        if (v.lastIndexOf(',') > v.lastIndexOf('.')) {
-            v = v.replace(/\./g, '').replace(',', '.');
-        } else {
-             // Asumimos formato inglés: 1,234.56 -> 1234.56
-            v = v.replace(/,/g, '');
-        }
-    } else if (v.includes(',')) {
-        // Si solo hay coma, es decimal
-        v = v.replace(',', '.');
-    }
+    // Elimina los puntos de miles y reemplaza la coma decimal por un punto
+    v = v.replace(/\./g, '').replace(',', '.');
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
@@ -593,19 +583,21 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
 
+  const showComparison = isDataLoaded && executionDataByMonth.size > 0;
+
   const comparisonSummary = useMemo(() => {
-    if (!isDataLoaded || executionDataByMonth.size === 0) {
+    if (!showComparison) {
       return null;
     }
     return calculateComparison(pgpData, executionDataByMonth);
-  }, [pgpData, executionDataByMonth, isDataLoaded]);
+  }, [pgpData, executionDataByMonth, showComparison]);
 
   const matrizEjecucionMensual = useMemo(() => {
-    if (!isDataLoaded || executionDataByMonth.size === 0) {
+    if (!showComparison) {
         return [];
     }
     return buildMatrizEjecucion({ executionDataByMonth, pgpData });
-  }, [pgpData, executionDataByMonth, isDataLoaded]);
+  }, [pgpData, executionDataByMonth, showComparison]);
 
   const reportData = useMemo((): ReportData | null => {
         if (!isDataLoaded || !selectedPrestador || executionDataByMonth.size === 0 || !globalSummary || !comparisonSummary) {
@@ -811,8 +803,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     );
   }
 
-  const showComparison = isDataLoaded && executionDataByMonth.size > 0 && comparisonSummary;
-
+  
   const population = selectedPrestador?.POBLACION ?? 0;
   const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
 
@@ -936,6 +927,8 @@ export default PgPsearchForm;
 
 
 
+
+    
 
     
 
