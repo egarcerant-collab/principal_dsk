@@ -41,14 +41,22 @@ const describeCupFlow = ai.defineFlow(
     outputSchema: DescribeCupOutputSchema,
   },
   async (cupCode) => {
-    const {output} = await prompt(cupCode);
-    if (!output) {
-      throw new Error('La IA no pudo generar una descripción para el código CUP.');
+    try {
+        const {output} = await prompt(cupCode);
+        if (!output) {
+        throw new Error('La IA no pudo generar una descripción para el código CUP.');
+        }
+        return {
+            cup: cupCode,
+            description: output.description
+        };
+    } catch (error) {
+        console.error(`Error en el flujo describeCupFlow para el código ${cupCode}:`, error);
+        return {
+            cup: cupCode,
+            description: "El servicio de IA no está disponible en este momento. Por favor, inténtalo de nuevo más tarde."
+        };
     }
-    return {
-        cup: cupCode,
-        description: output.description
-    };
   }
 );
 
