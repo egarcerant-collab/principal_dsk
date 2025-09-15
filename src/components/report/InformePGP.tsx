@@ -353,3 +353,5 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     </div>
   );
 }
+
+    

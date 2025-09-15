@@ -608,7 +608,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
         return {
             header: {
-                empresa: 'EPSI-I ANAS WAYUU',
+                empresa: selectedPrestador.PRESTADOR,
                 nit: selectedPrestador.NIT,
                 municipio: "Uribia",
                 contrato: "CW-052-2024-P",
@@ -883,3 +883,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
