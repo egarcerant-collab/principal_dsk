@@ -8,6 +8,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { findCie10Description } from '@/services/cie10-service';
 
 const DescribeCie10InputSchema = z.string().describe("El código de diagnóstico médico (CIE-10) a describir.");
 
@@ -22,18 +23,7 @@ export async function describeCie10(cie10Code: string): Promise<Cie10Description
   return describeCie10Flow(cie10Code);
 }
 
-const prompt = ai.definePrompt({
-  name: 'describeCie10Prompt',
-  input: {schema: DescribeCie10InputSchema},
-  output: {schema: DescribeCie10OutputSchema},
-  prompt: `Eres un experto en la Clasificación Internacional de Enfermedades (CIE-10).
-  Dado el siguiente código CIE-10, proporciona una descripción clara y concisa del diagnóstico al que corresponde.
-
-  Código CIE-10: {{{input}}}
-
-  Tu respuesta debe ser únicamente la descripción del diagnóstico. No incluyas el código en la respuesta.`,
-});
-
+// This flow now uses a local service instead of an AI prompt for better accuracy and performance.
 const describeCie10Flow = ai.defineFlow(
   {
     name: 'describeCie10Flow',
@@ -42,19 +32,22 @@ const describeCie10Flow = ai.defineFlow(
   },
   async (cie10Code) => {
     try {
-        const {output} = await prompt(cie10Code);
-        if (!output) {
-        throw new Error('La IA no pudo generar una descripción para el código CIE-10.');
+        const description = await findCie10Description(cie10Code);
+        if (!description) {
+            return {
+                code: cie10Code,
+                description: `No se encontró una descripción para el código ${cie10Code}.`
+            };
         }
         return {
             code: cie10Code,
-            description: output.description
+            description: description
         };
     } catch (error) {
         console.error(`Error en el flujo describeCie10Flow para el código ${cie10Code}:`, error);
         return {
             code: cie10Code,
-            description: "El servicio de IA no está disponible en este momento. Por favor, inténtalo de nuevo más tarde."
+            description: "No se pudo realizar la búsqueda en este momento. Por favor, inténtalo de nuevo más tarde."
         };
     }
   }
