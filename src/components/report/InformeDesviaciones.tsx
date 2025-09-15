@@ -44,18 +44,19 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
 }) => {
     const Icon = icon;
     const hasData = data && data.length > 0;
+    const isOverExecuted = badgeVariant === 'destructive';
 
     return (
         <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors" onDoubleClick={onDoubleClick}>
             <CardHeader className="flex flex-row items-center justify-between p-4">
                 <div className="flex items-center gap-3">
-                    <Icon className={`h-6 w-6 ${hasData ? (badgeVariant === 'destructive' ? 'text-red-500' : 'text-blue-500') : 'text-muted-foreground'}`} />
+                    <Icon className={`h-6 w-6 ${hasData ? (isOverExecuted ? 'text-red-500' : 'text-blue-500') : 'text-muted-foreground'}`} />
                     <CardTitle className="text-base font-medium">{title}</CardTitle>
                 </div>
                 <div className='flex items-center gap-4 pl-4'>
                     {totalDeviationValue !== undefined && hasData && (
                         <div className="text-right">
-                             <p className="text-sm font-bold text-red-600">{formatCurrency(totalDeviationValue)}</p>
+                             <p className={`text-sm font-bold ${isOverExecuted ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(totalDeviationValue)}</p>
                              <p className="text-xs text-muted-foreground">Valor Desviación</p>
                         </div>
                     )}
@@ -219,6 +220,12 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         if (!comparisonSummary || !comparisonSummary.overExecutedCups) return 0;
         return comparisonSummary.overExecutedCups.reduce((sum, cup) => sum + cup.deviationValue, 0);
     }, [comparisonSummary]);
+    
+    const totalUnderExecutionValue = useMemo(() => {
+        if (!comparisonSummary || !comparisonSummary.underExecutedCups) return 0;
+        return comparisonSummary.underExecutedCups.reduce((sum, cup) => sum + cup.deviationValue, 0);
+    }, [comparisonSummary]);
+
 
 
     if (!comparisonSummary) {
@@ -268,6 +275,15 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
             <span>CUPS Sobreejecutados (&gt;111%)</span>
             {totalOverExecutionValue > 0 && (
                  <span className="text-red-500 font-bold ml-4">{formatCurrency(totalOverExecutionValue)}</span>
+            )}
+        </div>
+    );
+    
+    const underExecutedTitle = (
+        <div className="flex items-center justify-between w-full">
+            <span>CUPS Subejecutados (&lt;90%)</span>
+            {totalUnderExecutionValue < 0 && (
+                 <span className="text-blue-500 font-bold ml-4">{formatCurrency(totalUnderExecutionValue)}</span>
             )}
         </div>
     );
@@ -382,7 +398,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         pgpData={pgpData}
                         onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('under-executed', 'CUPS Subejecutados (<90%)', comparisonSummary.underExecutedCups)}
+                        onDoubleClick={() => handleDoubleClick('under-executed', underExecutedTitle, comparisonSummary.underExecutedCups)}
+                        totalDeviationValue={totalUnderExecutionValue}
                     />
                      <DiscrepancyAccordion
                         title="CUPS Faltantes"
