@@ -65,6 +65,7 @@ const prompt = ai.definePrompt({
   3.  **Recomendaciones Estratégicas:** Propón 2-3 acciones concretas y de alto impacto. Sugiere áreas para optimización, gestión de riesgos o negociación contractual.
 
   Sé directo, profesional y utiliza un lenguaje ejecutivo.`,
+   model: 'googleai/gemini-2.5-flash',
 });
 
 const analyzePgpDataFlow = ai.defineFlow(
@@ -74,12 +75,15 @@ const analyzePgpDataFlow = ai.defineFlow(
     outputSchema: AnalyzePgpDataOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('El análisis de IA no pudo generar un resultado.');
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('El análisis de IA no pudo generar un resultado.');
+      }
+      return output;
+    } catch (error) {
+       console.error("Error en el flujo analyzePgpDataFlow:", error);
+       throw new Error('El análisis de IA no pudo generar un resultado.');
     }
-    return output;
   }
 );
-
-    
