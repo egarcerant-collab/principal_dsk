@@ -32,7 +32,9 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
     
     const response = await fetch(csvUrl);
-    if (!response.ok) throw new Error(`Error obteniendo Google Sheet: ${response.statusText}`);
+    if (!response.ok) {
+        throw new Error(`Error obteniendo Google Sheet: ${response.statusText}. Asegúrese de que la hoja de cálculo sea pública ('Publicar en la web').`);
+    }
     const csvText = await response.text();
 
     return new Promise((resolve, reject) => {
@@ -69,3 +71,5 @@ export const fetchSheetData = async <T extends object>(url: string): Promise<T[]
         });
     });
 };
+
+    
