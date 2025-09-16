@@ -311,7 +311,7 @@ const ValorizadoDetailModal = ({ open, onOpenChange, data }: { open: boolean, on
 
 export const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return '$0';
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 };
 
 const getMonthName = (monthNumber: string) => {
