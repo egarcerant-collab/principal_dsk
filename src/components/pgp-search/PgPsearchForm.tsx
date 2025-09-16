@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
@@ -130,6 +131,7 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 const normalizeDigits = (v: unknown): string => {
     const digitsOnly = String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
     if (!digitsOnly) return "";
+    // Convert to number to remove leading zeros, then back to string for comparison.
     return parseInt(digitsOnly, 10).toString();
 };
 
@@ -282,10 +284,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const normalExecutionCups: DeviatedCupInfo[] = [];
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: UnexpectedCupInfo[] = [];
-  const executionMatrix: MatrixRow[] = [];
-  const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number, percentage: number }>();
-
-
+  
   const pgpCupsMap = new Map<string, PgpRow>();
   pgpData.forEach(row => {
       const cup = findColumnValue(row, ['cup/cum', 'cups']);
@@ -301,22 +300,28 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   
   const matrizData = buildMatrizEjecucion({ executionDataByMonth, pgpData });
 
+  const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number }>();
+
   matrizData.forEach(row => {
       const monthName = row.Mes;
-      let monthFinance = monthlyFinancialsMap.get(monthName);
-      if (!monthFinance) {
-          monthFinance = { totalValorEsperado: 0, totalValorEjecutado: 0, percentage: 0 };
-          monthlyFinancialsMap.set(monthName, monthFinance);
+      if (!monthlyFinancialsMap.has(monthName)) {
+          monthlyFinancialsMap.set(monthName, { totalValorEsperado: 0, totalValorEjecutado: 0 });
       }
+      const monthFinance = monthlyFinancialsMap.get(monthName)!;
       monthFinance.totalValorEsperado += row.Valor_Esperado;
       monthFinance.totalValorEjecutado += row.Valor_Ejecutado;
   });
 
-  monthlyFinancialsMap.forEach((finance, month) => {
-    finance.percentage = finance.totalValorEsperado > 0 ? (finance.totalValorEjecutado / finance.totalValorEsperado) * 100 : 0;
+  const monthlyFinancials: MonthlyFinancialSummary[] = [];
+  monthlyFinancialsMap.forEach((data, month) => {
+    monthlyFinancials.push({
+        month,
+        totalValorEsperado: data.totalValorEsperado,
+        totalValorEjecutado: data.totalValorEjecutado,
+        percentage: data.totalValorEsperado > 0 ? (data.totalValorEjecutado / data.totalValorEsperado) * 100 : 0
+    });
   });
 
-  const monthlyFinancials = Array.from(monthlyFinancialsMap, ([month, data]) => ({ month, ...data }));
 
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
