@@ -126,7 +126,11 @@ interface PgPsearchFormProps {
 const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?gid=0#gid=0";
 
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
-const normalizeDigits = (v: unknown): string => String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
+const normalizeDigits = (v: unknown): string => {
+    const digitsOnly = String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
+    if (!digitsOnly) return "";
+    return parseInt(digitsOnly, 10).toString();
+};
 
 
 export const getNumericValue = (value: any): number => {
@@ -538,23 +542,23 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
   const [isCie10Loading, setIsCie10Loading] = useState(false);
 
-  const showComparison = isDataLoaded && executionDataByMonth.size > 0;
-
   useEffect(() => {
     setIsClient(true);
     fetch('/api/check-env').then(res => res.json()).then(data => setIsAiEnabled(data.isAiEnabled));
   }, []);
 
+  const showComparison = isDataLoaded && executionDataByMonth.size > 0;
+
   const comparisonSummary = useMemo(() => {
     if (!showComparison) return null;
     return calculateComparison(pgpData, executionDataByMonth);
   }, [pgpData, executionDataByMonth, showComparison]);
-
+  
   const totalEjecutado = useMemo(() => {
     if (!comparisonSummary) return 0;
     return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
   }, [comparisonSummary]);
-
+  
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
     const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => ({
@@ -608,8 +612,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         setIsCie10Loading(false);
     }
   }
-
-  
 
   const performLoadPrestador = useCallback(async (prestador: Prestador) => {
     setLoading(true); setIsDataLoaded(false); setGlobalSummary(null); setAnalysis(null); setMismatchWarning(null);
@@ -785,6 +787,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+
 
 
 
