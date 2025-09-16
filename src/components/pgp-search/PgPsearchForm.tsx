@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
@@ -131,6 +131,7 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 const normalizeDigits = (v: unknown): string => {
     const digitsOnly = String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
     if (!digitsOnly) return "";
+    // Convert to number to remove leading zeros, then back to string.
     return parseInt(digitsOnly, 10).toString();
 };
 
@@ -565,11 +566,20 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return calculateComparison(pgpData, executionDataByMonth);
   }, [pgpData, executionDataByMonth, showComparison]);
   
-  const totalEjecutado = useMemo(() => {
+  const totalEjecutadoValorizado = useMemo(() => {
     if (!comparisonSummary) return 0;
     return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
   }, [comparisonSummary]);
   
+  const totalRealEjecutadoJson = useMemo(() => {
+    if (executionDataByMonth.size === 0) return 0;
+    let total = 0;
+    executionDataByMonth.forEach(monthData => {
+        total += monthData.totalRealValue;
+    });
+    return total;
+  }, [executionDataByMonth]);
+
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
     const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
@@ -765,7 +775,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
              {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
-                    <StatCard title="Valor Total Ejecutado" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
+                    <StatCard title="Ejecución Real (JSON)" value={formatCurrency(totalRealEjecutadoJson)} icon={Wallet} footer={`Costo real total de los archivos JSON`} />
+                    <StatCard title="Ejecución Valorizada (NT)" value={formatCurrency(totalEjecutadoValorizado)} icon={Wallet} footer={`Ejecución valorizada con precios de la Nota Técnica`} />
                 </div>
             )}
             <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />

@@ -16,6 +16,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 export interface MonthlyExecutionData {
   cupCounts: CupCountsMap;
   summary: any;
+  totalRealValue: number; // Valor total real del JSON
 }
 
 export type ExecutionDataByMonth = Map<string, MonthlyExecutionData>;
@@ -40,6 +41,7 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 const normalizeDigits = (v: unknown): string => {
     const digitsOnly = String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
     if (!digitsOnly) return "";
+    // Convert to number to remove leading zeros, then back to string.
     return parseInt(digitsOnly, 10).toString();
 };
 
@@ -291,6 +293,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
 
     filesByMonth.forEach((monthFiles, month) => {
       const monthCupCounts: CupCountsMap = new Map();
+      let monthTotalRealValue = 0;
 
       monthFiles.forEach(file => {
         const fileCupCounts = calculateCupCounts(file.jsonData);
@@ -300,12 +303,18 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
           }
           const existingData = monthCupCounts.get(cup)!;
           existingData.total += data.total;
-          existingData.totalValue += data.totalValue;
+          existingData.totalValue += data.totalValue; // This is the real value from JSON
+          
           data.diagnoses.forEach((count, diag) => {
             existingData.diagnoses.set(diag, (existingData.diagnoses.get(diag) || 0) + count);
           });
         });
       });
+      
+      monthCupCounts.forEach(cupData => {
+        monthTotalRealValue += cupData.totalValue;
+      });
+
 
       const combinedSummary = monthFiles.reduce((acc, file) => {
         const summary = calculateSummary(file.jsonData);
@@ -326,7 +335,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
 
       dataByMonth.set(month, {
         cupCounts: monthCupCounts,
-        summary: combinedSummary
+        summary: combinedSummary,
+        totalRealValue: monthTotalRealValue
       });
     });
 
