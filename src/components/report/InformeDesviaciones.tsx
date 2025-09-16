@@ -156,7 +156,7 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOpenChange }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOpenChange, executionDataByMonth }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
     if (!cupData) return null;
 
     const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
@@ -172,11 +172,38 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
     }, [cupData]);
     
     const handleDownloadDetails = () => {
-        const dataToDownload = filteredCupData.map(([key, value]) => ({
-            Campo: key,
-            Valor: value,
-        }));
-        handleDownloadXls(dataToDownload, `detalles_cup_${cupData['CUP/CUM']}.xls`);
+        const cupToFind = findColumnValue(cupData, ['cup/cum', 'cups']);
+        const executionDetails: any[] = [];
+
+        executionDataByMonth.forEach((monthData) => {
+            monthData.rawJsonData.usuarios?.forEach((user: any) => {
+                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+
+                const processServices = (services: any[], codeField: string, type: string) => {
+                    if (!services) return;
+                    services.forEach((service: any) => {
+                        if (service[codeField] === cupToFind) {
+                            executionDetails.push({
+                                TIPO_SERVICIO: type,
+                                ID_USUARIO: userId,
+                                FECHA_ATENCION: service.fechaInicioAtencion,
+                                CODIGO_SERVICIO: service[codeField],
+                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
+                                CANTIDAD: service.cantidadMedicamento || service.cantidadOS || 1,
+                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                            });
+                        }
+                    });
+                };
+                
+                processServices(user.servicios?.consultas, 'codConsulta', 'CONSULTA');
+                processServices(user.servicios?.procedimientos, 'codProcedimiento', 'PROCEDIMIENTO');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'MEDICAMENTO');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'OTRO_SERVICIO');
+            });
+        });
+
+        handleDownloadXls(executionDetails, `matriz_detalle_${cupToFind}.xls`);
     };
 
     return (
@@ -214,7 +241,7 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
                 <AlertDialogFooter>
                     <Button variant="secondary" onClick={handleDownloadDetails}>
                         <Download className="mr-2 h-4 w-4" />
-                        Descargar
+                        Descargar Detalle
                     </Button>
                     <AlertDialogAction onClick={() => onOpenChange(false)}>Cerrar</AlertDialogAction>
                 </AlertDialogFooter>
@@ -564,6 +591,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 totalFrequency={totalFrequency}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
+                executionDataByMonth={executionDataByMonth}
             />
             
              <LookedUpCupModal
@@ -586,6 +614,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+    
+
     
 
     
