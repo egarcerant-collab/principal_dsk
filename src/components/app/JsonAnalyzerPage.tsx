@@ -37,6 +37,8 @@ interface JsonAnalyzerPageProps {
 const PROVIDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4llbolO60VsdFcN5vxuYap1vBZs6foZ-XD04/edit?gid=0#gid=0";
 
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
+const normalizeDigits = (v: unknown): string => String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
+
 
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
@@ -66,7 +68,7 @@ async function fetchProvidersData(): Promise<Map<string, PrestadorInfo>> {
   const providersList = await fetchSheetData<PrestadorInfo>(PROVIDERS_SHEET_URL);
   const map = new Map<string, PrestadorInfo>();
   providersList.forEach(provider => {
-    const key = normalizeString(provider['ID DE ZONA']);
+    const key = normalizeDigits(provider['ID DE ZONA']);
     if (key) {
       const cleanedProvider: PrestadorInfo = {
         'NIT': normalizeString(provider.NIT),
@@ -96,17 +98,19 @@ const getCodPrestadorFromJson = (jsonData: any): string | null => {
   if (!jsonData || !Array.isArray(jsonData.usuarios) || jsonData.usuarios.length === 0) {
     return null;
   }
+  let prestadorCodeRaw: string | null = null;
   try {
-    const prestadorCode = jsonData.usuarios[0]?.servicios?.consultas?.[0]?.codPrestador;
-    if (prestadorCode) return normalizeString(prestadorCode);
+    prestadorCodeRaw = jsonData.usuarios[0]?.servicios?.consultas?.[0]?.codPrestador;
+    if (prestadorCodeRaw) return normalizeDigits(prestadorCodeRaw);
   } catch (e) {}
   
   try {
-     const prestadorCode = jsonData.usuarios[0]?.servicios?.procedimientos?.[0]?.codPrestador;
-     if (prestadorCode) return normalizeString(prestadorCode);
+     prestadorCodeRaw = jsonData.usuarios[0]?.servicios?.procedimientos?.[0]?.codPrestador;
+     if (prestadorCodeRaw) return normalizeDigits(prestadorCodeRaw);
   } catch (e) {}
 
-  return findValueByKeyCaseInsensitive(jsonData, 'codPrestador');
+  prestadorCodeRaw = findValueByKeyCaseInsensitive(jsonData, 'codPrestador');
+  return prestadorCodeRaw ? normalizeDigits(prestadorCodeRaw) : null;
 };
 
 export const calculateCupCounts = (jsonData: any): CupCountsMap => {
@@ -147,7 +151,7 @@ export const calculateCupCounts = (jsonData: any): CupCountsMap => {
             processServices(user.servicios.consultas, 'codConsulta', 'codDiagnosticoPrincipal');
             processServices(user.servicios.procedimientos, 'codProcedimiento', 'codDiagnosticoPrincipal');
             processServices(user.servicios.medicamentos, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadMedicamento', undefined, 'vrUnitarioMedicamento');
-            processServices(user.servicios.otrosServicios, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadOS');
+            processServices(user.servicios.otrosServicios, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadOS', 'vrServicio');
         }
     });
 

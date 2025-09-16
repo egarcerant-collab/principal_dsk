@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -128,6 +127,7 @@ const PRESTADORES_SHEET_URL = "https://docs.google.com/spreadsheets/d/10Icu1DO4l
 
 const normalizeString = (v: unknown): string => String(v ?? "").trim();
 const normalizeDigits = (v: unknown): string => String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
+
 
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
@@ -693,13 +693,12 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   }, [jsonPrestadorCode, prestadores, loading, selectedPrestador, handleSelectPrestador, toast]);
 
-  if (!isClient) {
-    return <div className="flex items-center justify-center py-6"><Loader2 className="mr-2 h-6 w-6 animate-spin" /> <p>Cargando analizador...</p></div>;
-  }
-  
   const population = selectedPrestador?.POBLACION ?? 0;
   const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
   
+  if (!isClient) {
+    return <div className="flex items-center justify-center py-6"><Loader2 className="mr-2 h-6 w-6 animate-spin" /> <p>Cargando analizador...</p></div>;
+  }
 
   return (
     <Card>
@@ -786,6 +785,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
 
 
 
