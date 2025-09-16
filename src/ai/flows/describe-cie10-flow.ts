@@ -45,10 +45,8 @@ const describeCie10Flow = ai.defineFlow(
         };
     } catch (error) {
         console.error(`Error en el flujo describeCie10Flow para el código ${cie10Code}:`, error);
-        return {
-            code: cie10Code,
-            description: "No se pudo realizar la búsqueda en este momento. Por favor, inténtalo de nuevo más tarde."
-        };
+        // Throw a controlled error to be caught by the client-side action handler.
+        throw new Error("No se pudo realizar la búsqueda en este momento. Por favor, inténtalo de nuevo más tarde.");
     }
   }
 );
