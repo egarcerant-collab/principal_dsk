@@ -110,9 +110,7 @@ const generateReportAnalysisFlow = ai.defineFlow(
         return output;
     } catch (error) {
         console.error("Error en generateReportAnalysisFlow:", error);
-        throw new Error('El servicio de IA no pudo generar el análisis para el informe.');
+        throw new Error('El servicio de IA no pudo generar el análisis para el informe. Por favor, inténtelo de nuevo más tarde.');
     }
   }
 );
-
-    

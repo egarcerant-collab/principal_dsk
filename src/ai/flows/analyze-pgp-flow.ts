@@ -83,7 +83,7 @@ const analyzePgpDataFlow = ai.defineFlow(
       return output;
     } catch (error) {
        console.error("Error en el flujo analyzePgpDataFlow:", error);
-       throw new Error('El análisis de IA no pudo generar un resultado.');
+       throw new Error('El análisis de IA no pudo generar un resultado. Por favor, inténtelo de nuevo más tarde.');
     }
   }
 );
