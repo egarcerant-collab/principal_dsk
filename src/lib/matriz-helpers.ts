@@ -1,3 +1,4 @@
+
 import type { ExecutionDataByMonth, CupCountsMap } from "@/app/page";
 
 interface PgpRow {
@@ -68,11 +69,14 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
 
       const cantidadEsperada = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
       const cantidadEjecutada = monthCupData?.total || 0;
-      const valorEjecutado = monthCupData?.totalValue || 0;
       
       const valorEsperado = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['costo evento mes (valor mes)', 'costo evento mes'])) : 0;
-      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : (cantidadEjecutada > 0 ? valorEjecutado / cantidadEjecutada : 0);
+      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0; // Use unit value from PGP. If unexpected, it's 0.
 
+      // ** NEW LOGIC **
+      // Valor Ejecutado is now based on PGP unit value, not JSON's vrServicio.
+      const valorEjecutado = cantidadEjecutada * unitValue;
+      
 
       if(cantidadEsperada === 0 && cantidadEjecutada === 0) return;
 

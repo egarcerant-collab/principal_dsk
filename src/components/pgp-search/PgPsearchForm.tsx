@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -131,7 +132,6 @@ const normalizeString = (v: unknown): string => String(v ?? "").trim();
 const normalizeDigits = (v: unknown): string => {
     const digitsOnly = String(v ?? "").trim().replace(/\s+/g, "").replace(/\D/g, "");
     if (!digitsOnly) return "";
-    // Convert to number to remove leading zeros, then back to string for comparison.
     return parseInt(digitsOnly, 10).toString();
 };
 
@@ -326,11 +326,11 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
     let totalRealFrequency = 0;
-    let totalRealValue = 0;
+    let totalRealValueFromJSON = 0; // Use JSON's vrServicio for this
     executionDataByMonth.forEach(monthData => {
       const cupData = monthData.cupCounts.get(cup);
       totalRealFrequency += cupData?.total || 0;
-      totalRealValue += cupData?.totalValue || 0;
+      totalRealValueFromJSON += cupData?.totalValue || 0;
     });
 
     if (pgpRow) {
@@ -350,7 +350,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           realFrequency: totalRealFrequency,
           deviation: deviation,
           deviationValue: deviation * unitValue,
-          totalValue: totalRealValue,
+          totalValue: totalRealValueFromJSON, // Use value from JSON here
         };
         
         if (percentage > 1.11) {
@@ -371,7 +371,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       unexpectedCups.push({
         cup,
         realFrequency: totalRealFrequency,
-        totalValue: totalRealValue,
+        totalValue: totalRealValueFromJSON, // Use value from JSON here
       });
     }
   });
@@ -568,17 +568,30 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   
   const totalEjecutado = useMemo(() => {
     if (!comparisonSummary) return 0;
-    return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
-  }, [comparisonSummary]);
+    // This total must come from the JSON `vrServicio` sums for accuracy.
+    let totalValue = 0;
+    executionDataByMonth.forEach(monthData => {
+        monthData.cupCounts.forEach(cupInfo => {
+            totalValue += cupInfo.totalValue;
+        });
+    });
+    return totalValue;
+  }, [comparisonSummary, executionDataByMonth]);
   
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
-    const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => ({
-      month: getMonthName(month),
-      cups: data.summary.numConsultas + data.summary.numProcedimientos,
-      valueCOP: comparisonSummary.monthlyFinancials.find(m => m.month === getMonthName(month))?.totalValorEjecutado ?? 0,
-    }));
+    const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
+      let monthValue = 0;
+      data.cupCounts.forEach(cupInfo => monthValue += cupInfo.totalValue);
+
+      return {
+          month: getMonthName(month),
+          cups: data.summary.numConsultas + data.summary.numProcedimientos,
+          valueCOP: monthValue,
+      };
+    });
     const totalExecution = monthsData.reduce((acc, m) => acc + m.valueCOP, 0);
+
     return {
       header: {
         empresa: "Dusakawi EPSI", nit: "8240001398",
@@ -760,7 +773,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
              {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
-                    <StatCard title="Valor Total Ejecutado" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
+                    <StatCard title="Valor Total Ejecutado (JSON)" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
                 </div>
             )}
             <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
@@ -770,7 +783,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 <FinancialMatrix monthlyFinancials={comparisonSummary.monthlyFinancials} />
                 <InformeDesviaciones comparisonSummary={comparisonSummary} pgpData={pgpData} />
                 <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} />
-                <InformePGP data={reportData} />
+                {reportData && <InformePGP data={reportData} />}
               </>
             )}
           </div>

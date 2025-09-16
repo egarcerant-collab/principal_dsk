@@ -6,36 +6,22 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const CupInfoSchema = z.object({
-    cup: z.string(),
-    description: z.string().optional(),
-    realFrequency: z.number(),
-    expectedFrequency: z.number(),
-    deviation: z.number(),
-    deviationValue: z.number(),
-});
-
-const UnexpectedCupInfoSchema = z.object({
-    cup: z.string(),
-    realFrequency: z.number(),
-});
+import {z} from 'zod';
+import type { DeviatedCupInfo, UnexpectedCupInfo } from '@/components/pgp-search/PgPsearchForm';
 
 const ReportAnalysisInputSchema = z.object({
-    sumaMensual: z.number().describe("El valor total ejecutado en el periodo."),
+    sumaMensual: z.number().describe("El valor total ejecutado en el periodo, basado en los vrServicio del JSON."),
     valorNotaTecnica: z.number().describe("El valor presupuestado en la nota técnica para el periodo."),
-    diffVsNota: z.number().describe("La diferencia monetaria entre lo ejecutado y lo presupuestado."),
-    porcentajeEjecucion: z.number().describe("El porcentaje de ejecución (ejecutado / presupuestado)."),
+    diffVsNota: z.number().describe("La diferencia monetaria entre lo ejecutado (JSON) y lo presupuestado."),
+    porcentajeEjecucion: z.number().describe("El porcentaje de ejecución (ejecutado (JSON) / presupuestado)."),
     totalCups: z.number().describe("La cantidad total de CUPS ejecutados."),
-    unitAvg: z.number().describe("El costo unitario promedio (valor total / cantidad de CUPS)."),
+    unitAvg: z.number().describe("El costo unitario promedio (valor total ejecutado (JSON) / cantidad de CUPS)."),
     overExecutedCount: z.number().describe("La cantidad de CUPS que fueron sobre-ejecutados."),
     unexpectedCount: z.number().describe("La cantidad de CUPS ejecutados que no estaban en la nota técnica."),
-    // Datos clínicos para un análisis más profundo
-    overExecutedCups: z.array(CupInfoSchema).describe("Lista de CUPS sobre-ejecutados."),
-    underExecutedCups: z.array(CupInfoSchema).describe("Lista de CUPS sub-ejecutados."),
-    missingCups: z.array(CupInfoSchema).describe("Lista de CUPS planificados que no se ejecutaron."),
-    unexpectedCups: z.array(UnexpectedCupInfoSchema).describe("Lista de CUPS ejecutados no planificados."),
+    overExecutedCups: z.array(z.any()).describe("Lista de CUPS sobre-ejecutados."),
+    underExecutedCups: z.array(z.any()).describe("Lista de CUPS sub-ejecutados."),
+    missingCups: z.array(z.any()).describe("Lista de CUPS planificados que no se ejecutaron."),
+    unexpectedCups: z.array(z.any()).describe("Lista de CUPS ejecutados no planificados."),
 });
 
 const ReportAnalysisOutputSchema = z.object({
@@ -61,7 +47,7 @@ const prompt = ai.definePrompt({
   Usa un lenguaje profesional, claro, y directo, enfocado en la toma de decisiones gerenciales.
 
   KPIs Financieros y Operativos del Periodo:
-  - Valor Total Ejecutado: {{sumaMensual}}
+  - Valor Total Ejecutado (costo real del JSON): {{sumaMensual}}
   - Presupuesto (Nota Técnica): {{valorNotaTecnica}}
   - Diferencia vs Presupuesto: {{diffVsNota}}
   - Porcentaje de Ejecución: {{porcentajeEjecucion}}%
@@ -80,7 +66,7 @@ const prompt = ai.definePrompt({
   Genera los siguientes cuatro bloques de texto en el formato JSON especificado:
 
   1.  **financialAnalysis** (entre 1200 y 1500 caracteres): Análisis de Ejecución Financiera y Presupuestal.
-      - Compara la ejecución con el presupuesto y las bandas de control (90%-110%).
+      - Compara la ejecución (basada en el costo real del JSON) con el presupuesto y las bandas de control (90%-110%).
       - Evalúa la estabilidad, predictibilidad y disciplina del gasto.
       - Analiza la desviación absoluta y relativa y su impacto en la sostenibilidad.
       - Proyecta el comportamiento anualizado si la tendencia se mantiene.
@@ -128,3 +114,5 @@ const generateReportAnalysisFlow = ai.defineFlow(
     }
   }
 );
+
+    
