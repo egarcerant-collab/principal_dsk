@@ -22,7 +22,6 @@ import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import StatCard from '../shared/StatCard';
 import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow';
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import InformePGP from '../report/InformePGP';
 
@@ -264,6 +263,50 @@ const AnalysisModal = ({ analysis, isLoading, open, onOpenChange }: { analysis: 
     </Dialog>
   )
 };
+
+const ValorizadoDetailModal = ({ open, onOpenChange, data }: { open: boolean, onOpenChange: (open: boolean) => void, data: MatrizEjecucionRow[] }) => {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-3xl h-[70vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Desglose de Ejecución Valorizada (NT)</DialogTitle>
+                    <DialogDescription>
+                        Detalle del cálculo del valor ejecutado utilizando las frecuencias del JSON y los precios unitarios de la Nota Técnica.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex-grow overflow-hidden">
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                                    <TableHead className="text-right">Valor Unitario (NT)</TableHead>
+                                    <TableHead className="text-right">Valor Ejecutado</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.filter(row => row.Cantidad_Ejecutada > 0).map((row, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                                        <TableCell className="text-xs">{row.Descripcion}</TableCell>
+                                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{formatCurrency(row.Valor_Unitario)}</TableCell>
+                                        <TableCell className="text-right font-semibold">{formatCurrency(row.Valor_Ejecutado)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) return '$0';
@@ -553,6 +596,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [cie10Info, setCie10Info] = useState<Cie10Description | null>(null);
   const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
   const [isCie10Loading, setIsCie10Loading] = useState(false);
+  const [isValorizadoModalOpen, setIsValorizadoModalOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -776,7 +820,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
                     <StatCard title="Ejecución Real (JSON)" value={formatCurrency(totalRealEjecutadoJson)} icon={Wallet} footer={`Costo real total de los archivos JSON`} />
-                    <StatCard title="Ejecución Valorizada (NT)" value={formatCurrency(totalEjecutadoValorizado)} icon={Wallet} footer={`Ejecución valorizada con precios de la Nota Técnica`} />
+                     <div onDoubleClick={() => setIsValorizadoModalOpen(true)} className="cursor-pointer">
+                        <StatCard 
+                            title="Ejecución Valorizada (NT)" 
+                            value={formatCurrency(totalEjecutadoValorizado)} 
+                            icon={Wallet} 
+                            footer={`Ejecución valorizada con precios de la Nota Técnica`} 
+                        />
+                    </div>
                 </div>
             )}
             <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
@@ -809,6 +860,13 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             </AlertDialogContent>
         </AlertDialog>
         <AnalysisModal analysis={analysis} isLoading={loadingAnalysis} open={isAnalysisModalOpen} onOpenChange={setIsAnalysisModalOpen} />
+         {comparisonSummary && (
+            <ValorizadoDetailModal 
+                open={isValorizadoModalOpen}
+                onOpenChange={setIsValorizadoModalOpen}
+                data={comparisonSummary.Matriz_Ejecucion_vs_Esperado}
+            />
+        )}
       </CardContent>
     </Card>
   );
