@@ -161,6 +161,24 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
 
     const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
     
+    const filteredCupData = useMemo(() => {
+        if (!cupData) return [];
+        return Object.entries(cupData).filter(([key, value]) => {
+            const val = String(value).trim();
+            if (val === '' || val === '-' || val === '$0.00' || val === '0') return false;
+            if (/^_+\d*$/.test(val)) return false; // descarta _1, _2, etc.
+            return true;
+        });
+    }, [cupData]);
+    
+    const handleDownloadDetails = () => {
+        const dataToDownload = filteredCupData.map(([key, value]) => ({
+            Campo: key,
+            Valor: value,
+        }));
+        handleDownloadXls(dataToDownload, `detalles_cup_${cupData['CUP/CUM']}.xls`);
+    };
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
@@ -185,7 +203,7 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
                             <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
                         </div>
 
-                        {Object.entries(cupData).map(([key, value]) => (
+                        {filteredCupData.map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
                                 <dt className="font-semibold text-muted-foreground">{key}</dt>
                                 <dd className="text-right">{typeof value === 'number' ? formatCurrency(value) : String(value)}</dd>
@@ -194,6 +212,10 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
                     </div>
                 </ScrollArea>
                 <AlertDialogFooter>
+                    <Button variant="secondary" onClick={handleDownloadDetails}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Descargar
+                    </Button>
                     <AlertDialogAction onClick={() => onOpenChange(false)}>Cerrar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -564,4 +586,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+    
+
     
