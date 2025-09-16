@@ -38,7 +38,15 @@ const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
 
 const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    const v = String(value).trim().replace(/\$/g, '').replace(/,/g, '');
+    let v = String(value).trim();
+    if (!v) return 0;
+    
+    // Convertir formato es-CO (e.g., "$ 1.234,56") a estándar (1234.56)
+    v = v.replace(/\$/g, '')      // 1. Quitar el símbolo de moneda
+         .replace(/\s+/g, '')     // 2. Quitar espacios
+         .replace(/\./g, '')      // 3. Quitar separadores de miles (.)
+         .replace(',', '.');      // 4. Reemplazar coma decimal por punto decimal
+    
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
 };
