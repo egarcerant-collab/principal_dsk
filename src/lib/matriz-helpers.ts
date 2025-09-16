@@ -70,6 +70,8 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
       const cantidadEsperada = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
       const cantidadEjecutada = monthCupData?.total || 0;
       const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+      const valorEsperado = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['costo evento mes (valor mes)', 'costo evento mes'])) : 0;
+
 
       if(cantidadEsperada === 0 && cantidadEjecutada === 0) return;
 
@@ -99,7 +101,7 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
         '%_Ejecucion': cantidadEsperada > 0 ? `${percentage.toFixed(0)}%` : 'N/A',
         Clasificacion: clasificacion,
         Valor_Unitario: unitValue,
-        Valor_Esperado: cantidadEsperada * unitValue,
+        Valor_Esperado: valorEsperado,
         Valor_Ejecutado: cantidadEjecutada * unitValue,
       });
     });
