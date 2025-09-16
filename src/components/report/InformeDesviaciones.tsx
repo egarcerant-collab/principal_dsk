@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -14,6 +14,7 @@ import type { DeviatedCupInfo, UnexpectedCupInfo } from '../pgp-search/PgPsearch
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ExecutionDataByMonth } from '@/app/page';
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const dataToExport = JSON.parse(JSON.stringify(data));
@@ -154,7 +155,7 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cupData, open, onOpenChange }: { cupData: any | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const CupDetailsModal = ({ cupData, uniqueUsersCount, open, onOpenChange }: { cupData: any | null, uniqueUsersCount: number, open: boolean, onOpenChange: (open: boolean) => void }) => {
     if (!cupData) return null;
     
     return (
@@ -168,6 +169,10 @@ const CupDetailsModal = ({ cupData, open, onOpenChange }: { cupData: any | null,
                 </AlertDialogHeader>
                  <ScrollArea className="max-h-80 pr-6">
                     <div className="space-y-4 text-sm">
+                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos (JSON)</dt>
+                            <dd className="text-right font-bold text-lg text-primary">{uniqueUsersCount}</dd>
+                        </div>
                         {Object.entries(cupData).map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
                                 <dt className="font-semibold text-muted-foreground">{key}</dt>
@@ -229,16 +234,21 @@ const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onO
   )
 }
 
-export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
+interface InformeDesviacionesProps {
     comparisonSummary: ComparisonSummary | null;
     pgpData: any[];
-}) {
+    executionDataByMonth: ExecutionDataByMonth;
+}
+
+
+export default function InformeDesviaciones({ comparisonSummary, pgpData, executionDataByMonth }: InformeDesviacionesProps) {
     const [selectedCupData, setSelectedCupData] = useState<any | null>(null);
     const [isCupModalOpen, setIsCupModalOpen] = useState(false);
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
+    const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
 
     const calculateTotalValue = (items: (DeviatedCupInfo[] | UnexpectedCupInfo[]), key: 'deviationValue' | 'totalValue') => {
         if (!items) return 0;
@@ -263,9 +273,41 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         )
     }
 
+    const countUniqueUsersForCup = (cup: string) => {
+        const userIds = new Set<string>();
+        
+        executionDataByMonth.forEach(monthData => {
+            const rawJsonData = monthData.rawJsonData; // Assumes rawJsonData is stored
+            if (!rawJsonData || !rawJsonData.usuarios) return;
+
+            rawJsonData.usuarios.forEach((user: any) => {
+                let hasService = false;
+                const checkService = (s: any, codeField: string) => {
+                    if (s && s[codeField] === cup) hasService = true;
+                };
+
+                user.servicios?.consultas?.forEach((s:any) => checkService(s, 'codConsulta'));
+                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+
+                user.servicios?.procedimientos?.forEach((s:any) => checkService(s, 'codProcedimiento'));
+                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                
+                user.servicios?.medicamentos?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
+                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                
+                user.servicios?.otrosServicios?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
+                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+            });
+        });
+        
+        return userIds.size;
+    };
+
     const handleCupClick = (cup: string) => {
         const cupDetails = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
         if (cupDetails) {
+            const userCount = countUniqueUsersForCup(cup);
+            setUniqueUsersCount(userCount);
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
         } else {
@@ -464,6 +506,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
 
             <CupDetailsModal
                 cupData={selectedCupData}
+                uniqueUsersCount={uniqueUsersCount}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
             />

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -870,7 +871,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
             {showComparison && comparisonSummary && (
               <>
                 <FinancialMatrix monthlyFinancials={comparisonSummary.monthlyFinancials} />
-                <InformeDesviaciones comparisonSummary={comparisonSummary} pgpData={pgpData} />
+                <InformeDesviaciones 
+                    comparisonSummary={comparisonSummary} 
+                    pgpData={pgpData} 
+                    executionDataByMonth={executionDataByMonth}
+                />
                 <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} />
                 {reportData && <InformePGP data={reportData} />}
               </>
@@ -908,4 +913,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
 

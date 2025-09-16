@@ -17,6 +17,7 @@ export interface MonthlyExecutionData {
   cupCounts: CupCountsMap;
   summary: any;
   totalRealValue: number; // Valor total real del JSON
+  rawJsonData: any;
 }
 
 export type ExecutionDataByMonth = Map<string, MonthlyExecutionData>;
@@ -51,9 +52,8 @@ export const getNumericValue = (value: any): number => {
     
     // Limpia la cadena de entrada para el formato es-CO: $ 1.234.567,89 -> 1234567.89
     const cleanedString = String(value)
-      .replace(/[^0-9,.]/g, '') // 1. Quita todo excepto números, comas y puntos
-      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
-      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
+      .replace(/[^0-9,]/g, '') // 1. Quita todo excepto números y comas
+      .replace(',', '.');      // 2. Reemplaza la coma decimal por un punto
       
     const n = parseFloat(cleanedString);
     return isNaN(n) ? 0 : n;
@@ -301,8 +301,10 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     filesByMonth.forEach((monthFiles, month) => {
       const monthCupCounts: CupCountsMap = new Map();
       let monthTotalRealValue = 0;
+      let combinedJsonData: any[] = [];
 
       monthFiles.forEach(file => {
+        combinedJsonData.push(file.jsonData);
         const fileCupCounts = calculateCupCounts(file.jsonData);
         fileCupCounts.forEach((data, cup) => {
           if (!monthCupCounts.has(cup)) {
@@ -343,7 +345,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
       dataByMonth.set(month, {
         cupCounts: monthCupCounts,
         summary: combinedSummary,
-        totalRealValue: monthTotalRealValue
+        totalRealValue: monthTotalRealValue,
+        rawJsonData: combinedJsonData.length === 1 ? combinedJsonData[0] : { usuarios: combinedJsonData.flatMap(j => j.usuarios) }
       });
     });
 
