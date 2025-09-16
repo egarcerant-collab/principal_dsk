@@ -5,33 +5,30 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Info, Download, Loader2, TableIcon, X } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { findColumnValue, formatCurrency, type ComparisonSummary } from '../pgp-search/PgPsearchForm';
-import type { DeviatedCupInfo, UnexpectedCupInfo, MatrixRow } from '../pgp-search/PgPsearchForm';
+import type { DeviatedCupInfo, UnexpectedCupInfo } from '../pgp-search/PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const handleDownloadXls = (data: any[], filename: string) => {
-    // Deep copy to avoid modifying the original data
     const dataToExport = JSON.parse(JSON.stringify(data));
 
-    // Iterate over the data and format numbers for Latin American Excel
     const formattedData = dataToExport.map((row: any) => {
         for (const key in row) {
             if (typeof row[key] === 'number') {
-                // Convert number to string with comma as decimal separator
                 row[key] = row[key].toString().replace('.', ',');
             }
         }
         return row;
     });
 
-    const csv = Papa.unparse(formattedData);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+    const csv = Papa.unparse(formattedData, { delimiter: ";" });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -43,33 +40,39 @@ const handleDownloadXls = (data: any[], filename: string) => {
 };
 
 
-const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCupClick, onDownload, onDoubleClick, totalDeviationValue }: {
+const DeviatedCupsCard = ({ title, icon, data, badgeVariant, pgpData, onDownload, onDoubleClick, totalValue, valueLabel }: {
     title: string;
     icon: React.ElementType;
     data: DeviatedCupInfo[];
-    badgeVariant: "destructive" | "default";
+    badgeVariant: "destructive" | "default" | "success";
     pgpData: any[];
-    onCupClick: (cup: string) => void;
     onDownload: (data: any[], filename: string) => void;
     onDoubleClick: () => void;
-    totalDeviationValue?: number;
+    totalValue: number;
+    valueLabel: string;
 }) => {
     const Icon = icon;
     const hasData = data && data.length > 0;
-    const isOverExecuted = badgeVariant === 'destructive';
-
+    
+    let colorClass = 'text-muted-foreground';
+    if(hasData) {
+        if (badgeVariant === 'destructive') colorClass = 'text-red-500';
+        else if (badgeVariant === 'default') colorClass = 'text-blue-500';
+        else if (badgeVariant === 'success') colorClass = 'text-green-500';
+    }
+    
     return (
         <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors" onDoubleClick={onDoubleClick}>
             <CardHeader className="flex flex-row items-center justify-between p-4">
                 <div className="flex items-center gap-3">
-                    <Icon className={`h-6 w-6 ${hasData ? (isOverExecuted ? 'text-red-500' : 'text-blue-500') : 'text-muted-foreground'}`} />
+                    <Icon className={`h-6 w-6 ${colorClass}`} />
                     <CardTitle className="text-base font-medium">{title}</CardTitle>
                 </div>
                 <div className='flex items-center gap-4 pl-4'>
-                    {totalDeviationValue !== undefined && hasData && (
+                    {hasData && (
                         <div className="text-right">
-                             <p className={`text-sm font-bold ${isOverExecuted ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(totalDeviationValue)}</p>
-                             <p className="text-xs text-muted-foreground">Valor Desviación</p>
+                             <p className={`text-sm font-bold ${colorClass}`}>{formatCurrency(totalValue)}</p>
+                             <p className="text-xs text-muted-foreground">{valueLabel}</p>
                         </div>
                     )}
                     {hasData && (
@@ -99,7 +102,7 @@ const DeviatedCupsAccordion = ({ title, icon, data, badgeVariant, pgpData, onCup
 };
 
 
-const DiscrepancyAccordion = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText, onDoubleClick }: {
+const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText, onDoubleClick }: {
     title: string;
     icon: React.ElementType;
     data: any[];
@@ -228,18 +231,14 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
 
-
-    const totalOverExecutionValue = useMemo(() => {
-        if (!comparisonSummary || !comparisonSummary.overExecutedCups) return 0;
-        return comparisonSummary.overExecutedCups.reduce((sum, cup) => sum + cup.deviationValue, 0);
-    }, [comparisonSummary]);
+    const calculateTotalValue = (items: DeviatedCupInfo[], key: 'deviationValue' | 'totalValue') => {
+        if (!items) return 0;
+        return items.reduce((sum, cup) => sum + cup[key], 0);
+    }
     
-    const totalUnderExecutionValue = useMemo(() => {
-        if (!comparisonSummary || !comparisonSummary.underExecutedCups) return 0;
-        return comparisonSummary.underExecutedCups.reduce((sum, cup) => sum + cup.deviationValue, 0);
-    }, [comparisonSummary]);
-
-
+    const totalOverExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.overExecutedCups, 'deviationValue'), [comparisonSummary]);
+    const totalUnderExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.underExecutedCups, 'deviationValue'), [comparisonSummary]);
+    const totalNormalExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.normalExecutionCups, 'totalValue'), [comparisonSummary]);
 
     if (!comparisonSummary) {
         return (
@@ -282,25 +281,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         setModalContent({ type, title, data });
     }
     
-    const overExecutedTitle = (
-        <div className="flex items-center justify-between w-full">
-            <span>CUPS Sobreejecutados (&gt;111%)</span>
-            {totalOverExecutionValue > 0 && (
-                 <span className="text-red-500 font-bold ml-4">{formatCurrency(totalOverExecutionValue)}</span>
-            )}
-        </div>
-    );
-    
-    const underExecutedTitle = (
-        <div className="flex items-center justify-between w-full">
-            <span>CUPS Subejecutados (&lt;90%)</span>
-            {totalUnderExecutionValue < 0 && (
-                 <span className="text-blue-500 font-bold ml-4">{formatCurrency(totalUnderExecutionValue)}</span>
-            )}
-        </div>
-    );
-
-
     const renderModalContent = () => {
         if (!modalContent) return null;
 
@@ -309,6 +289,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         switch (type) {
             case 'over-executed':
             case 'under-executed':
+            case 'normal-execution':
                 return (
                     <ScrollArea className="h-full">
                         <Table>
@@ -321,6 +302,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                                     <TableHead className="text-center">Frec. Real</TableHead>
                                     <TableHead className="text-center">Desviación</TableHead>
                                     <TableHead className="text-right">Valor Desviación</TableHead>
+                                    <TableHead className="text-right">Valor Ejecutado</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -337,6 +319,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                                         <TableCell className="text-center">{item.realFrequency}</TableCell>
                                         <TableCell className={`text-center font-bold ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
                                         <TableCell className={`text-right font-bold ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                        <TableCell className="text-right font-bold text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -402,7 +385,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         }
     }
 
-
     return (
         <div className="space-y-6">
             <Card>
@@ -413,29 +395,40 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <DeviatedCupsAccordion
+                     <DeviatedCupsCard
                         title="CUPS Sobreejecutados (>111%)"
                         icon={TrendingUp}
                         data={comparisonSummary.overExecutedCups}
                         badgeVariant="destructive"
                         pgpData={pgpData}
-                        onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('over-executed', overExecutedTitle, comparisonSummary.overExecutedCups)}
-                        totalDeviationValue={totalOverExecutionValue}
+                        onDoubleClick={() => handleDoubleClick('over-executed', "CUPS Sobreejecutados (>111%)", comparisonSummary.overExecutedCups)}
+                        totalValue={totalOverExecutionValue}
+                        valueLabel="Valor Desviación"
                     />
-                    <DeviatedCupsAccordion
+                    <DeviatedCupsCard
+                        title="Ejecución dentro del rango (90-111%)"
+                        icon={Target}
+                        data={comparisonSummary.normalExecutionCups}
+                        badgeVariant="success"
+                        pgpData={pgpData}
+                        onDownload={handleDownloadXls}
+                        onDoubleClick={() => handleDoubleClick('normal-execution', "Ejecución dentro del rango (90-111%)", comparisonSummary.normalExecutionCups)}
+                        totalValue={totalNormalExecutionValue}
+                        valueLabel="Valor Ejecutado"
+                    />
+                    <DeviatedCupsCard
                         title="CUPS Subejecutados (<90%)"
                         icon={TrendingDown}
                         data={comparisonSummary.underExecutedCups}
                         badgeVariant="default"
                         pgpData={pgpData}
-                        onCupClick={handleCupClick}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('under-executed', underExecutedTitle, comparisonSummary.underExecutedCups)}
-                        totalDeviationValue={totalUnderExecutionValue}
+                        onDoubleClick={() => handleDoubleClick('under-executed', "CUPS Subejecutados (<90%)", comparisonSummary.underExecutedCups)}
+                        totalValue={totalUnderExecutionValue}
+                        valueLabel="Valor Desviación"
                     />
-                     <DiscrepancyAccordion
+                     <DiscrepancyCard
                         title="CUPS Faltantes"
                         icon={AlertTriangle}
                         data={comparisonSummary.missingCups}
@@ -444,7 +437,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         emptyText="No hay CUPS planificados que falten en la ejecución."
                         onDoubleClick={() => handleDoubleClick('missing', 'CUPS Faltantes', comparisonSummary.missingCups)}
                     />
-                     <DiscrepancyAccordion
+                     <DiscrepancyCard
                         title="CUPS Inesperados"
                         icon={Search}
                         data={comparisonSummary.unexpectedCups}
@@ -481,4 +474,3 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         </div>
     );
 }
-    

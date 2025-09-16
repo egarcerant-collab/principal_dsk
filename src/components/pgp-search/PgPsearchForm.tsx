@@ -53,6 +53,7 @@ export interface DeviatedCupInfo {
     realFrequency: number;
     deviation: number;
     deviationValue: number;
+    totalValue: number;
 }
 
 export interface UnexpectedCupInfo {
@@ -81,6 +82,7 @@ export interface MatrixRow {
 export interface ComparisonSummary {
     overExecutedCups: DeviatedCupInfo[];
     underExecutedCups: DeviatedCupInfo[];
+    normalExecutionCups: DeviatedCupInfo[];
     missingCups: DeviatedCupInfo[];
     unexpectedCups: UnexpectedCupInfo[];
     Matriz_Ejecucion_vs_Esperado: MatrizEjecucionRow[];
@@ -277,6 +279,7 @@ const getMonthName = (monthNumber: string) => {
 const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth): ComparisonSummary => {
   const overExecutedCups: DeviatedCupInfo[] = [];
   const underExecutedCups: DeviatedCupInfo[] = [];
+  const normalExecutionCups: DeviatedCupInfo[] = [];
   const missingCups: DeviatedCupInfo[] = [];
   const unexpectedCups: UnexpectedCupInfo[] = [];
   const executionMatrix: MatrixRow[] = [];
@@ -342,16 +345,21 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           realFrequency: totalRealFrequency,
           deviation: deviation,
           deviationValue: deviation * unitValue,
+          totalValue: totalRealValue,
         };
         
         if (percentage > 1.11) {
             overExecutedCups.push(cupInfo);
-        } else if (percentage < 0.90 && totalExpectedFrequency > 0) {
-            underExecutedCups.push(cupInfo);
-        }
-        
-        if (totalRealFrequency === 0 && totalExpectedFrequency > 0) {
-            missingCups.push(cupInfo);
+        } else if (percentage < 0.90) {
+             if (totalRealFrequency > 0) {
+                underExecutedCups.push(cupInfo);
+            } else {
+                missingCups.push(cupInfo);
+            }
+        } else {
+             if (totalExpectedFrequency > 0) {
+                normalExecutionCups.push(cupInfo);
+            }
         }
       }
     } else if (totalRealFrequency > 0) {
@@ -370,6 +378,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   return {
     overExecutedCups,
     underExecutedCups,
+    normalExecutionCups,
     missingCups,
     unexpectedCups,
     Matriz_Ejecucion_vs_Esperado: matrizData,
@@ -785,10 +794,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-
-
-
-
-
-
