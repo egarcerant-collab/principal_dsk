@@ -102,7 +102,7 @@ const DeviatedCupsCard = ({ title, icon, data, badgeVariant, pgpData, onDownload
 };
 
 
-const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText, onDoubleClick }: {
+const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDownload, emptyText, onDoubleClick, totalValue, valueLabel }: {
     title: string;
     icon: React.ElementType;
     data: any[];
@@ -111,9 +111,12 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
     onDownload: (data: any[], filename: string) => void;
     emptyText: string;
     onDoubleClick: () => void;
+    totalValue?: number;
+    valueLabel?: string;
 }) => {
     const Icon = icon;
     const hasData = data && data.length > 0;
+    const hasValue = typeof totalValue === 'number';
 
     return (
         <Card className="w-full cursor-pointer hover:bg-muted/50 transition-colors" onDoubleClick={onDoubleClick}>
@@ -123,6 +126,12 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
                     <CardTitle className="text-base font-medium">{title}</CardTitle>
                 </div>
                  <div className='flex items-center gap-4 pl-4'>
+                    {hasValue && (
+                         <div className="text-right">
+                             <p className="text-sm font-bold text-purple-600">{formatCurrency(totalValue)}</p>
+                             <p className="text-xs text-muted-foreground">{valueLabel}</p>
+                        </div>
+                    )}
                     {hasData && (
                         <Button
                             variant="ghost"
@@ -231,14 +240,15 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
 
-    const calculateTotalValue = (items: DeviatedCupInfo[], key: 'deviationValue' | 'totalValue') => {
+    const calculateTotalValue = (items: (DeviatedCupInfo[] | UnexpectedCupInfo[]), key: 'deviationValue' | 'totalValue') => {
         if (!items) return 0;
-        return items.reduce((sum, cup) => sum + cup[key], 0);
+        return items.reduce((sum, cup) => sum + (cup[key as keyof typeof cup] as number || 0), 0);
     }
     
     const totalOverExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.overExecutedCups, 'deviationValue'), [comparisonSummary]);
     const totalUnderExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.underExecutedCups, 'deviationValue'), [comparisonSummary]);
     const totalNormalExecutionValue = useMemo(() => calculateTotalValue(comparisonSummary?.normalExecutionCups, 'totalValue'), [comparisonSummary]);
+    const totalUnexpectedValue = useMemo(() => calculateTotalValue(comparisonSummary?.unexpectedCups, 'totalValue'), [comparisonSummary]);
 
     if (!comparisonSummary) {
         return (
@@ -446,6 +456,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                         onDownload={handleDownloadXls}
                         emptyText="No se encontraron CUPS ejecutados que no estuvieran en la nota técnica."
                         onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups)}
+                        totalValue={totalUnexpectedValue}
+                        valueLabel="Valor Ejecutado"
                     />
                 </CardContent>
             </Card>
@@ -474,3 +486,4 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
         </div>
     );
 }
+    
