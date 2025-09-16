@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -277,10 +278,40 @@ const AnalysisModal = ({ analysis, isLoading, open, onOpenChange }: { analysis: 
   )
 };
 
+const handleDownloadXls = (data: any[], filename: string) => {
+    // Deep copy to avoid modifying the original data
+    const dataToExport = JSON.parse(JSON.stringify(data));
+
+    // Iterate over the data and format numbers for Latin American Excel
+    const formattedData = dataToExport.map((row: any) => {
+        for (const key in row) {
+            if (typeof row[key] === 'number') {
+                // Convert number to string with comma as decimal separator
+                row[key] = row[key].toString().replace('.', ',');
+            }
+        }
+        return row;
+    });
+
+    const csv = Papa.unparse(formattedData, { delimiter: ";" });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
 const ValorizadoDetailModal = ({ open, onOpenChange, data }: { open: boolean, onOpenChange: (open: boolean) => void, data: MatrizEjecucionRow[] }) => {
+    const tableData = useMemo(() => data.filter(row => row.Cantidad_Ejecutada > 0), [data]);
+    
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl h-[70vh] flex flex-col">
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Desglose de Ejecución Valorizada (NT)</DialogTitle>
                     <DialogDescription>
@@ -300,10 +331,10 @@ const ValorizadoDetailModal = ({ open, onOpenChange, data }: { open: boolean, on
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data.filter(row => row.Cantidad_Ejecutada > 0).map((row, index) => (
+                                {tableData.map((row, index) => (
                                     <TableRow key={index}>
                                         <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                                        <TableCell className="text-xs">{row.Descripcion}</TableCell>
+                                        <TableCell className="text-xs max-w-sm truncate">{row.Descripcion}</TableCell>
                                         <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                                         <TableCell className="text-right font-mono text-xs">{formatCurrency(row.Valor_Unitario)}</TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(row.Valor_Ejecutado)}</TableCell>
@@ -314,6 +345,13 @@ const ValorizadoDetailModal = ({ open, onOpenChange, data }: { open: boolean, on
                     </ScrollArea>
                 </div>
                 <DialogFooter>
+                    <Button 
+                        variant="secondary"
+                        onClick={() => handleDownloadXls(tableData, 'desglose_ejecucion_valorizada.xls')}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Descargar
+                    </Button>
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
@@ -446,34 +484,6 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     monthlyFinancials,
   };
 };
-
-const handleDownloadXls = (data: any[], filename: string) => {
-    // Deep copy to avoid modifying the original data
-    const dataToExport = JSON.parse(JSON.stringify(data));
-
-    // Iterate over the data and format numbers for Latin American Excel
-    const formattedData = dataToExport.map((row: any) => {
-        for (const key in row) {
-            if (typeof row[key] === 'number') {
-                // Convert number to string with comma as decimal separator
-                row[key] = row[key].toString().replace('.', ',');
-            }
-        }
-        return row;
-    });
-
-    const csv = Papa.unparse(formattedData, { delimiter: ";" });
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-
 
 const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void, onCie10Click: (cie10: string) => void }) => {
     const [classificationFilter, setClassificationFilter] = useState('all');
@@ -898,3 +908,4 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
