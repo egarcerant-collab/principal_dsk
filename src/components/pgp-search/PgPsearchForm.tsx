@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
@@ -692,6 +692,12 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   
   const population = selectedPrestador?.POBLACION ?? 0;
   const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
+  
+  const totalEjecutado = useMemo(() => {
+    if (!comparisonSummary) return 0;
+    return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
+  }, [comparisonSummary]);
+
 
   return (
     <Card>
@@ -739,6 +745,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
              {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
+                    <StatCard title="Valor Total Ejecutado" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
                 </div>
             )}
             <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
@@ -777,3 +784,4 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
