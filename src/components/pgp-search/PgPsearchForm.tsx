@@ -72,12 +72,12 @@ export interface MatrixRow {
     Cantidad_Esperada: number;
     Cantidad_Ejecutada: number;
     Diferencia: number;
+    percentage_ejecucion: number; 
     '%_Ejecucion': string;
     Clasificacion: string;
     Valor_Unitario: number;
     Valor_Esperado: number;
     Valor_Ejecutado: number;
-    percentage_numeric: number;
 }
 
 export interface ComparisonSummary {
@@ -389,7 +389,7 @@ const handleDownloadXls = (data: any[], filename: string) => {
         return row;
     });
 
-    const csv = Papa.unparse(formattedData);
+    const csv = Papa.unparse(formattedData, { delimiter: ";" });
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -545,6 +545,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return calculateComparison(pgpData, executionDataByMonth);
   }, [pgpData, executionDataByMonth, showComparison]);
 
+  const totalEjecutado = useMemo(() => {
+    if (!comparisonSummary) return 0;
+    return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
+  }, [comparisonSummary]);
+
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
     const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => ({
@@ -693,11 +698,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const population = selectedPrestador?.POBLACION ?? 0;
   const coveragePercentage = population > 0 ? (uniqueUserCount / population) * 100 : 0;
   
-  const totalEjecutado = useMemo(() => {
-    if (!comparisonSummary) return 0;
-    return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
-  }, [comparisonSummary]);
-
 
   return (
     <Card>
@@ -784,4 +784,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
 
