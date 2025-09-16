@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Accordion } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
@@ -11,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
-import { type ExecutionDataByMonth, type CupCountsMap } from '@/app/page';
+import { type ExecutionDataByMonth } from '@/app/page';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
@@ -37,9 +36,10 @@ type Prestador = PrestadorInfo;
 
 export interface SummaryData {
   totalCostoMes: number;
+  totalPeriodo: number;
   totalAnual: number;
-  costoMinimoMes: number;
-  costoMaximoMes: number;
+  costoMinimoPeriodo: number;
+  costoMaximoPeriodo: number;
 }
 
 interface PgpRow {
@@ -162,17 +162,20 @@ export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   return undefined;
 };
 
-const calculateSummary = (data: PgpRow[]): SummaryData | null => {
+const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null => {
   if (data.length === 0) return null;
   const totalCostoMes = data.reduce((acc, row) => {
     const costo = getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']));
     return acc + costo;
   }, 0);
+  const totalPeriodo = totalCostoMes * numMonths;
+
   return {
     totalCostoMes,
+    totalPeriodo,
     totalAnual: totalCostoMes * 12,
-    costoMinimoMes: totalCostoMes * 0.9,
-    costoMaximoMes: totalCostoMes * 1.1,
+    costoMinimoPeriodo: totalPeriodo * 0.9,
+    costoMaximoPeriodo: totalPeriodo * 1.1,
   };
 };
 
@@ -196,22 +199,22 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData | n
         </div>
         <Separator />
         <div>
-          <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle Mensual</h3>
+          <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle del Periodo Analizado</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
               <TrendingDown className="h-6 w-6 mx-auto text-red-500 mb-1" />
-              <p className="text-sm text-muted-foreground">Costo Mínimo Aceptable (-10%)</p>
-              <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.costoMinimoMes)}</p>
+              <p className="text-sm text-muted-foreground">Límite Inferior (-10%)</p>
+              <p className="text-xl font-bold text-red-600 dark:text-red-500">{formatCurrency(summary.costoMinimoPeriodo)}</p>
             </div>
             <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
               <Target className="h-6 w-6 mx-auto text-blue-500 mb-1" />
-              <p className="text-sm text-muted-foreground">Costo Total por Mes</p>
-              <p className="text-xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalCostoMes)}</p>
+              <p className="text-sm text-muted-foreground">Presupuesto del Periodo (NT)</p>
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-500">{formatCurrency(summary.totalPeriodo)}</p>
             </div>
             <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
               <TrendingUp className="h-6 w-6 mx-auto text-green-500 mb-1" />
-              <p className="text-sm text-muted-foreground">Costo Máximo Aceptable (+10%)</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.costoMaximoMes)}</p>
+              <p className="text-sm text-muted-foreground">Límite Superior (+10%)</p>
+              <p className="text-xl font-bold text-green-600 dark:text-green-500">{formatCurrency(summary.costoMaximoPeriodo)}</p>
             </div>
           </div>
         </div>
@@ -615,6 +618,15 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
 
+  useEffect(() => {
+    if (isDataLoaded) {
+      const numMonths = executionDataByMonth.size > 0 ? executionDataByMonth.size : 1;
+      setGlobalSummary(calculateSummary(pgpData, numMonths));
+    } else {
+      setGlobalSummary(null);
+    }
+  }, [isDataLoaded, pgpData, executionDataByMonth.size]);
+
   const comparisonSummary = useMemo(() => {
     if (!showComparison) return null;
     return calculateComparison(pgpData, executionDataByMonth);
@@ -657,7 +669,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       },
       months: monthsData,
       notaTecnica: {
-        min90: globalSummary.totalCostoMes * 0.9, valor3m: globalSummary.totalCostoMes, max110: globalSummary.totalCostoMes * 1.1,
+        min90: globalSummary.costoMinimoPeriodo,
+        valor3m: globalSummary.totalPeriodo,
+        max110: globalSummary.costoMaximoPeriodo,
         anticipos: totalExecution * 0.8, totalPagar: totalExecution * 0.2, totalFinal: totalExecution,
       },
       overExecutedCups: comparisonSummary.overExecutedCups,
@@ -713,7 +727,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       if (pgpRows.length === 0) toast({ title: "Atención: No se cargaron registros", description: "La nota técnica parece vacía o en un formato no reconocido.", variant: "destructive"});
       
       setPgpData(pgpRows);
-      setGlobalSummary(calculateSummary(pgpRows));
+      
       setIsDataLoaded(true);
       setSelectedPrestador(prestador);
       toast({ title: "Datos PGP Cargados", description: `Se cargaron ${pgpRows.length} registros para ${prestador.PRESTADOR}.` });
@@ -724,7 +738,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, executionDataByMonth.size]);
 
   const handleSelectPrestador = useCallback((prestador: Prestador) => {
     setMismatchWarning(null);
