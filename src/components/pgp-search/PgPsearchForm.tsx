@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -326,7 +325,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
     let totalRealFrequency = 0;
-    let totalRealValueFromJSON = 0; // Use JSON's vrServicio for this
+    let totalRealValueFromJSON = 0; 
     executionDataByMonth.forEach(monthData => {
       const cupData = monthData.cupCounts.get(cup);
       totalRealFrequency += cupData?.total || 0;
@@ -350,7 +349,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           realFrequency: totalRealFrequency,
           deviation: deviation,
           deviationValue: deviation * unitValue,
-          totalValue: totalRealValueFromJSON, // Use value from JSON here
+          totalValue: totalRealFrequency * unitValue, 
         };
         
         if (percentage > 1.11) {
@@ -371,7 +370,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       unexpectedCups.push({
         cup,
         realFrequency: totalRealFrequency,
-        totalValue: totalRealValueFromJSON, // Use value from JSON here
+        totalValue: totalRealValueFromJSON,
       });
     }
   });
@@ -568,15 +567,8 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   
   const totalEjecutado = useMemo(() => {
     if (!comparisonSummary) return 0;
-    // This total must come from the JSON `vrServicio` sums for accuracy.
-    let totalValue = 0;
-    executionDataByMonth.forEach(monthData => {
-        monthData.cupCounts.forEach(cupInfo => {
-            totalValue += cupInfo.totalValue;
-        });
-    });
-    return totalValue;
-  }, [comparisonSummary, executionDataByMonth]);
+    return comparisonSummary.monthlyFinancials.reduce((sum, month) => sum + month.totalValorEjecutado, 0);
+  }, [comparisonSummary]);
   
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
@@ -773,7 +765,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
              {showComparison && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="Cobertura Poblacional" value={`${coveragePercentage.toFixed(1)}%`} icon={Users} footer={`Atendidos: ${uniqueUserCount.toLocaleString()} de ${population.toLocaleString()}`} />
-                    <StatCard title="Valor Total Ejecutado (JSON)" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
+                    <StatCard title="Valor Total Ejecutado" value={formatCurrency(totalEjecutado)} icon={Wallet} footer={`Correspondiente a ${executionDataByMonth.size} mes(es) analizados`} />
                 </div>
             )}
             <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
