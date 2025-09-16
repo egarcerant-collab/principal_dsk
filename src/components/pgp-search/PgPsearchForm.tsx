@@ -24,6 +24,7 @@ import StatCard from '../shared/StatCard';
 import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow';
 import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import InformePGP from '../report/InformePGP';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 interface AnalyzePgpDataOutput {
