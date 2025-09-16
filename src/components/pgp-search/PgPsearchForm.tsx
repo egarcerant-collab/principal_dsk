@@ -540,6 +540,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
 
+  useEffect(() => {
+    setIsClient(true);
+    fetch('/api/check-env').then(res => res.json()).then(data => setIsAiEnabled(data.isAiEnabled));
+  }, []);
+
   const comparisonSummary = useMemo(() => {
     if (!showComparison) return null;
     return calculateComparison(pgpData, executionDataByMonth);
@@ -604,10 +609,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     }
   }
 
-  useEffect(() => {
-    setIsClient(true);
-    fetch('/api/check-env').then(res => res.json()).then(data => setIsAiEnabled(data.isAiEnabled));
-  }, []);
+  
 
   const performLoadPrestador = useCallback(async (prestador: Prestador) => {
     setLoading(true); setIsDataLoaded(false); setGlobalSummary(null); setAnalysis(null); setMismatchWarning(null);
@@ -784,5 +786,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
 
 
