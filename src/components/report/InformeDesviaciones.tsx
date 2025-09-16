@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { findColumnValue, formatCurrency, type ComparisonSummary } from '../pgp-search/PgPsearchForm';
-import type { DeviatedCupInfo, MatrixRow } from '../pgp-search/PgPsearchForm';
+import type { DeviatedCupInfo, UnexpectedCupInfo, MatrixRow } from '../pgp-search/PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -344,6 +344,28 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                     </ScrollArea>
                 )
              case 'missing':
+                return (
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>CUPS</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead className="text-center">Frec. Esperada</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.map((item: any) => (
+                                    <TableRow key={item.cup}>
+                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
+                                        <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
+                                        <TableCell className="text-center">{item.expectedFrequency}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                 )
              case 'unexpected':
                  return (
                     <ScrollArea className="h-full">
@@ -352,23 +374,23 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData }: {
                                 <TableRow>
                                     <TableHead>CUPS</TableHead>
                                     <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">{type === "missing" ? "Frec. Esperada" : "Frec. Real"}</TableHead>
-                                     {type === 'unexpected' && <TableHead className="text-center">Acción</TableHead>}
+                                    <TableHead className="text-center">Frec. Real</TableHead>
+                                    <TableHead className="text-right">Valor Ejecutado</TableHead>
+                                    <TableHead className="text-center">Acción</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data.map((item: any) => (
+                                {data.map((item: UnexpectedCupInfo) => (
                                     <TableRow key={item.cup}>
                                         <TableCell className="font-mono text-xs">{item.cup}</TableCell>
-                                        <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
-                                        <TableCell className="text-center">{type === "missing" ? item.expectedFrequency : item.realFrequency}</TableCell>
-                                        {type === 'unexpected' && (
-                                            <TableCell className="text-center">
-                                                <Button variant="outline" size="sm" onClick={() => handleLookupClick(item.cup)}>
-                                                    <Search className="mr-2 h-4 w-4" /> Buscar
-                                                </Button>
-                                            </TableCell>
-                                        )}
+                                        <TableCell className="text-xs">N/A</TableCell>
+                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-center">
+                                            <Button variant="outline" size="sm" onClick={() => handleLookupClick(item.cup)}>
+                                                <Search className="mr-2 h-4 w-4" /> Buscar
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

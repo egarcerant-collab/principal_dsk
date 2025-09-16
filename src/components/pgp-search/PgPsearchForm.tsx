@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -56,6 +57,13 @@ export interface DeviatedCupInfo {
     deviationValue: number;
 }
 
+export interface UnexpectedCupInfo {
+    cup: string;
+    realFrequency: number;
+    totalValue: number;
+}
+
+
 export interface MatrixRow {
     Mes: string;
     CUPS: string;
@@ -76,7 +84,7 @@ export interface ComparisonSummary {
     overExecutedCups: DeviatedCupInfo[];
     underExecutedCups: DeviatedCupInfo[];
     missingCups: DeviatedCupInfo[];
-    unexpectedCups: { cup: string, realFrequency: number }[];
+    unexpectedCups: UnexpectedCupInfo[];
     Matriz_Ejecucion_vs_Esperado: MatrizEjecucionRow[];
     monthlyFinancials: MonthlyFinancialSummary[];
 }
@@ -105,7 +113,7 @@ export interface ReportData {
   overExecutedCups: DeviatedCupInfo[];
   underExecutedCups: DeviatedCupInfo[];
   missingCups: DeviatedCupInfo[];
-  unexpectedCups: { cup: string, realFrequency: number }[];
+  unexpectedCups: UnexpectedCupInfo[];
 }
 
 
@@ -267,7 +275,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const overExecutedCups: DeviatedCupInfo[] = [];
   const underExecutedCups: DeviatedCupInfo[] = [];
   const missingCups: DeviatedCupInfo[] = [];
-  const unexpectedCups: { cup: string, realFrequency: number }[] = [];
+  const unexpectedCups: UnexpectedCupInfo[] = [];
   const executionMatrix: MatrixRow[] = [];
   const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number, percentage: number }>();
 
@@ -307,8 +315,11 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
     let totalRealFrequency = 0;
+    let totalRealValue = 0;
     executionDataByMonth.forEach(monthData => {
-      totalRealFrequency += monthData.cupCounts.get(cup)?.total || 0;
+      const cupData = monthData.cupCounts.get(cup);
+      totalRealFrequency += cupData?.total || 0;
+      totalRealValue += cupData?.totalValue || 0;
     });
 
     if (pgpRow) {
@@ -344,6 +355,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       unexpectedCups.push({
         cup,
         realFrequency: totalRealFrequency,
+        totalValue: totalRealValue,
       });
     }
   });
