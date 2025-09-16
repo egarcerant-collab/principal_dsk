@@ -1,4 +1,3 @@
-
 import type { ExecutionDataByMonth, CupCountsMap } from "@/app/page";
 
 interface PgpRow {
@@ -27,7 +26,7 @@ interface BuildMatrizArgs {
 }
 
 const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
-  if (!row) return undefined; // Return undefined if row is null or undefined
+  if (!row) return undefined;
   const keys = Object.keys(row);
   for (const name of possibleNames) {
     const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
@@ -69,7 +68,8 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
 
       const cantidadEsperada = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes'])) : 0;
       const cantidadEjecutada = monthCupData?.total || 0;
-      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
+      const valorEjecutado = monthCupData?.totalValue || 0;
+      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : (cantidadEjecutada > 0 ? valorEjecutado / cantidadEjecutada : 0);
       const valorEsperado = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['costo evento mes (valor mes)', 'costo evento mes'])) : 0;
 
 
@@ -102,7 +102,7 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
         Clasificacion: clasificacion,
         Valor_Unitario: unitValue,
         Valor_Esperado: valorEsperado,
-        Valor_Ejecutado: cantidadEjecutada * unitValue,
+        Valor_Ejecutado: valorEjecutado,
       });
     });
   });
@@ -111,4 +111,5 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
 
   return matriz;
 }
+
     

@@ -9,7 +9,7 @@ import { Terminal, Building, Loader2, RefreshCw, AlertTriangle, Calendar } from 
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
-import { type CupCountsMap } from '@/app/page';
+import { type CupCountsMap, type CupCountInfo } from '@/app/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -113,19 +113,22 @@ export const calculateCupCounts = (jsonData: any): CupCountsMap => {
   const counts: CupCountsMap = new Map();
   if (!jsonData || !jsonData.usuarios) return counts;
 
-  const processServices = (services: any[], codeField: string, diagField: string, qtyField?: string) => {
+  const processServices = (services: any[], codeField: string, diagField: string, qtyField?: string, valueField: string = 'vrServicio') => {
     if (!services) return;
     services.forEach(service => {
       const code = service[codeField];
       if (!code) return;
 
       if (!counts.has(code)) {
-        counts.set(code, { total: 0, diagnoses: new Map() });
+        counts.set(code, { total: 0, diagnoses: new Map(), totalValue: 0 });
       }
 
       const cupData = counts.get(code)!;
       const quantity = qtyField ? (Number(service[qtyField]) || 0) : 1;
+      const value = getNumericValue(service[valueField]);
+
       cupData.total += quantity;
+      cupData.totalValue += value;
 
       const diagnosis = service[diagField];
       if (diagnosis) {
@@ -137,7 +140,7 @@ export const calculateCupCounts = (jsonData: any): CupCountsMap => {
   jsonData.usuarios.forEach((user: any) => {
     processServices(user.servicios?.consultas, 'codConsulta', 'codDiagnosticoPrincipal');
     processServices(user.servicios?.procedimientos, 'codProcedimiento', 'codDiagnosticoPrincipal');
-    processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadMedicamento');
+    processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadMedicamento', 'vrUnitarioMedicamento'); // Assuming value is per unit
     processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'codDiagnosticoPrincipal', 'cantidadOS');
   });
 
@@ -278,10 +281,11 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         const fileCupCounts = calculateCupCounts(file.jsonData);
         fileCupCounts.forEach((data, cup) => {
           if (!monthCupCounts.has(cup)) {
-            monthCupCounts.set(cup, { total: 0, diagnoses: new Map() });
+            monthCupCounts.set(cup, { total: 0, diagnoses: new Map(), totalValue: 0 });
           }
           const existingData = monthCupCounts.get(cup)!;
           existingData.total += data.total;
+          existingData.totalValue += data.totalValue;
           data.diagnoses.forEach((count, diag) => {
             existingData.diagnoses.set(diag, (existingData.diagnoses.get(diag) || 0) + count);
           });
@@ -432,4 +436,5 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
+
     

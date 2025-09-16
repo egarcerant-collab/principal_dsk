@@ -8,6 +8,7 @@ import PgpSearchPage from "@/components/app/PgpSearchPage";
 export type CupCountInfo = {
   total: number;
   diagnoses: Map<string, number>; // Map<diagnosisCode, count>
+  totalValue: number;
 };
 
 export type CupCountsMap = Map<string, CupCountInfo>;
@@ -58,4 +59,5 @@ export default function Home() {
   );
 }
 
+    
     
