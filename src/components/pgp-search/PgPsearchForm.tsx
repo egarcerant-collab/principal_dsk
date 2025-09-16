@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
@@ -12,7 +11,6 @@ import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { type ExecutionDataByMonth, type CupCountsMap } from '@/app/page';
-import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
 import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
@@ -21,10 +19,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { describeCup, type CupDescription } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import InformePGP from '../report/InformePGP';
 import StatCard from '../shared/StatCard';
 import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
+import InformePGP from '../report/InformePGP';
 
 
 interface AnalyzePgpDataOutput {
@@ -432,89 +431,88 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
     };
 
     return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg" defaultValue='item-1'>
-            <AccordionItem value="item-1" className="border-0">
-                <div className="flex flex-wrap items-center justify-between p-4 gap-4">
-                    <AccordionTrigger className="p-0 flex-1 hover:no-underline">
-                        <div className="flex items-center">
-                            <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
-                            <h3 className="text-base font-medium text-left">Matriz Ejecución vs Esperado (mensual)</h3>
-                        </div>
-                    </AccordionTrigger>
-                    <div className='flex items-center gap-2 pl-4'>
-                        <Select value={classificationFilter} onValueChange={setClassificationFilter}>
-                            <SelectTrigger className="w-[200px] h-8 text-xs">
-                                <Filter className="h-3 w-3 mr-2" />
-                                <SelectValue placeholder="Filtrar por clasificación..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {classifications.map(c => (
-                                    <SelectItem key={c} value={c} className="text-xs">
-                                        {c === 'all' ? 'Ver Todos' : c}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadXls(filteredData, `matriz_ejecucion_mensual_${classificationFilter}.xls`);
-                            }}
-                            className="h-8 w-8"
-                            aria-label="Descargar Matriz Mensual"
-                        >
-                            <Download className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-                <AccordionContent className="px-4 pb-4">
-                    <ScrollArea className="h-96">
-                        <Table>
-                             <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                                <TableRow>
-                                    <TableHead>Mes</TableHead>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead>Diagnóstico Principal (CIE-10)</TableHead>
-                                    <TableHead className="text-center">Cant. Esperada</TableHead>
-                                    <TableHead className="text-center">Cant. Ejecutada</TableHead>
-                                    <TableHead className="text-center">Diferencia</TableHead>
-                                    <TableHead className="text-center">% Ejecución</TableHead>
-                                    <TableHead>Clasificación</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData.map((row, index) => (
-                                    <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                                        <TableCell className="text-xs">{row.Mes}</TableCell>
-                                        <TableCell>
-                                            <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(row.CUPS)}>
-                                                {row.CUPS}
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-xs">{row.Descripcion}</TableCell>
-                                        <TableCell>
-                                            {row.Diagnostico_Principal && (
-                                                <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCie10Click(row.Diagnostico_Principal!)}>
-                                                   <Search className="h-3 w-3 mr-1" /> {row.Diagnostico_Principal}
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                                        <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center font-mono text-xs">{row['%_Ejecucion']}</TableCell>
-                                        <TableCell className="font-medium">{row.Clasificacion}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
+      <Card>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center">
+                  <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
+                  Matriz Ejecución vs Esperado (mensual)
+              </CardTitle>
+               <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
+            </div>
+            <div className='flex items-center gap-2'>
+                <Select value={classificationFilter} onValueChange={setClassificationFilter}>
+                    <SelectTrigger className="w-[200px] h-8 text-xs">
+                        <Filter className="h-3 w-3 mr-2" />
+                        <SelectValue placeholder="Filtrar por clasificación..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {classifications.map(c => (
+                            <SelectItem key={c} value={c} className="text-xs">
+                                {c === 'all' ? 'Ver Todos' : c}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadXls(filteredData, `matriz_ejecucion_mensual_${classificationFilter}.xls`);
+                    }}
+                    className="h-8 w-8"
+                    aria-label="Descargar Matriz Mensual"
+                >
+                    <Download className="h-4 w-4" />
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent>
+            <ScrollArea className="h-96">
+                <Table>
+                      <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                        <TableRow>
+                            <TableHead>Mes</TableHead>
+                            <TableHead>CUPS</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Diagnóstico Principal (CIE-10)</TableHead>
+                            <TableHead className="text-center">Cant. Esperada</TableHead>
+                            <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                            <TableHead className="text-center">Diferencia</TableHead>
+                            <TableHead className="text-center">% Ejecución</TableHead>
+                            <TableHead>Clasificación</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredData.map((row, index) => (
+                            <TableRow key={index} className={getRowClass(row.Clasificacion)}>
+                                <TableCell className="text-xs">{row.Mes}</TableCell>
+                                <TableCell>
+                                    <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(row.CUPS)}>
+                                        {row.CUPS}
+                                    </Button>
+                                </TableCell>
+                                <TableCell className="text-xs">{row.Descripcion}</TableCell>
+                                <TableCell>
+                                    {row.Diagnostico_Principal && (
+                                        <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCie10Click(row.Diagnostico_Principal!)}>
+                                           <Search className="h-3 w-3 mr-1" /> {row.Diagnostico_Principal}
+                                        </Button>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
+                                <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                                <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
+                                <TableCell className="text-center font-mono text-xs">{row['%_Ejecucion']}</TableCell>
+                                <TableCell className="font-medium">{row.Clasificacion}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </ScrollArea>
+        </CardContent>
+      </Card>
     );
 };
 
@@ -787,6 +785,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
 
 
 
