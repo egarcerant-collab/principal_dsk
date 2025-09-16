@@ -228,7 +228,14 @@ export const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { c
 };
 
 
-const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onOpenChange: (open: boolean) => void, title: React.ReactNode, content: React.ReactNode }) => {
+const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename }: { 
+    open: boolean; 
+    onOpenChange: (open: boolean) => void; 
+    title: React.ReactNode; 
+    content: React.ReactNode;
+    data: any[];
+    downloadFilename: string;
+}) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
@@ -240,6 +247,10 @@ const TableModal = ({ open, onOpenChange, title, content }: { open: boolean, onO
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+          <Button variant="secondary" onClick={() => handleDownloadXls(data, downloadFilename)}>
+            <Download className="mr-2 h-4 w-4" />
+            Descargar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -368,14 +379,14 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Actividad</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">Frec. Esperada</TableHead>
-                                    <TableHead className="text-center">Frec. Real</TableHead>
-                                    <TableHead className="text-center">Desviación</TableHead>
-                                    <TableHead className="text-right">Valor Desviación</TableHead>
-                                    <TableHead className="text-right">Valor Ejecutado</TableHead>
+                                    <TableHead className="text-xs">CUPS</TableHead>
+                                    <TableHead className="text-xs">Actividad</TableHead>
+                                    <TableHead className="text-xs">Descripción</TableHead>
+                                    <TableHead className="text-center text-xs">Frec. Esperada</TableHead>
+                                    <TableHead className="text-center text-xs">Frec. Real</TableHead>
+                                    <TableHead className="text-center text-xs">Desviación</TableHead>
+                                    <TableHead className="text-right text-xs">Valor Desviación</TableHead>
+                                    <TableHead className="text-right text-xs">Valor Ejecutado</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -388,11 +399,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                         </TableCell>
                                         <TableCell className="text-xs">{item.activityDescription}</TableCell>
                                         <TableCell className="text-xs">{item.description}</TableCell>
-                                        <TableCell className="text-center">{item.expectedFrequency.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
-                                        <TableCell className={`text-center font-bold ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
-                                        <TableCell className={`text-right font-bold ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
-                                        <TableCell className="text-right font-bold text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-center text-xs">{item.expectedFrequency.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center text-xs">{item.realFrequency}</TableCell>
+                                        <TableCell className={`text-center font-bold text-xs ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
+                                        <TableCell className={`text-right font-bold text-xs ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                        <TableCell className="text-right font-bold text-xs text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -405,9 +416,9 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">Frec. Esperada</TableHead>
+                                    <TableHead className="text-xs">CUPS</TableHead>
+                                    <TableHead className="text-xs">Descripción</TableHead>
+                                    <TableHead className="text-center text-xs">Frec. Esperada</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -415,7 +426,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                     <TableRow key={item.cup}>
                                         <TableCell className="font-mono text-xs">{item.cup}</TableCell>
                                         <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
-                                        <TableCell className="text-center">{item.expectedFrequency}</TableCell>
+                                        <TableCell className="text-center text-xs">{item.expectedFrequency}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -428,11 +439,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>CUPS</TableHead>
-                                    <TableHead>Descripción</TableHead>
-                                    <TableHead className="text-center">Frec. Real</TableHead>
-                                    <TableHead className="text-right">Valor Ejecutado</TableHead>
-                                    <TableHead className="text-center">Acción</TableHead>
+                                    <TableHead className="text-xs">CUPS</TableHead>
+                                    <TableHead className="text-xs">Descripción</TableHead>
+                                    <TableHead className="text-center text-xs">Frec. Real</TableHead>
+                                    <TableHead className="text-right text-xs">Valor Ejecutado</TableHead>
+                                    <TableHead className="text-center text-xs">Acción</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -440,11 +451,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                     <TableRow key={item.cup}>
                                         <TableCell className="font-mono text-xs">{item.cup}</TableCell>
                                         <TableCell className="text-xs">N/A</TableCell>
-                                        <TableCell className="text-center">{item.realFrequency}</TableCell>
-                                        <TableCell className="text-right font-bold">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-center text-xs">{item.realFrequency}</TableCell>
+                                        <TableCell className="text-right font-bold text-xs">{formatCurrency(item.totalValue)}</TableCell>
                                         <TableCell className="text-center">
-                                            <Button variant="outline" size="sm" onClick={() => handleLookupClick(item.cup)}>
-                                                <Search className="mr-2 h-4 w-4" /> Buscar
+                                            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleLookupClick(item.cup)}>
+                                                <Search className="mr-2 h-3 w-3" /> Buscar
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -546,6 +557,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                     onOpenChange={() => setModalContent(null)}
                     title={modalContent.title}
                     content={renderModalContent()}
+                    data={modalContent.data}
+                    downloadFilename={`${String(modalContent.title).toLowerCase().replace(/ /g, '_')}.xls`}
                 />
             )}
         </div>
