@@ -23,11 +23,11 @@ export const getNumericValue = (value: any): number => {
     let v = String(value).trim();
     if (!v) return 0;
 
-    // Eliminar símbolo de moneda y espacios
-    v = v.replace(/\s+/g, '').replace(/\$/g, '');
-    
-    // Convertir formato es-CO (1.234,56) a estándar (1234.56)
-    v = v.replace(/\./g, '').replace(',', '.');
+    // Convertir formato es-CO (e.g., "$ 1.234,56") a estándar (1234.56)
+    v = v.replace(/\$/g, '')      // 1. Quitar el símbolo de moneda
+         .replace(/\s+/g, '')     // 2. Quitar espacios
+         .replace(/\./g, '')      // 3. Quitar separadores de miles (.)
+         .replace(',', '.');      // 4. Reemplazar coma decimal por punto decimal
     
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
