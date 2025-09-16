@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -5,7 +6,7 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users, Repeat } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -155,8 +156,10 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cupData, uniqueUsersCount, open, onOpenChange }: { cupData: any | null, uniqueUsersCount: number, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOpenChange }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, open: boolean, onOpenChange: (open: boolean) => void }) => {
     if (!cupData) return null;
+
+    const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
     
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -170,9 +173,18 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, open, onOpenChange }: { cu
                  <ScrollArea className="max-h-80 pr-6">
                     <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos (JSON)</dt>
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos</dt>
                             <dd className="text-right font-bold text-lg text-primary">{uniqueUsersCount}</dd>
                         </div>
+                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Repeat className="h-4 w-4" />Frecuencia Total</dt>
+                            <dd className="text-right font-bold text-lg text-primary">{totalFrequency}</dd>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
+                            <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
+                        </div>
+
                         {Object.entries(cupData).map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
                                 <dt className="font-semibold text-muted-foreground">{key}</dt>
@@ -249,6 +261,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
     const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
+    const [totalFrequency, setTotalFrequency] = useState(0);
+
 
     const calculateTotalValue = (items: (DeviatedCupInfo[] | UnexpectedCupInfo[]), key: 'deviationValue' | 'totalValue') => {
         if (!items) return 0;
@@ -273,11 +287,17 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         )
     }
 
-    const countUniqueUsersForCup = (cup: string) => {
+    const countUniqueUsersAndFrequencyForCup = (cup: string) => {
         const userIds = new Set<string>();
+        let frequency = 0;
         
         executionDataByMonth.forEach(monthData => {
-            const rawJsonData = monthData.rawJsonData; // Assumes rawJsonData is stored
+            const cupExecutionData = monthData.cupCounts.get(cup);
+            if(cupExecutionData) {
+                frequency += cupExecutionData.total;
+            }
+
+            const rawJsonData = monthData.rawJsonData;
             if (!rawJsonData || !rawJsonData.usuarios) return;
 
             rawJsonData.usuarios.forEach((user: any) => {
@@ -300,14 +320,15 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
             });
         });
         
-        return userIds.size;
+        return { uniqueUsers: userIds.size, totalFrequency: frequency };
     };
 
     const handleCupClick = (cup: string) => {
         const cupDetails = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
         if (cupDetails) {
-            const userCount = countUniqueUsersForCup(cup);
-            setUniqueUsersCount(userCount);
+            const { uniqueUsers, totalFrequency } = countUniqueUsersAndFrequencyForCup(cup);
+            setUniqueUsersCount(uniqueUsers);
+            setTotalFrequency(totalFrequency);
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
         } else {
@@ -507,6 +528,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
             <CupDetailsModal
                 cupData={selectedCupData}
                 uniqueUsersCount={uniqueUsersCount}
+                totalFrequency={totalFrequency}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
             />

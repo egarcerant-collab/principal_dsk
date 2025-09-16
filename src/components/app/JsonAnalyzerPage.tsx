@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -53,7 +54,8 @@ export const getNumericValue = (value: any): number => {
     // Limpia la cadena de entrada para el formato es-CO: $ 1.234.567,89 -> 1234567.89
     const cleanedString = String(value)
       .replace(/[^0-9,]/g, '') // 1. Quita todo excepto números y comas
-      .replace(',', '.');      // 2. Reemplaza la coma decimal por un punto
+      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
+      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
       
     const n = parseFloat(cleanedString);
     return isNaN(n) ? 0 : n;
