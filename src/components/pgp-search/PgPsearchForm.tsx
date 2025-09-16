@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -142,7 +143,7 @@ export const getNumericValue = (value: any): number => {
     let v = String(value).trim();
     if (!v) return 0;
     
-    // Convertir formato es-CO (e.g., "$ 1.234,56") a estándar (1234.56)
+    // Convertir formato es-CO (e.g., "$ 1.234.567,89") a estándar (1234567.89)
     v = v.replace(/\$/g, '')      // 1. Quitar el símbolo de moneda
          .replace(/\s+/g, '')     // 2. Quitar espacios
          .replace(/\./g, '')      // 3. Quitar separadores de miles (.)
@@ -165,10 +166,12 @@ export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
 
 const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null => {
   if (data.length === 0) return null;
+  
   const totalCostoMes = data.reduce((acc, row) => {
     const costo = getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']));
     return acc + costo;
   }, 0);
+
   const totalPeriodo = totalCostoMes * numMonths;
 
   return {
@@ -180,7 +183,7 @@ const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null
   };
 };
 
-const SummaryCard = ({ summary, title, description }: { summary: SummaryData | null, title: string, description: string }) => {
+const SummaryCard = ({ summary, title, description, numMonths }: { summary: SummaryData | null, title: string, description: string, numMonths: number }) => {
   if (!summary) return null;
   return (
     <Card className="mb-6 shadow-lg border-primary/20">
@@ -200,7 +203,7 @@ const SummaryCard = ({ summary, title, description }: { summary: SummaryData | n
         </div>
         <Separator />
         <div>
-          <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle del Periodo Analizado</h3>
+          <h3 className="text-lg font-medium mb-2 flex items-center"><FileText className="mr-2 h-5 w-5 text-muted-foreground" />Detalle del Periodo Analizado ({numMonths} {numMonths > 1 ? 'Meses' : 'Mes'})</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
               <TrendingDown className="h-6 w-6 mx-auto text-red-500 mb-1" />
@@ -618,15 +621,16 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   }, []);
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
+  const numMonthsForSummary = useMemo(() => executionDataByMonth.size > 0 ? executionDataByMonth.size : 1, [executionDataByMonth.size]);
+
 
   useEffect(() => {
     if (isDataLoaded) {
-      const numMonths = executionDataByMonth.size > 0 ? executionDataByMonth.size : 1;
-      setGlobalSummary(calculateSummary(pgpData, numMonths));
+      setGlobalSummary(calculateSummary(pgpData, numMonthsForSummary));
     } else {
       setGlobalSummary(null);
     }
-  }, [isDataLoaded, pgpData, executionDataByMonth.size]);
+  }, [isDataLoaded, pgpData, numMonthsForSummary]);
 
   const comparisonSummary = useMemo(() => {
     if (!showComparison) return null;
@@ -855,7 +859,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     </div>
                 </div>
             )}
-            <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." />
+            <SummaryCard summary={globalSummary} title={`Resumen Teórico: Nota Técnica de ${selectedPrestador?.PRESTADOR ?? '—'}`} description="Cálculos basados en la totalidad de los datos cargados desde la nota técnica." numMonths={numMonthsForSummary} />
             
             {showComparison && comparisonSummary && (
               <>
