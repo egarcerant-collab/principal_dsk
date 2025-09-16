@@ -71,7 +71,7 @@ export function buildMatrizEjecucion({ executionDataByMonth, pgpData }: BuildMat
       const cantidadEjecutada = monthCupData?.total || 0;
       
       const valorEsperado = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['costo evento mes (valor mes)', 'costo evento mes'])) : 0;
-      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0; // Use unit value from PGP. If unexpected, it's 0.
+      const unitValue = pgpRow ? getNumericValue(findColumnValue(pgpRow, ['valor unitario'])) : 0;
 
       // ** NEW LOGIC **
       // Valor Ejecutado is now based on PGP unit value, not JSON's vrServicio.
