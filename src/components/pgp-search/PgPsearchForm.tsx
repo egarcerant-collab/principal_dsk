@@ -140,15 +140,7 @@ const normalizeDigits = (v: unknown): string => {
 
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    let v = String(value).trim();
-    if (!v) return 0;
-    
-    // Convertir formato es-CO (e.g., "$ 1.234.567,89") a estándar (1234567.89)
-    v = v.replace(/\$/g, '')      // 1. Quitar el símbolo de moneda
-         .replace(/\s+/g, '')     // 2. Quitar espacios
-         .replace(/\./g, '')      // 3. Quitar separadores de miles (.)
-         .replace(',', '.');      // 4. Reemplazar coma decimal por punto decimal
-    
+    const v = String(value).replace(/[^0-9.-]+/g,"");
     const n = parseFloat(v);
     return isNaN(n) ? 0 : n;
 };
@@ -902,5 +894,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    
