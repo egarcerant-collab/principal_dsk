@@ -287,21 +287,22 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
     totals?: {
         ejecutado: number;
         desviacion: number;
-        sugerido: number;
     }
 }) => {
+  const valorSugerido = (totals?.ejecutado || 0) - (totals?.desviacion || 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {totals && (
-            <div className="text-lg space-y-1 mt-2">
-                <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
-                <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
-                <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(totals.sugerido)}</p>
-            </div>
-          )}
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+        <DialogHeader className="flex-row justify-between items-start">
+            <DialogTitle>{title}</DialogTitle>
+            {totals && (
+                <div className="text-right text-lg space-y-1">
+                    <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
+                    <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
+                    <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(valorSugerido)}</p>
+                </div>
+            )}
         </DialogHeader>
         <div className="flex-grow overflow-hidden">
           {content}
@@ -331,19 +332,18 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
-    const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any[], type: string, totals: {ejecutado: number, desviacion: number, sugerido: number} } | null>(null);
+    const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any[], type: string, totals: {ejecutado: number, desviacion: number} } | null>(null);
     const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
     const [totalFrequency, setTotalFrequency] = useState(0);
 
 
     const calculateTotals = (items: DeviatedCupInfo[]) => {
-        if (!items) return { ejecutado: 0, desviacion: 0, sugerido: 0 };
+        if (!items) return { ejecutado: 0, desviacion: 0 };
         const totalEjecutado = items.reduce((sum, cup) => sum + (cup.totalValue || 0), 0);
         const totalDesviacion = items.reduce((sum, cup) => sum + (cup.deviationValue || 0), 0);
         return {
             ejecutado: totalEjecutado,
-            desviacion: totalDesviacion,
-            sugerido: totalEjecutado - totalDesviacion
+            desviacion: totalDesviacion
         };
     }
     
@@ -431,7 +431,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         }
     };
     
-    const handleDoubleClick = (type: string, title: React.ReactNode, data: any[], totals: {ejecutado: number, desviacion: number, sugerido: number}) => {
+    const handleDoubleClick = (type: string, title: React.ReactNode, data: any[], totals: {ejecutado: number, desviacion: number}) => {
         setModalContent({ type, title, data, totals });
     }
     
@@ -440,42 +440,53 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
 
         const { type, data } = modalContent;
 
+        const renderTableForDeviated = (items: DeviatedCupInfo[]) => (
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>CUPS</TableHead>
+                        <TableHead>Actividad</TableHead>
+                        <TableHead className="text-center">Frec. Esperada</TableHead>
+                        <TableHead className="text-center">Frec. Real</TableHead>
+                        <TableHead className="text-center">Desviación</TableHead>
+                        <TableHead className="text-right">Valor Desviación</TableHead>
+                        <TableHead className="text-right">Valor Ejecutado (NT)</TableHead>
+                        <TableHead className="text-right">Valor Sugerido a Revisión</TableHead>
+                        <TableHead className="text-right">Valor a Reconocer</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items.map((item: DeviatedCupInfo) => {
+                        const valorSugerido = item.totalValue - item.deviationValue;
+                        return (
+                            <TableRow key={item.cup}>
+                                <TableCell>
+                                    <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item.cup)}>
+                                        {item.cup}
+                                    </Button>
+                                </TableCell>
+                                <TableCell className="text-sm max-w-xs truncate">{item.activityDescription}</TableCell>
+                                <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
+                                <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
+                                <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
+                                <TableCell className={`text-right font-bold text-sm text-red-600`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                <TableCell className={`text-right font-bold text-sm text-green-700`}>{formatCurrency(item.totalValue)}</TableCell>
+                                <TableCell className={`text-right font-bold text-sm text-blue-700`}>{formatCurrency(valorSugerido)}</TableCell>
+                                <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.valorReconocer)}</TableCell>
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
+        );
+
         switch (type) {
             case 'over-executed':
             case 'under-executed':
             case 'normal-execution':
                 return (
                     <ScrollArea className="h-full">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-sm">CUPS</TableHead>
-                                    <TableHead className="text-sm">Actividad</TableHead>
-                                    <TableHead className="text-center text-sm">Frec. Esperada</TableHead>
-                                    <TableHead className="text-center text-sm">Frec. Real</TableHead>
-                                    <TableHead className="text-center text-sm">Desviación</TableHead>
-                                    <TableHead className="text-right text-sm">Valor Desviación</TableHead>
-                                    <TableHead className="text-right text-sm">Valor a Reconocer</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.map((item: DeviatedCupInfo) => (
-                                    <TableRow key={item.cup}>
-                                        <TableCell>
-                                             <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item.cup)}>
-                                                {item.cup}
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-sm">{item.activityDescription}</TableCell>
-                                        <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
-                                        <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
-                                        <TableCell className={`text-right font-bold text-sm ${item.deviationValue > 0 ? 'text-red-600' : ''}`}>{formatCurrency(item.deviationValue)}</TableCell>
-                                        <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.valorReconocer)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                       {renderTableForDeviated(data as DeviatedCupInfo[])}
                     </ScrollArea>
                 )
              case 'missing':
@@ -587,7 +598,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         badgeVariant="secondary"
                         onDownload={handleDownloadXls}
                         emptyText="No hay CUPS planificados que falten en la ejecución."
-                        onDoubleClick={() => handleDoubleClick('missing', 'CUPS Faltantes', comparisonSummary.missingCups, {ejecutado: 0, desviacion: 0, sugerido: 0})}
+                        onDoubleClick={() => handleDoubleClick('missing', 'CUPS Faltantes', comparisonSummary.missingCups, {ejecutado: 0, desviacion: 0})}
                     />
                      <DiscrepancyCard
                         title="CUPS Inesperados"
@@ -597,7 +608,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         onLookupClick={handleLookupClick}
                         onDownload={handleDownloadXls}
                         emptyText="No se encontraron CUPS ejecutados que no estuvieran en la nota técnica."
-                        onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups, {ejecutado: totalUnexpectedValue, desviacion: totalUnexpectedValue, sugerido: 0})}
+                        onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups, {ejecutado: totalUnexpectedValue, desviacion: totalUnexpectedValue})}
                         totalValue={totalUnexpectedValue}
                         valueLabel="Valor Ejecutado"
                     />
