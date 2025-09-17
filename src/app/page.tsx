@@ -2,8 +2,26 @@
 "use client";
 
 import { useState } from "react";
-import JsonAnalyzerPage, { type MonthlyExecutionData } from "@/components/app/JsonAnalyzerPage";
-import PgpSearchPage from "@/components/app/PgpSearchPage";
+import type { MonthlyExecutionData } from "@/components/app/JsonAnalyzerPage";
+import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
+
+const JsonAnalyzerPage = dynamic(
+  () => import("@/components/app/JsonAnalyzerPage"),
+  { 
+    loading: () => <div className="flex items-center justify-center p-4"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Cargando Analizador JSON...</div>,
+    ssr: false 
+  }
+);
+
+const PgpSearchPage = dynamic(
+  () => import("@/components/app/PgpSearchPage"),
+  { 
+    loading: () => <div className="flex items-center justify-center p-4"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Cargando Analizador PGP...</div>,
+    ssr: false
+  }
+);
+
 
 export type CupCountInfo = {
   total: number;
@@ -58,6 +76,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
-    
