@@ -435,11 +435,14 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                     <TableHead className="text-center text-sm">Desviación</TableHead>
                                     <TableHead className="text-right text-sm">Valor Desviación</TableHead>
                                     <TableHead className="text-right text-sm">Valor Ejecutado (NT)</TableHead>
+                                    <TableHead className="text-right text-sm">Valor Sugerido a Revisión</TableHead>
                                     <TableHead className="text-right text-sm">Valor a Reconocer</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data.map((item: DeviatedCupInfo) => (
+                                {data.map((item: DeviatedCupInfo) => {
+                                    const valorSugerido = item.totalValue - item.deviationValue;
+                                    return (
                                     <TableRow key={item.cup}>
                                         <TableCell>
                                              <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item.cup)}>
@@ -451,10 +454,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                         <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
                                         <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
                                         <TableCell className={`text-right font-bold text-sm ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
-                                        <TableCell className="text-right font-bold text-sm text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
-                                        <TableCell className="text-right font-bold text-sm text-green-600">{formatCurrency(item.valorReconocer)}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm text-blue-700">{formatCurrency(valorSugerido)}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.valorReconocer)}</TableCell>
                                     </TableRow>
-                                ))}
+                                )})}
                             </TableBody>
                         </Table>
                     </ScrollArea>
