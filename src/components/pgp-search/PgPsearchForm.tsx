@@ -55,6 +55,8 @@ export interface DeviatedCupInfo {
     expectedFrequency: number;
     realFrequency: number;
     uniqueUsers: number;
+    repeatedAttentions: number;
+    sameDayDetections: number;
     deviation: number;
     deviationValue: number;
     totalValue: number;
@@ -375,6 +377,53 @@ const getMonthName = (monthNumber: string) => {
 };
 
 
+const calculateSameDayDetections = (cup: string, executionDataByMonth: ExecutionDataByMonth) => {
+    const attentionMap = new Map<string, number>(); // key: "userId-date", value: count
+    
+    executionDataByMonth.forEach(monthData => {
+        const allUsers = monthData.rawJsonData?.usuarios ?? [];
+        allUsers.forEach((user: any) => {
+            const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+
+            const processServices = (services: any[], codeField: string) => {
+                if (!services) return;
+                services.forEach((service: any) => {
+                    if (service[codeField] === cup) {
+                        try {
+                            const date = new Date(service.fechaInicioAtencion).toISOString().split('T')[0];
+                            const key = `${userId}-${date}`;
+                            attentionMap.set(key, (attentionMap.get(key) || 0) + 1);
+                        } catch (e) {
+                            // Invalid date, skip
+                        }
+                    }
+                });
+            };
+            
+            processServices(user.servicios?.consultas, 'codConsulta');
+            processServices(user.servicios?.procedimientos, 'codProcedimiento');
+            processServices(user.servicios?.medicamentos, 'codTecnologiaSalud');
+            processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud');
+        });
+    });
+
+    let usersWithMultipleSameDayAttentions = 0;
+    const countedUsers = new Set<string>();
+
+    attentionMap.forEach((count, key) => {
+        if (count > 1) {
+            const userId = key.split('-')[0] + '-' + key.split('-')[1]; // Use userId part of the key
+            if (!countedUsers.has(userId)) {
+                 usersWithMultipleSameDayAttentions++;
+                 countedUsers.add(userId);
+            }
+        }
+    });
+    
+    return usersWithMultipleSameDayAttentions;
+};
+
+
 const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionDataByMonth): ComparisonSummary => {
   const overExecutedCups: DeviatedCupInfo[] = [];
   const underExecutedCups: DeviatedCupInfo[] = [];
@@ -461,6 +510,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           expectedFrequency: totalExpectedFrequency,
           realFrequency: totalRealFrequency,
           uniqueUsers: totalUniqueUsers,
+          repeatedAttentions: totalRealFrequency - totalUniqueUsers,
+          sameDayDetections: calculateSameDayDetections(cup, executionDataByMonth),
           deviation: deviation,
           deviationValue: deviation * unitValue,
           totalValue: totalValue, 

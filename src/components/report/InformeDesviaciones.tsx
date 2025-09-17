@@ -235,10 +235,6 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, sameDayDet
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
                             <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-red-600 flex items-center gap-2"><AlertCircle className="h-4 w-4" />Usuarios Atendidos &gt;1 Vez el Mismo Día</dt>
-                            <dd className="text-right font-bold text-lg text-red-600">{sameDayDetections}</dd>
-                        </div>
 
                         {filteredCupData.map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
@@ -416,54 +412,12 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         return { uniqueUsers: userIds.size, totalFrequency: frequency };
     };
 
-    const calculateSameDayDetections = (cup: string) => {
-        const attentionMap = new Map<string, number>(); // key: "userId-date", value: count
-        
-        executionDataByMonth.forEach(monthData => {
-            monthData.rawJsonData.usuarios?.forEach((user: any) => {
-                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-
-                const processServices = (services: any[], codeField: string) => {
-                    if (!services) return;
-                    services.forEach((service: any) => {
-                        if (service[codeField] === cup) {
-                            try {
-                                const date = new Date(service.fechaInicioAtencion).toISOString().split('T')[0];
-                                const key = `${userId}-${date}`;
-                                attentionMap.set(key, (attentionMap.get(key) || 0) + 1);
-                            } catch (e) {
-                                // Invalid date, skip
-                            }
-                        }
-                    });
-                };
-                
-                processServices(user.servicios?.consultas, 'codConsulta');
-                processServices(user.servicios?.procedimientos, 'codProcedimiento');
-                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud');
-                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud');
-            });
-        });
-
-        const usersWithMultipleSameDayAttentions = new Set<string>();
-        attentionMap.forEach((count, key) => {
-            if (count > 1) {
-                const userId = key.split('-')[0];
-                usersWithMultipleSameDayAttentions.add(userId);
-            }
-        });
-        
-        return usersWithMultipleSameDayAttentions.size;
-    }
-
     const handleCupClick = (cup: string) => {
         const cupDetails = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
         if (cupDetails) {
             const { uniqueUsers, totalFrequency } = countUniqueUsersAndFrequencyForCup(cup);
-            const sameDayCount = calculateSameDayDetections(cup);
             setUniqueUsersCount(uniqueUsers);
             setTotalFrequency(totalFrequency);
-            setSameDayDetections(sameDayCount);
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
         } else {
@@ -503,6 +457,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <TableHead className="text-center">Frec. Esperada</TableHead>
                         <TableHead className="text-center">Frec. Real</TableHead>
                         <TableHead className="text-center">Usuarios Únicos</TableHead>
+                        <TableHead className="text-center">Atenciones Repetidas</TableHead>
+                        <TableHead className="text-center text-red-600">&gt;1 Atención Mismo Día</TableHead>
                         <TableHead className="text-center">Desviación</TableHead>
                         <TableHead className="text-right">Valor Desviación</TableHead>
                         <TableHead className="text-right">Valor Ejecutado (NT)</TableHead>
@@ -524,6 +480,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                 <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
                                 <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
                                 <TableCell className="text-center text-sm font-bold">{item.uniqueUsers}</TableCell>
+                                <TableCell className="text-center text-sm">{item.repeatedAttentions}</TableCell>
+                                <TableCell className="text-center text-sm font-bold text-red-600">{item.sameDayDetections}</TableCell>
                                 <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-red-600`}>{formatCurrency(item.deviationValue)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-green-700`}>{formatCurrency(item.totalValue)}</TableCell>
