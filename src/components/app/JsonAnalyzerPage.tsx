@@ -306,20 +306,22 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
       let combinedJsonData: any[] = [];
 
       monthFiles.forEach(file => {
-        combinedJsonData.push(file.jsonData);
-        const fileCupCounts = calculateCupCounts(file.jsonData);
-        fileCupCounts.forEach((data, cup) => {
-          if (!monthCupCounts.has(cup)) {
-            monthCupCounts.set(cup, { total: 0, diagnoses: new Map(), totalValue: 0 });
-          }
-          const existingData = monthCupCounts.get(cup)!;
-          existingData.total += data.total;
-          existingData.totalValue += data.totalValue; // This is the real value from JSON
-          
-          data.diagnoses.forEach((count, diag) => {
-            existingData.diagnoses.set(diag, (existingData.diagnoses.get(diag) || 0) + count);
+        if(file.jsonData) {
+          combinedJsonData.push(file.jsonData);
+          const fileCupCounts = calculateCupCounts(file.jsonData);
+          fileCupCounts.forEach((data, cup) => {
+            if (!monthCupCounts.has(cup)) {
+              monthCupCounts.set(cup, { total: 0, diagnoses: new Map(), totalValue: 0 });
+            }
+            const existingData = monthCupCounts.get(cup)!;
+            existingData.total += data.total;
+            existingData.totalValue += data.totalValue; // This is the real value from JSON
+            
+            data.diagnoses.forEach((count, diag) => {
+              existingData.diagnoses.set(diag, (existingData.diagnoses.get(diag) || 0) + count);
+            });
           });
-        });
+        }
       });
       
       monthCupCounts.forEach(cupData => {
@@ -336,7 +338,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         acc.totalOtrosServicios += summary.totalOtrosServicios;
         return acc;
       }, {
-        numFactura: monthFiles.length > 1 ? `Combinado (${monthFiles.length} archivos)` : monthFiles[0].fileName,
+        numFactura: monthFiles.length > 1 ? `Combinado (${monthFiles.length} archivos)` : (monthFiles.length > 0 ? monthFiles[0].fileName : 'N/A'),
         numUsuarios: 0,
         numConsultas: 0,
         numProcedimientos: 0,
@@ -348,7 +350,7 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         cupCounts: monthCupCounts,
         summary: combinedSummary,
         totalRealValue: monthTotalRealValue,
-        rawJsonData: combinedJsonData.length === 1 ? combinedJsonData[0] : { usuarios: combinedJsonData.flatMap(j => j.usuarios) }
+        rawJsonData: { usuarios: combinedJsonData.flatMap(j => j.usuarios || []) }
       });
     });
 
@@ -473,3 +475,5 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
+
+    
