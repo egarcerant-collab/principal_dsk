@@ -57,6 +57,7 @@ export interface DeviatedCupInfo {
     deviation: number;
     deviationValue: number;
     totalValue: number;
+    valorReconocer: number;
 }
 
 export interface UnexpectedCupInfo {
@@ -436,7 +437,13 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       if (totalRealFrequency > 0 || totalExpectedFrequency > 0) {
         const deviation = totalRealFrequency - totalExpectedFrequency;
         const percentage = totalExpectedFrequency > 0 ? (totalRealFrequency / totalExpectedFrequency) : Infinity;
+        const totalValue = totalRealFrequency * unitValue;
         
+        let valorReconocer = totalValue; // Por defecto
+        if (percentage > 1.11) {
+            valorReconocer = totalExpectedFrequency * unitValue * 1.11;
+        }
+
         const cupInfo: DeviatedCupInfo = {
           cup,
           description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
@@ -445,7 +452,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           realFrequency: totalRealFrequency,
           deviation: deviation,
           deviationValue: deviation * unitValue,
-          totalValue: totalRealFrequency * unitValue, 
+          totalValue: totalValue, 
+          valorReconocer: valorReconocer
         };
         
         if (percentage > 1.11) {
@@ -554,39 +562,39 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                 <Table>
                       <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
                         <TableRow>
-                            <TableHead>Mes</TableHead>
-                            <TableHead>CUPS</TableHead>
-                            <TableHead>Descripción</TableHead>
-                            <TableHead>Diagnóstico Principal (CIE-10)</TableHead>
-                            <TableHead className="text-center">Cant. Esperada</TableHead>
-                            <TableHead className="text-center">Cant. Ejecutada</TableHead>
-                            <TableHead className="text-center">Diferencia</TableHead>
-                            <TableHead className="text-center">% Ejecución</TableHead>
-                            <TableHead>Clasificación</TableHead>
+                            <TableHead className="text-sm">Mes</TableHead>
+                            <TableHead className="text-sm">CUPS</TableHead>
+                            <TableHead className="text-sm">Descripción</TableHead>
+                            <TableHead className="text-sm">Diagnóstico Principal (CIE-10)</TableHead>
+                            <TableHead className="text-center text-sm">Cant. Esperada</TableHead>
+                            <TableHead className="text-center text-sm">Cant. Ejecutada</TableHead>
+                            <TableHead className="text-center text-sm">Diferencia</TableHead>
+                            <TableHead className="text-center text-sm">% Ejecución</TableHead>
+                            <TableHead className="text-sm">Clasificación</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredData.map((row, index) => (
                             <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                                <TableCell className="text-xs">{row.Mes}</TableCell>
+                                <TableCell className="text-sm">{row.Mes}</TableCell>
                                 <TableCell>
-                                    <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCupClick(row.CUPS)}>
+                                    <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => onCupClick(row.CUPS)}>
                                         {row.CUPS}
                                     </Button>
                                 </TableCell>
-                                <TableCell className="text-xs">{row.Descripcion}</TableCell>
+                                <TableCell className="text-sm">{row.Descripcion}</TableCell>
                                 <TableCell>
                                     {row.Diagnostico_Principal && (
-                                        <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => onCie10Click(row.Diagnostico_Principal!)}>
+                                        <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => onCie10Click(row.Diagnostico_Principal!)}>
                                            <Search className="h-3 w-3 mr-1" /> {row.Diagnostico_Principal}
                                         </Button>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-center">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
-                                <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                                <TableCell className="text-center font-semibold">{row.Diferencia.toFixed(0)}</TableCell>
-                                <TableCell className="text-center font-mono text-xs">{row['%_Ejecucion']}</TableCell>
-                                <TableCell className="font-medium">{row.Clasificacion}</TableCell>
+                                <TableCell className="text-center text-sm">{row.Cantidad_Esperada.toFixed(0)}</TableCell>
+                                <TableCell className="text-center text-sm">{row.Cantidad_Ejecutada}</TableCell>
+                                <TableCell className="text-center font-semibold text-sm">{row.Diferencia.toFixed(0)}</TableCell>
+                                <TableCell className="text-center font-mono text-sm">{row['%_Ejecucion']}</TableCell>
+                                <TableCell className="font-medium text-sm">{row.Clasificacion}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

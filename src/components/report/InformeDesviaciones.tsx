@@ -165,7 +165,7 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
         if (!cupData) return [];
         return Object.entries(cupData).filter(([key, value]) => {
             const val = String(value).trim();
-            if (val === '' || val === '-' || val === '$0.00' || val === '0') return false;
+            if (val === '' || val === '-' || val === '$0.00' || val === '0' || val === '$0') return false;
             if (/^_+\d*$/.test(val)) return false; // descarta _1, _2, etc.
             return true;
         });
@@ -295,11 +295,11 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
           {content}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
           <Button variant="secondary" onClick={() => handleDownloadXls(data, downloadFilename)}>
             <Download className="mr-2 h-4 w-4" />
             Descargar
           </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -428,31 +428,33 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="text-xs">CUPS</TableHead>
-                                    <TableHead className="text-xs">Actividad</TableHead>
-                                    <TableHead className="text-xs">Descripción</TableHead>
-                                    <TableHead className="text-center text-xs">Frec. Esperada</TableHead>
-                                    <TableHead className="text-center text-xs">Frec. Real</TableHead>
-                                    <TableHead className="text-center text-xs">Desviación</TableHead>
-                                    <TableHead className="text-right text-xs">Valor Desviación</TableHead>
-                                    <TableHead className="text-right text-xs">Valor Ejecutado</TableHead>
+                                    <TableHead className="text-sm">CUPS</TableHead>
+                                    <TableHead className="text-sm">Actividad</TableHead>
+                                    <TableHead className="text-sm">Descripción</TableHead>
+                                    <TableHead className="text-center text-sm">Frec. Esperada</TableHead>
+                                    <TableHead className="text-center text-sm">Frec. Real</TableHead>
+                                    <TableHead className="text-center text-sm">Desviación</TableHead>
+                                    <TableHead className="text-right text-sm">Valor Desviación</TableHead>
+                                    <TableHead className="text-right text-sm">Valor Ejecutado (NT)</TableHead>
+                                    <TableHead className="text-right text-sm">Valor a Reconocer</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.map((item: DeviatedCupInfo) => (
                                     <TableRow key={item.cup}>
                                         <TableCell>
-                                             <Button variant="link" className="p-0 h-auto font-mono text-xs" onClick={() => handleCupClick(item.cup)}>
+                                             <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item.cup)}>
                                                 {item.cup}
                                             </Button>
                                         </TableCell>
-                                        <TableCell className="text-xs">{item.activityDescription}</TableCell>
-                                        <TableCell className="text-xs">{item.description}</TableCell>
-                                        <TableCell className="text-center text-xs">{item.expectedFrequency.toFixed(0)}</TableCell>
-                                        <TableCell className="text-center text-xs">{item.realFrequency}</TableCell>
-                                        <TableCell className={`text-center font-bold text-xs ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
-                                        <TableCell className={`text-right font-bold text-xs ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
-                                        <TableCell className="text-right font-bold text-xs text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-sm">{item.activityDescription}</TableCell>
+                                        <TableCell className="text-sm">{item.description}</TableCell>
+                                        <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
+                                        <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
+                                        <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
+                                        <TableCell className={`text-right font-bold text-sm ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm text-gray-700">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm text-green-600">{formatCurrency(item.valorReconocer)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -465,17 +467,17 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="text-xs">CUPS</TableHead>
-                                    <TableHead className="text-xs">Descripción</TableHead>
-                                    <TableHead className="text-center text-xs">Frec. Esperada</TableHead>
+                                    <TableHead className="text-sm">CUPS</TableHead>
+                                    <TableHead className="text-sm">Descripción</TableHead>
+                                    <TableHead className="text-center text-sm">Frec. Esperada</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.map((item: any) => (
                                     <TableRow key={item.cup}>
-                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
-                                        <TableCell className="text-xs">{item.description || 'N/A'}</TableCell>
-                                        <TableCell className="text-center text-xs">{item.expectedFrequency}</TableCell>
+                                        <TableCell className="font-mono text-sm">{item.cup}</TableCell>
+                                        <TableCell className="text-sm">{item.description || 'N/A'}</TableCell>
+                                        <TableCell className="text-center text-sm">{item.expectedFrequency}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -488,22 +490,22 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="text-xs">CUPS</TableHead>
-                                    <TableHead className="text-xs">Descripción</TableHead>
-                                    <TableHead className="text-center text-xs">Frec. Real</TableHead>
-                                    <TableHead className="text-right text-xs">Valor Ejecutado</TableHead>
-                                    <TableHead className="text-center text-xs">Acción</TableHead>
+                                    <TableHead className="text-sm">CUPS</TableHead>
+                                    <TableHead className="text-sm">Descripción</TableHead>
+                                    <TableHead className="text-center text-sm">Frec. Real</TableHead>
+                                    <TableHead className="text-right text-sm">Valor Ejecutado</TableHead>
+                                    <TableHead className="text-center text-sm">Acción</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {data.map((item: UnexpectedCupInfo) => (
                                     <TableRow key={item.cup}>
-                                        <TableCell className="font-mono text-xs">{item.cup}</TableCell>
-                                        <TableCell className="text-xs">N/A</TableCell>
-                                        <TableCell className="text-center text-xs">{item.realFrequency}</TableCell>
-                                        <TableCell className="text-right font-bold text-xs">{formatCurrency(item.totalValue)}</TableCell>
+                                        <TableCell className="font-mono text-sm">{item.cup}</TableCell>
+                                        <TableCell className="text-sm">N/A</TableCell>
+                                        <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
+                                        <TableCell className="text-right font-bold text-sm">{formatCurrency(item.totalValue)}</TableCell>
                                         <TableCell className="text-center">
-                                            <Button variant="outline" size="sm" className="text-xs" onClick={() => handleLookupClick(item.cup)}>
+                                            <Button variant="outline" size="sm" className="text-sm" onClick={() => handleLookupClick(item.cup)}>
                                                 <Search className="mr-2 h-3 w-3" /> Buscar
                                             </Button>
                                         </TableCell>
