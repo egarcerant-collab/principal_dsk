@@ -319,7 +319,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
-    const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string } | null>(null);
+    const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any, type: string, totalValue?: number, valueLabel?: string } | null>(null);
     const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
     const [totalFrequency, setTotalFrequency] = useState(0);
 
@@ -410,8 +410,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         }
     };
     
-    const handleDoubleClick = (type: string, title: React.ReactNode, data: any) => {
-        setModalContent({ type, title, data });
+    const handleDoubleClick = (type: string, title: React.ReactNode, data: any, totalValue?: number, valueLabel?: string) => {
+        setModalContent({ type, title, data, totalValue, valueLabel });
     }
     
     const renderModalContent = () => {
@@ -517,6 +517,21 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 return null;
         }
     }
+    
+    const ModalTitle = () => {
+        if (!modalContent) return null;
+        const { title, totalValue, valueLabel } = modalContent;
+        return (
+            <div className="flex items-center justify-between w-full">
+                <span>{title}</span>
+                {totalValue !== undefined && valueLabel && (
+                    <span className="text-lg font-bold text-red-600 ml-4">
+                        {valueLabel}: {formatCurrency(totalValue)}
+                    </span>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-6">
@@ -535,7 +550,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         badgeVariant="destructive"
                         pgpData={pgpData}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('over-executed', "CUPS Sobreejecutados (>111%)", comparisonSummary.overExecutedCups)}
+                        onDoubleClick={() => handleDoubleClick('over-executed', "CUPS Sobreejecutados (>111%)", comparisonSummary.overExecutedCups, totalOverExecutionValue, "Valor Desviación")}
                         totalValue={totalOverExecutionValue}
                         valueLabel="Valor Desviación"
                     />
@@ -546,7 +561,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         badgeVariant="success"
                         pgpData={pgpData}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('normal-execution', "Ejecución dentro del rango (90-111%)", comparisonSummary.normalExecutionCups)}
+                        onDoubleClick={() => handleDoubleClick('normal-execution', "Ejecución dentro del rango (90-111%)", comparisonSummary.normalExecutionCups, totalNormalExecutionValue, "Valor Ejecutado")}
                         totalValue={totalNormalExecutionValue}
                         valueLabel="Valor Ejecutado"
                     />
@@ -557,7 +572,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         badgeVariant="default"
                         pgpData={pgpData}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('under-executed', "CUPS Subejecutados (<90%)", comparisonSummary.underExecutedCups)}
+                        onDoubleClick={() => handleDoubleClick('under-executed', "CUPS Subejecutados (<90%)", comparisonSummary.underExecutedCups, totalUnderExecutionValue, "Valor Desviación")}
                         totalValue={totalUnderExecutionValue}
                         valueLabel="Valor Desviación"
                     />
@@ -578,7 +593,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         onLookupClick={handleLookupClick}
                         onDownload={handleDownloadXls}
                         emptyText="No se encontraron CUPS ejecutados que no estuvieran en la nota técnica."
-                        onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups)}
+                        onDoubleClick={() => handleDoubleClick('unexpected', 'CUPS Inesperados', comparisonSummary.unexpectedCups, totalUnexpectedValue, "Valor Ejecutado")}
                         totalValue={totalUnexpectedValue}
                         valueLabel="Valor Ejecutado"
                     />
@@ -605,7 +620,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 <TableModal
                     open={!!modalContent}
                     onOpenChange={() => setModalContent(null)}
-                    title={modalContent.title}
+                    title={<ModalTitle />}
                     content={renderModalContent()}
                     data={modalContent.data}
                     downloadFilename={`${String(modalContent.title).toLowerCase().replace(/ /g, '_')}.xls`}
