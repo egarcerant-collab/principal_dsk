@@ -280,23 +280,26 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   useEffect(() => {
     const dataByMonth: ExecutionDataByMonth = new Map();
     const allNits: string[] = [];
+
+    // Combine all user data from all files first
+    const allUsersCombined = files.flatMap(file => file.jsonData?.usuarios || []);
+
+    // Now, calculate unique users from the combined list
     const uniqueUserIdentifiers = new Set<string>();
+    allUsersCombined.forEach((user: any) => {
+        if (user.numDocumentoIdentificacion) {
+            const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+            uniqueUserIdentifiers.add(id);
+        }
+    });
+    setUniqueUserCount(uniqueUserIdentifiers.size);
 
     files.forEach(file => {
       if (file.jsonData) {
         const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
         if (nit) allNits.push(nit);
-        
-        file.jsonData.usuarios?.forEach((user: any) => {
-          if (user.numDocumentoIdentificacion) {
-            const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-            uniqueUserIdentifiers.add(id);
-          }
-        });
       }
     });
-
-    setUniqueUserCount(uniqueUserIdentifiers.size);
 
     const uniqueNits = new Set(allNits);
     setShowDuplicateAlert(allNits.length > uniqueNits.size);
@@ -304,61 +307,31 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     setJsonPrestadorCode(files.length > 0 ? getCodPrestadorFromJson(files[0].jsonData) : null);
 
     filesByMonth.forEach((monthFiles, month) => {
-      const monthCupCounts: CupCountsMap = new Map();
-      let monthTotalRealValue = 0;
-      let combinedJsonData: any[] = [];
+        // Combine data for the current month
+        const combinedJsonDataForMonth = {
+            usuarios: monthFiles.flatMap(f => f.jsonData?.usuarios || [])
+        };
 
-      monthFiles.forEach(file => {
-        if(file.jsonData) {
-          combinedJsonData.push(file.jsonData);
-          const fileCupCounts = calculateCupCounts(file.jsonData);
-          fileCupCounts.forEach((data, cup) => {
-            if (!monthCupCounts.has(cup)) {
-              monthCupCounts.set(cup, { total: 0, diagnoses: new Map(), totalValue: 0 });
-            }
-            const existingData = monthCupCounts.get(cup)!;
-            existingData.total += data.total;
-            existingData.totalValue += data.totalValue; // This is the real value from JSON
-            
-            data.diagnoses.forEach((count, diag) => {
-              existingData.diagnoses.set(diag, (existingData.diagnoses.get(diag) || 0) + count);
-            });
-          });
-        }
-      });
-      
-      monthCupCounts.forEach(cupData => {
-        monthTotalRealValue += cupData.totalValue;
-      });
+        const monthCupCounts = calculateCupCounts(combinedJsonDataForMonth);
+        let monthTotalRealValue = 0;
+        monthCupCounts.forEach(cupData => {
+            monthTotalRealValue += cupData.totalValue;
+        });
 
+        const combinedSummary = calculateSummary(combinedJsonDataForMonth);
+        combinedSummary.numFactura = monthFiles.length > 1 ? `Combinado (${monthFiles.length} archivos)` : (monthFiles.length > 0 ? monthFiles[0].fileName : 'N/A');
 
-      const combinedSummary = monthFiles.reduce((acc, file) => {
-        const summary = calculateSummary(file.jsonData);
-        acc.numUsuarios += summary.numUsuarios;
-        acc.numConsultas += summary.numConsultas;
-        acc.numProcedimientos += summary.numProcedimientos;
-        acc.totalMedicamentos += summary.totalMedicamentos;
-        acc.totalOtrosServicios += summary.totalOtrosServicios;
-        return acc;
-      }, {
-        numFactura: monthFiles.length > 1 ? `Combinado (${monthFiles.length} archivos)` : (monthFiles.length > 0 ? monthFiles[0].fileName : 'N/A'),
-        numUsuarios: 0,
-        numConsultas: 0,
-        numProcedimientos: 0,
-        totalMedicamentos: 0,
-        totalOtrosServicios: 0,
-      });
-
-      dataByMonth.set(month, {
-        cupCounts: monthCupCounts,
-        summary: combinedSummary,
-        totalRealValue: monthTotalRealValue,
-        rawJsonData: { usuarios: combinedJsonData.flatMap(j => j.usuarios || []) }
-      });
+        dataByMonth.set(month, {
+            cupCounts: monthCupCounts,
+            summary: combinedSummary,
+            totalRealValue: monthTotalRealValue,
+            rawJsonData: combinedJsonDataForMonth, // Use the month-specific combined data
+        });
     });
 
     setExecutionData(dataByMonth);
-  }, [files, filesByMonth, setExecutionData, setJsonPrestadorCode, setUniqueUserCount]);
+}, [files, filesByMonth, setExecutionData, setJsonPrestadorCode, setUniqueUserCount]);
+
 
   const handleReset = () => {
     setFiles([]);
@@ -478,3 +451,5 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
+
+    
