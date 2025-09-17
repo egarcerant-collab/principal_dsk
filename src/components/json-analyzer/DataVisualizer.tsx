@@ -133,28 +133,28 @@ const ConsultationsTable = ({ consultations, onDiagnosticoClick }: { consultatio
         <Table>
             <TableHeader>
             <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Cod. Consulta</TableHead>
-                <TableHead>Diagnóstico</TableHead>
-                <TableHead>Acción</TableHead>
-                <TableHead>Valor</TableHead>
+                <TableHead className="text-sm">#</TableHead>
+                <TableHead className="text-sm">Fecha</TableHead>
+                <TableHead className="text-sm">Cod. Consulta</TableHead>
+                <TableHead className="text-sm">Diagnóstico</TableHead>
+                <TableHead className="text-sm">Acción</TableHead>
+                <TableHead className="text-sm">Valor</TableHead>
             </TableRow>
             </TableHeader>
             <TableBody>
             {consultations.map((c: any) => (
                 <TableRow key={c.consecutivo}>
-                <TableCell>{c.consecutivo}</TableCell>
-                <TableCell>{isClient ? new Date(c.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
-                <TableCell>{c.codConsulta}</TableCell>
-                <TableCell>{c.codDiagnosticoPrincipal}</TableCell>
-                <TableCell>
+                <TableCell className="text-sm">{c.consecutivo}</TableCell>
+                <TableCell className="text-sm">{isClient ? new Date(c.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell className="text-sm">{c.codConsulta}</TableCell>
+                <TableCell className="text-sm">{c.codDiagnosticoPrincipal}</TableCell>
+                <TableCell className="text-sm">
                     <Button variant="outline" size="sm" onClick={() => onDiagnosticoClick(c.codDiagnosticoPrincipal)}>
                         <Search className="h-4 w-4 mr-2"/>
                         Buscar
                     </Button>
                 </TableCell>
-                <TableCell>{isClient ? `$${c.vrServicio.toLocaleString()}` : ''}</TableCell>
+                <TableCell className="text-sm">{isClient ? `$${c.vrServicio.toLocaleString()}` : ''}</TableCell>
                 </TableRow>
             ))}
             </TableBody>
@@ -171,28 +171,28 @@ const ProceduresTable = ({ procedures, onDiagnosticoClick }: { procedures: any[]
         <Table>
         <TableHeader>
             <TableRow>
-            <TableHead>#</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Cod. Procedimiento</TableHead>
-            <TableHead>Diagnóstico</TableHead>
-            <TableHead>Acción</TableHead>
-            <TableHead>Valor</TableHead>
+            <TableHead className="text-sm">#</TableHead>
+            <TableHead className="text-sm">Fecha</TableHead>
+            <TableHead className="text-sm">Cod. Procedimiento</TableHead>
+            <TableHead className="text-sm">Diagnóstico</TableHead>
+            <TableHead className="text-sm">Acción</TableHead>
+            <TableHead className="text-sm">Valor</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
             {procedures.map((p: any) => (
             <TableRow key={p.consecutivo}>
-                <TableCell>{p.consecutivo}</TableCell>
-                <TableCell>{isClient ? new Date(p.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
-                <TableCell>{p.codProcedimiento}</TableCell>
-                <TableCell>{p.codDiagnosticoPrincipal}</TableCell>
-                 <TableCell>
+                <TableCell className="text-sm">{p.consecutivo}</TableCell>
+                <TableCell className="text-sm">{isClient ? new Date(p.fechaInicioAtencion).toLocaleDateString() : ''}</TableCell>
+                <TableCell className="text-sm">{p.codProcedimiento}</TableCell>
+                <TableCell className="text-sm">{p.codDiagnosticoPrincipal}</TableCell>
+                 <TableCell className="text-sm">
                     <Button variant="outline" size="sm" onClick={() => onDiagnosticoClick(p.codDiagnosticoPrincipal)}>
                         <Search className="h-4 w-4 mr-2"/>
                         Buscar
                     </Button>
                 </TableCell>
-                <TableCell>{isClient ? `$${p.vrServicio.toLocaleString()}`: ''}</TableCell>
+                <TableCell className="text-sm">{isClient ? `$${p.vrServicio.toLocaleString()}`: ''}</TableCell>
             </TableRow>
             ))}
         </TableBody>
