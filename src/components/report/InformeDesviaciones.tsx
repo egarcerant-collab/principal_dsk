@@ -289,7 +289,7 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          {title}
         </DialogHeader>
         <div className="flex-grow overflow-hidden">
           {content}
@@ -453,7 +453,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                         <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
                                         <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
                                         <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
-                                        <TableCell className={`text-right font-bold text-sm ${item.deviationValue > 0 ? 'text-red-600' : 'text-blue-600'}`}>{formatCurrency(item.deviationValue)}</TableCell>
+                                        <TableCell className={`text-right font-bold text-sm ${item.deviationValue > 0 ? 'text-red-600' : ''}`}>{formatCurrency(item.deviationValue)}</TableCell>
                                         <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.totalValue)}</TableCell>
                                         <TableCell className="text-right font-bold text-sm text-blue-700">{formatCurrency(valorSugerido)}</TableCell>
                                         <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.valorReconocer)}</TableCell>
@@ -523,18 +523,18 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     }
     
     const ModalTitle = () => {
-        if (!modalContent) return null;
-        const { title, totalValue, valueLabel } = modalContent;
-        return (
-            <div className="flex items-center justify-between w-full">
-                <span>{title}</span>
-                {totalValue !== undefined && valueLabel && (
-                    <span className="text-lg font-bold text-red-600 ml-4">
-                        {valueLabel}: {formatCurrency(totalValue)}
-                    </span>
-                )}
-            </div>
-        );
+      if (!modalContent) return null;
+      const { title, totalValue, valueLabel } = modalContent;
+      return (
+        <div className="flex items-center justify-between w-full">
+          <DialogTitle>{title}</DialogTitle>
+          {totalValue !== undefined && valueLabel && (
+            <span className="text-lg font-bold text-red-600 ml-4">
+              {valueLabel}: {formatCurrency(totalValue)}
+            </span>
+          )}
+        </div>
+      );
     };
 
     return (
@@ -570,13 +570,13 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         valueLabel="Valor Ejecutado"
                     />
                     <DeviatedCupsCard
-                        title="CUPS Subejecutados (<90%)"
+                        title="CUPS Subejecutados (&lt;90%)"
                         icon={TrendingDown}
                         data={comparisonSummary.underExecutedCups}
                         badgeVariant="default"
                         pgpData={pgpData}
                         onDownload={handleDownloadXls}
-                        onDoubleClick={() => handleDoubleClick('under-executed', "CUPS Subejecutados (<90%)", comparisonSummary.underExecutedCups, totalUnderExecutionValue, "Valor Desviación")}
+                        onDoubleClick={() => handleDoubleClick('under-executed', "CUPS Subejecutados (&lt;90%)", comparisonSummary.underExecutedCups, totalUnderExecutionValue, "Valor Desviación")}
                         totalValue={totalUnderExecutionValue}
                         valueLabel="Valor Desviación"
                     />
@@ -627,12 +627,14 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                     title={<ModalTitle />}
                     content={renderModalContent()}
                     data={modalContent.data}
-                    downloadFilename={`${String(modalContent.title).toLowerCase().replace(/ /g, '_')}.xls`}
+                    downloadFilename={`${String(modalContent.type).toLowerCase().replace(/ /g, '_')}.xls`}
                 />
             )}
         </div>
     );
 }
+    
+
     
 
     
