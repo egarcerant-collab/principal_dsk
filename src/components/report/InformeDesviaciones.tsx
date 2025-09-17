@@ -7,7 +7,7 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users, Repeat } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users, Repeat, AlertCircle } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -157,7 +157,7 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOpenChange, executionDataByMonth }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
+const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, sameDayDetections, open, onOpenChange, executionDataByMonth }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, sameDayDetections: number, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
     if (!cupData) return null;
 
     const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
@@ -235,6 +235,10 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
                             <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
                         </div>
+                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-red-600 flex items-center gap-2"><AlertCircle className="h-4 w-4" />Usuarios Atendidos &gt;1 Vez el Mismo Día</dt>
+                            <dd className="text-right font-bold text-lg text-red-600">{sameDayDetections}</dd>
+                        </div>
 
                         {filteredCupData.map(([key, value]) => (
                             <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
@@ -302,9 +306,9 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
          <DialogHeader>
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start flex-wrap gap-4">
             <DialogTitle>{title}</DialogTitle>
-            <div className="text-right space-y-1">
+             <div className="text-right space-y-1 text-sm">
                 <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
                 <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
                 <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(valorSugerido)}</p>
@@ -342,6 +346,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any[], type: string, totals: {ejecutado: number, desviacion: number} } | null>(null);
     const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
     const [totalFrequency, setTotalFrequency] = useState(0);
+    const [sameDayDetections, setSameDayDetections] = useState(0);
 
 
     const calculateTotals = (items: DeviatedCupInfo[]) => {
@@ -411,12 +416,54 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         return { uniqueUsers: userIds.size, totalFrequency: frequency };
     };
 
+    const calculateSameDayDetections = (cup: string) => {
+        const attentionMap = new Map<string, number>(); // key: "userId-date", value: count
+        
+        executionDataByMonth.forEach(monthData => {
+            monthData.rawJsonData.usuarios?.forEach((user: any) => {
+                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+
+                const processServices = (services: any[], codeField: string) => {
+                    if (!services) return;
+                    services.forEach((service: any) => {
+                        if (service[codeField] === cup) {
+                            try {
+                                const date = new Date(service.fechaInicioAtencion).toISOString().split('T')[0];
+                                const key = `${userId}-${date}`;
+                                attentionMap.set(key, (attentionMap.get(key) || 0) + 1);
+                            } catch (e) {
+                                // Invalid date, skip
+                            }
+                        }
+                    });
+                };
+                
+                processServices(user.servicios?.consultas, 'codConsulta');
+                processServices(user.servicios?.procedimientos, 'codProcedimiento');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud');
+            });
+        });
+
+        const usersWithMultipleSameDayAttentions = new Set<string>();
+        attentionMap.forEach((count, key) => {
+            if (count > 1) {
+                const userId = key.split('-')[0];
+                usersWithMultipleSameDayAttentions.add(userId);
+            }
+        });
+        
+        return usersWithMultipleSameDayAttentions.size;
+    }
+
     const handleCupClick = (cup: string) => {
         const cupDetails = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
         if (cupDetails) {
             const { uniqueUsers, totalFrequency } = countUniqueUsersAndFrequencyForCup(cup);
+            const sameDayCount = calculateSameDayDetections(cup);
             setUniqueUsersCount(uniqueUsers);
             setTotalFrequency(totalFrequency);
+            setSameDayDetections(sameDayCount);
             setSelectedCupData(cupDetails);
             setIsCupModalOpen(true);
         } else {
@@ -626,6 +673,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 cupData={selectedCupData}
                 uniqueUsersCount={uniqueUsersCount}
                 totalFrequency={totalFrequency}
+                sameDayDetections={sameDayDetections}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
                 executionDataByMonth={executionDataByMonth}
@@ -663,3 +711,4 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     
 
     
+
