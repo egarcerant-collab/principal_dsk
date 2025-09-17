@@ -400,10 +400,8 @@ const calculateSameDayDetections = (cup: string, executionDataByMonth: Execution
                 });
             };
             
-            processServices(user.servicios?.consultas, 'codConsulta');
+            // Only check procedures for same-day detections
             processServices(user.servicios?.procedimientos, 'codProcedimiento');
-            processServices(user.servicios?.medicamentos, 'codTecnologiaSalud');
-            processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud');
         });
     });
 
