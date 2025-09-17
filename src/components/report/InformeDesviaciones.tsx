@@ -287,7 +287,7 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -430,7 +430,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                 <TableRow>
                                     <TableHead className="text-sm">CUPS</TableHead>
                                     <TableHead className="text-sm">Actividad</TableHead>
-                                    <TableHead className="text-sm">Descripción</TableHead>
                                     <TableHead className="text-center text-sm">Frec. Esperada</TableHead>
                                     <TableHead className="text-center text-sm">Frec. Real</TableHead>
                                     <TableHead className="text-center text-sm">Desviación</TableHead>
@@ -448,7 +447,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                             </Button>
                                         </TableCell>
                                         <TableCell className="text-sm">{item.activityDescription}</TableCell>
-                                        <TableCell className="text-sm">{item.description}</TableCell>
                                         <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
                                         <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
                                         <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
@@ -622,3 +620,4 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
 
     
 
+    
