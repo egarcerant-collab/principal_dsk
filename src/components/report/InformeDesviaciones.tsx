@@ -295,13 +295,15 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
-        <DialogHeader className="flex-row justify-between items-start">
+         <DialogHeader>
+          <div className="flex justify-between items-start">
             <DialogTitle>{title}</DialogTitle>
             <div className="text-right space-y-1">
                 <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
                 <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
                 <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(valorSugerido)}</p>
             </div>
+          </div>
         </DialogHeader>
         <div className="flex-grow overflow-hidden">
           {content}
@@ -471,7 +473,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                 <TableCell className={`text-right font-bold text-sm text-red-600`}>{formatCurrency(item.deviationValue)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-green-700`}>{formatCurrency(item.totalValue)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-blue-700`}>{formatCurrency(valorSugerido)}</TableCell>
-                                <TableCell className="text-right font-bold text-sm text-green-700">{formatCurrency(item.valorReconocer)}</TableCell>
+                                <TableCell className="text-right font-bold text-sm text-purple-600">{formatCurrency(item.valorReconocer)}</TableCell>
                             </TableRow>
                         )
                     })}
@@ -644,6 +646,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+    
+
     
 
     
