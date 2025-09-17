@@ -289,20 +289,19 @@ const TableModal = ({ open, onOpenChange, title, content, data, downloadFilename
         desviacion: number;
     }
 }) => {
-  const valorSugerido = (totals?.ejecutado || 0) - (totals?.desviacion || 0);
+  if (!totals) return null;
+  const valorSugerido = totals.ejecutado - totals.desviacion;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
         <DialogHeader className="flex-row justify-between items-start">
             <DialogTitle>{title}</DialogTitle>
-            {totals && (
-                <div className="text-right text-lg space-y-1">
-                    <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
-                    <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
-                    <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(valorSugerido)}</p>
-                </div>
-            )}
+            <div className="text-right space-y-1">
+                <p><span className="font-semibold text-green-600">Valor Ejecutado: </span>{formatCurrency(totals.ejecutado)}</p>
+                <p><span className="font-semibold text-red-600">Valor Desviación: </span>{formatCurrency(totals.desviacion)}</p>
+                <p><span className="font-semibold text-blue-600">Valor Sugerido a Revisión: </span>{formatCurrency(valorSugerido)}</p>
+            </div>
         </DialogHeader>
         <div className="flex-grow overflow-hidden">
           {content}
