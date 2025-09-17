@@ -286,9 +286,12 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
       if (file.jsonData) {
         const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
         if (nit) allNits.push(nit);
+        
         file.jsonData.usuarios?.forEach((user: any) => {
+          if (user.numDocumentoIdentificacion) {
             const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
             uniqueUserIdentifiers.add(id);
+          }
         });
       }
     });
@@ -475,5 +478,3 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
-
-    
