@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -160,6 +161,7 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
     if (!cupData) return null;
 
     const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
+    const repeatedUsersAttention = totalFrequency - uniqueUsersCount;
     
     const filteredCupData = useMemo(() => {
         if (!cupData) return [];
@@ -218,12 +220,16 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, open, onOp
                  <ScrollArea className="max-h-80 pr-6">
                     <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Repeat className="h-4 w-4" />Total de Atenciones</dt>
+                            <dd className="text-right font-bold text-lg text-primary">{totalFrequency}</dd>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos</dt>
                             <dd className="text-right font-bold text-lg text-primary">{uniqueUsersCount}</dd>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Repeat className="h-4 w-4" />Frecuencia Total</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{totalFrequency}</dd>
+                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
+                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4 opacity-70" />Atenciones a Usuarios Repetidos</dt>
+                            <dd className="text-right font-bold text-lg text-primary">{repeatedUsersAttention}</dd>
                         </div>
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
@@ -389,16 +395,16 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 };
 
                 user.servicios?.consultas?.forEach((s:any) => checkService(s, 'codConsulta'));
-                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
 
                 user.servicios?.procedimientos?.forEach((s:any) => checkService(s, 'codProcedimiento'));
-                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
                 
                 user.servicios?.medicamentos?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
-                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
                 
                 user.servicios?.otrosServicios?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
-                if (hasService) { userIds.add(user.numDocumentoIdentificacion); return; }
+                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
             });
         });
         
