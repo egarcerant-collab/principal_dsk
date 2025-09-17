@@ -54,6 +54,7 @@ export interface DeviatedCupInfo {
     activityDescription?: string;
     expectedFrequency: number;
     realFrequency: number;
+    uniqueUsers: number;
     deviation: number;
     deviationValue: number;
     totalValue: number;
@@ -388,8 +389,19 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   });
 
   const executedCupsSet = new Set<string>();
+  const allExecutionData = new Map<string, { total: number, totalValue: number, uniqueUsers: Set<string> }>();
+
   executionDataByMonth.forEach(monthData => {
-    monthData.cupCounts.forEach((_, cup) => executedCupsSet.add(cup));
+    monthData.cupCounts.forEach((cupData, cup) => {
+        executedCupsSet.add(cup);
+        if (!allExecutionData.has(cup)) {
+            allExecutionData.set(cup, { total: 0, totalValue: 0, uniqueUsers: new Set<string>() });
+        }
+        const aed = allExecutionData.get(cup)!;
+        aed.total += cupData.total;
+        aed.totalValue += cupData.totalValue;
+        cupData.uniqueUsers.forEach(u => aed.uniqueUsers.add(u));
+    });
   });
 
   const allRelevantCups = new Set([...pgpCupsMap.keys(), ...executedCupsSet]);
@@ -421,13 +433,11 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
 
   allRelevantCups.forEach(cup => {
     const pgpRow = pgpCupsMap.get(cup);
-    let totalRealFrequency = 0;
-    let totalRealValueFromJSON = 0; 
-    executionDataByMonth.forEach(monthData => {
-      const cupData = monthData.cupCounts.get(cup);
-      totalRealFrequency += cupData?.total || 0;
-      totalRealValueFromJSON += cupData?.totalValue || 0;
-    });
+    const execData = allExecutionData.get(cup);
+    const totalRealFrequency = execData?.total || 0;
+    const totalRealValueFromJSON = execData?.totalValue || 0;
+    const totalUniqueUsers = execData?.uniqueUsers.size || 0;
+
 
     if (pgpRow) {
       const expectedFrequencyPerMonth = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
@@ -450,6 +460,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           activityDescription: findColumnValue(pgpRow, ['descripcion id resolucion']),
           expectedFrequency: totalExpectedFrequency,
           realFrequency: totalRealFrequency,
+          uniqueUsers: totalUniqueUsers,
           deviation: deviation,
           deviationValue: deviation * unitValue,
           totalValue: totalValue, 
@@ -921,5 +932,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-

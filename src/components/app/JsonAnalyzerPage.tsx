@@ -132,36 +132,40 @@ export const calculateCupCounts = (jsonData: any): CupCountsMap => {
     const counts: CupCountsMap = new Map();
     if (!jsonData || !jsonData.usuarios) return counts;
 
-    const processServices = (services: any[], codeField: string, diagField: string, qtyField?: string, valueField: string = 'vrServicio', unitValueField?: string) => {
-        if (!services) return;
-        services.forEach(service => {
-            const code = service[codeField];
-            if (!code) return;
-
-            if (!counts.has(code)) {
-                counts.set(code, { total: 0, diagnoses: new Map(), totalValue: 0 });
-            }
-            const cupData = counts.get(code)!;
-            const quantity = qtyField ? (getNumericValue(service[qtyField])) : 1;
-            
-            let value = 0;
-            if (unitValueField) { // For medicines: quantity * unit value
-                value = quantity * getNumericValue(service[unitValueField]);
-            } else { // For others: sum of total value
-                value = getNumericValue(service[valueField]);
-            }
-
-            cupData.total += quantity;
-            cupData.totalValue += value;
-
-            const diagnosis = service[diagField];
-            if (diagnosis) {
-                cupData.diagnoses.set(diagnosis, (cupData.diagnoses.get(diagnosis) || 0) + quantity);
-            }
-        });
-    };
-
     jsonData.usuarios.forEach((user: any) => {
+        const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+        if (!userId || userId === '-') return;
+
+        const processServices = (services: any[], codeField: string, diagField: string, qtyField?: string, valueField: string = 'vrServicio', unitValueField?: string) => {
+            if (!services) return;
+            services.forEach(service => {
+                const code = service[codeField];
+                if (!code) return;
+
+                if (!counts.has(code)) {
+                    counts.set(code, { total: 0, diagnoses: new Map(), totalValue: 0, uniqueUsers: new Set() });
+                }
+                const cupData = counts.get(code)!;
+                const quantity = qtyField ? (getNumericValue(service[qtyField])) : 1;
+                
+                let value = 0;
+                if (unitValueField) {
+                    value = quantity * getNumericValue(service[unitValueField]);
+                } else {
+                    value = getNumericValue(service[valueField]);
+                }
+
+                cupData.total += quantity;
+                cupData.totalValue += value;
+                cupData.uniqueUsers.add(userId);
+
+                const diagnosis = service[diagField];
+                if (diagnosis) {
+                    cupData.diagnoses.set(diagnosis, (cupData.diagnoses.get(diagnosis) || 0) + quantity);
+                }
+            });
+        };
+
         if (user.servicios) {
             processServices(user.servicios.consultas, 'codConsulta', 'codDiagnosticoPrincipal');
             processServices(user.servicios.procedimientos, 'codProcedimiento', 'codDiagnosticoPrincipal');
@@ -287,8 +291,8 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     // Now, calculate unique users from the combined list
     const uniqueUserIdentifiers = new Set<string>();
     allUsersCombined.forEach((user: any) => {
-        if (user.numDocumentoIdentificacion) {
-            const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+        const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+        if (id && id !== '-') {
             uniqueUserIdentifiers.add(id);
         }
     });
@@ -451,5 +455,3 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
     </div>
   );
 }
-
-    

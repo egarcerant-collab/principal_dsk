@@ -27,6 +27,7 @@ export type CupCountInfo = {
   total: number;
   diagnoses: Map<string, number>; // Map<diagnosisCode, count>
   totalValue: number;
+  uniqueUsers: Set<string>;
 };
 
 export type CupCountsMap = Map<string, CupCountInfo>;

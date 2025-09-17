@@ -502,6 +502,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <TableHead>Actividad</TableHead>
                         <TableHead className="text-center">Frec. Esperada</TableHead>
                         <TableHead className="text-center">Frec. Real</TableHead>
+                        <TableHead className="text-center">Usuarios Únicos</TableHead>
                         <TableHead className="text-center">Desviación</TableHead>
                         <TableHead className="text-right">Valor Desviación</TableHead>
                         <TableHead className="text-right">Valor Ejecutado (NT)</TableHead>
@@ -522,6 +523,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                 <TableCell className="text-sm max-w-xs truncate">{item.activityDescription}</TableCell>
                                 <TableCell className="text-center text-sm">{item.expectedFrequency.toFixed(0)}</TableCell>
                                 <TableCell className="text-center text-sm">{item.realFrequency}</TableCell>
+                                <TableCell className="text-center text-sm font-bold">{item.uniqueUsers}</TableCell>
                                 <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-red-600`}>{formatCurrency(item.deviationValue)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-green-700`}>{formatCurrency(item.totalValue)}</TableCell>
@@ -700,15 +702,3 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
