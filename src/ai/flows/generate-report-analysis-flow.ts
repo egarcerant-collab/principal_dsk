@@ -77,11 +77,13 @@ const prompt = ai.definePrompt({
       - Relaciona la estabilidad de la demanda con el acceso a servicios y la capacidad de la red.
       - Proyecta las necesidades de recursos futuros (financieros, humanos, etc.) basado en la operación.
 
-  3.  **deviationAnalysis** (entre 1200 y 1500 caracteres): Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados.
-      - Enfatiza que estos dos grupos son el principal foco de riesgo financiero y operativo.
-      - Explica las posibles causas de la sobre-ejecución (aumento de incidencia, cambios en guías clínicas, ineficiencias).
-      - Explica las implicaciones de los CUPS inesperados (impacto en la prima, necesidad de actualizar la nota técnica).
-      - Recomienda acciones concretas como auditoría concurrente, análisis de causa raíz y validación de pertinencia médica.
+  3.  **deviationAnalysis** (entre 1500 y 2000 caracteres): Análisis Amplio del Valor de las Desviaciones.
+      - **Enfoque Principal: EL VALOR ($) de las desviaciones, no solo la frecuencia.**
+      - Cuantifica el impacto financiero total de los CUPS sobre-ejecutados. Utiliza la suma de los campos 'deviationValue' para explicar cuánto dinero representa el exceso de frecuencia.
+      - Analiza el costo total de los CUPS inesperados (campo 'totalValue') y explica cómo este gasto no planificado impacta directamente la prima y la rentabilidad del contrato.
+      - Explica las posibles causas de la sobre-ejecución (aumento de incidencia, cambios en guías clínicas, ineficiencias) pero siempre conectándolas con su consecuencia monetaria.
+      - Evalúa el riesgo financiero que representan estas desviaciones de valor. ¿Son sostenibles? ¿Qué porcentaje del presupuesto consumen?
+      - Recomienda acciones concretas (auditoría, análisis de causa raíz, pertinencia médica) como herramientas para controlar el impacto financiero de estas desviaciones. Sé muy específico sobre cómo estas acciones mitigan el riesgo económico.
 
   4.  **clinicalAnalysis** (mínimo 3000 caracteres): Análisis Clínico y de Pertinencia Médica.
       - Cambia tu rol a un MÉDICO AUDITOR. Olvida el costo por un momento.
@@ -114,3 +116,4 @@ const generateReportAnalysisFlow = ai.defineFlow(
     }
   }
 );
+
