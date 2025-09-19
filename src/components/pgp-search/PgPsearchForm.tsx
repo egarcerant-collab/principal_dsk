@@ -57,6 +57,7 @@ export interface DeviatedCupInfo {
     uniqueUsers: number;
     repeatedAttentions: number;
     sameDayDetections: number;
+    sameDayDetectionsCost: number;
     deviation: number;
     deviationValue: number;
     totalValue: number;
@@ -377,7 +378,7 @@ const getMonthName = (monthNumber: string) => {
 };
 
 
-const calculateSameDayDetections = (cup: string, executionDataByMonth: ExecutionDataByMonth) => {
+const calculateSameDayDetections = (cup: string, executionDataByMonth: ExecutionDataByMonth, unitValue: number) => {
     const attentionMap = new Map<string, number>(); // key: "userId-date", value: count
     
     executionDataByMonth.forEach(monthData => {
@@ -406,6 +407,7 @@ const calculateSameDayDetections = (cup: string, executionDataByMonth: Execution
     });
 
     let usersWithMultipleSameDayAttentions = 0;
+    let totalRepetitionCost = 0;
     const countedUsers = new Set<string>();
 
     attentionMap.forEach((count, key) => {
@@ -415,10 +417,12 @@ const calculateSameDayDetections = (cup: string, executionDataByMonth: Execution
                  usersWithMultipleSameDayAttentions++;
                  countedUsers.add(userId);
             }
+            // Cost is for every attention beyond the first one
+            totalRepetitionCost += (count - 1) * unitValue;
         }
     });
     
-    return usersWithMultipleSameDayAttentions;
+    return { count: usersWithMultipleSameDayAttentions, cost: totalRepetitionCost };
 };
 
 
@@ -490,6 +494,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       const expectedFrequencyPerMonth = getNumericValue(findColumnValue(pgpRow, ['frecuencia eventos mes']));
       const totalExpectedFrequency = expectedFrequencyPerMonth * executionDataByMonth.size;
       const unitValue = getNumericValue(findColumnValue(pgpRow, ['valor unitario']));
+      const sameDayInfo = calculateSameDayDetections(cup, executionDataByMonth, unitValue);
 
       if (totalRealFrequency > 0 || totalExpectedFrequency > 0) {
         const deviation = totalRealFrequency - totalExpectedFrequency;
@@ -509,7 +514,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           realFrequency: totalRealFrequency,
           uniqueUsers: totalUniqueUsers,
           repeatedAttentions: totalRealFrequency - totalUniqueUsers,
-          sameDayDetections: calculateSameDayDetections(cup, executionDataByMonth),
+          sameDayDetections: sameDayInfo.count,
+          sameDayDetectionsCost: sameDayInfo.cost,
           deviation: deviation,
           deviationValue: deviation * unitValue,
           totalValue: totalValue, 

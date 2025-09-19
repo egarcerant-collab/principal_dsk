@@ -458,7 +458,8 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         <TableHead className="text-center">Frec. Real</TableHead>
                         <TableHead className="text-center">Usuarios Únicos</TableHead>
                         <TableHead className="text-center">Atenciones Repetidas</TableHead>
-                        <TableHead className="text-center text-red-600">&gt;1 Atención Mismo Día</TableHead>
+                        <TableHead className="text-center text-red-600 flex items-center gap-1 justify-center"><AlertCircle className="h-4 w-4" /> &gt;1 Atención Mismo Día</TableHead>
+                        <TableHead className="text-right text-red-600">Costo Repetición Mismo Día</TableHead>
                         <TableHead className="text-center">Desviación</TableHead>
                         <TableHead className="text-right">Valor Desviación</TableHead>
                         <TableHead className="text-right">Valor Ejecutado (NT)</TableHead>
@@ -482,6 +483,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                                 <TableCell className="text-center text-sm font-bold">{item.uniqueUsers}</TableCell>
                                 <TableCell className="text-center text-sm">{item.repeatedAttentions}</TableCell>
                                 <TableCell className="text-center text-sm font-bold text-red-600">{item.sameDayDetections}</TableCell>
+                                <TableCell className="text-right text-sm font-bold text-red-600">{formatCurrency(item.sameDayDetectionsCost)}</TableCell>
                                 <TableCell className={`text-center font-bold text-sm ${item.deviation > 0 ? 'text-red-600' : 'text-blue-600'}`}>{item.deviation.toFixed(0)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-red-600`}>{formatCurrency(item.deviationValue)}</TableCell>
                                 <TableCell className={`text-right font-bold text-sm text-green-700`}>{formatCurrency(item.totalValue)}</TableCell>
