@@ -647,6 +647,10 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                   Matriz Ejecución vs Esperado (mensual)
               </CardTitle>
                <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
+               <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
+                 <AlertCircle className="h-3 w-3"/>
+                 Aquí se visualiza lo que se descontará.
+               </p>
             </div>
             <div className='flex items-center gap-2'>
                 <Select value={classificationFilter} onValueChange={setClassificationFilter}>
@@ -1055,4 +1059,4 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
 export default PgPsearchForm;
 
-    
+  
