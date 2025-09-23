@@ -11,12 +11,13 @@ import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Load
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-import { findColumnValue, formatCurrency, type ComparisonSummary } from '../pgp-search/PgPsearchForm';
+import { formatCurrency, type ComparisonSummary } from '../pgp-search/PgPsearchForm';
 import type { DeviatedCupInfo, UnexpectedCupInfo } from '../pgp-search/PgPsearchForm';
 import type { CupDescription } from '@/ai/flows/describe-cup-flow';
 import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ExecutionDataByMonth } from '@/app/page';
+import { findColumnValue } from '@/lib/matriz-helpers';
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const dataToExport = JSON.parse(JSON.stringify(data));
@@ -212,9 +213,9 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, sameDayDet
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Detalles del CUPS: <span className="font-mono">{cupData['CUP/CUM']}</span></AlertDialogTitle>
+                    <AlertDialogTitle>Detalles del CUPS: <span className="font-mono">{findColumnValue(cupData, ['CUP/CUM', 'cup/cum'])}</span></AlertDialogTitle>
                     <AlertDialogDescription>
-                        {cupData['DESCRIPCION CUPS'] || "Información detallada de la nota técnica."}
+                        {findColumnValue(cupData, ['DESCRIPCION CUPS', 'descripcion cups']) || "Información detallada de la nota técnica."}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                  <ScrollArea className="max-h-80 pr-6">

@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { type ExecutionDataByMonth } from '@/app/page';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
-import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
+import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow, findColumnValue } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
@@ -144,15 +144,7 @@ const normalizeDigits = (v: unknown): string => {
 };
 
 
-export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
-  if (!row) return undefined;
-  const keys = Object.keys(row);
-  for (const name of possibleNames) {
-    const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
-    if (key && row[key] !== undefined) return row[key];
-  }
-  return undefined;
-};
+
 
 const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null => {
   if (data.length === 0) return null;
@@ -974,5 +966,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
-
-    

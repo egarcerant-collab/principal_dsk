@@ -28,7 +28,7 @@ interface BuildMatrizArgs {
   pgpData: PgpRow[];
 }
 
-const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
+export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
   if (!row) return undefined;
   const keys = Object.keys(row);
   for (const name of possibleNames) {
