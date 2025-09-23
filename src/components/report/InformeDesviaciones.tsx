@@ -158,41 +158,10 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cup, open, onOpenChange, executionDataByMonth }: { cup: DeviatedCupInfo | null, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
+const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: { open: boolean, onOpenChange: (open: boolean) => void, cup: DeviatedCupInfo | null, executionDetails: any[] }) => {
     if (!cup) return null;
-
-    const averagePerUser = cup.uniqueUsers > 0 ? (cup.realFrequency / cup.uniqueUsers) : 0;
     
     const handleDownloadDetails = () => {
-        const executionDetails: any[] = [];
-
-        executionDataByMonth.forEach((monthData) => {
-            monthData.rawJsonData.usuarios?.forEach((user: any) => {
-                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-                const processServices = (services: any[], codeField: string, type: string) => {
-                    if (!services) return;
-                    services.forEach((service: any) => {
-                        if (service[codeField] === cup.cup) {
-                            executionDetails.push({
-                                TIPO_SERVICIO: type,
-                                ID_USUARIO: userId,
-                                FECHA_ATENCION: service.fechaInicioAtencion,
-                                CODIGO_SERVICIO: service[codeField],
-                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
-                                CANTIDAD: service.cantidadMedicamento || service.cantidadOS || 1,
-                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
-                            });
-                        }
-                    });
-                };
-                
-                processServices(user.servicios?.consultas, 'codConsulta', 'CONSULTA');
-                processServices(user.servicios?.procedimientos, 'codProcedimiento', 'PROCEDIMIENTO');
-                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'MEDICAMENTO');
-                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'OTRO_SERVICIO');
-            });
-        });
-
         handleDownloadXls(executionDetails, `matriz_detalle_${cup.cup}.xls`);
     };
 
@@ -200,30 +169,34 @@ const CupDetailsModal = ({ cup, open, onOpenChange, executionDataByMonth }: { cu
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent className="sm:max-w-4xl">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Detalles del CUPS: <span className="font-mono">{cup.cup}</span></AlertDialogTitle>
+                    <AlertDialogTitle>Ejecuciones Detalladas del CUPS: <span className="font-mono">{cup.cup}</span></AlertDialogTitle>
                     <AlertDialogDescription>
-                        {cup.description || "Información detallada de la nota técnica."}
+                        {cup.description || "Cada fila representa una atención encontrada en los archivos JSON para este CUPS."}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                 <ScrollArea className="max-h-80 pr-6">
-                    <div className="space-y-4 text-sm">
-                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Repeat className="h-4 w-4" />Total de Atenciones</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{cup.realFrequency}</dd>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{cup.uniqueUsers}</dd>
-                        </div>
-                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4 opacity-70" />Atenciones a Usuarios Repetidos</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{cup.repeatedAttentions}</dd>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 border-b pb-2">
-                            <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
-                        </div>
-                    </div>
+                 <ScrollArea className="max-h-[60vh] pr-6">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tipo Servicio</TableHead>
+                                <TableHead>ID Usuario</TableHead>
+                                <TableHead>Fecha Atención</TableHead>
+                                <TableHead>Diagnóstico</TableHead>
+                                <TableHead className="text-right">Valor</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {executionDetails.map((detail, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>{detail.TIPO_SERVICIO}</TableCell>
+                                    <TableCell>{detail.ID_USUARIO}</TableCell>
+                                    <TableCell>{detail.FECHA_ATENCION}</TableCell>
+                                    <TableCell>{detail.DIAGNOSTICO_PRINCIPAL}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(detail.VALOR_SERVICIO)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </ScrollArea>
                 <AlertDialogFooter>
                     <Button variant="secondary" onClick={handleDownloadDetails}>
@@ -321,6 +294,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any[], type: string, totals: {ejecutado: number, desviacion: number} } | null>(null);
+    const [executionDetails, setExecutionDetails] = useState<any[]>([]);
 
     const calculateTotals = (items: DeviatedCupInfo[]) => {
         if (!items) return { ejecutado: 0, desviacion: 0 };
@@ -354,6 +328,31 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
     }
 
     const handleCupClick = (cupInfo: DeviatedCupInfo) => {
+        const details: any[] = [];
+        executionDataByMonth.forEach((monthData) => {
+            monthData.rawJsonData.usuarios?.forEach((user: any) => {
+                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+                const processServices = (services: any[], codeField: string, type: string) => {
+                    if (!services) return;
+                    services.forEach((service: any) => {
+                        if (service[codeField] === cupInfo.cup) {
+                            details.push({
+                                TIPO_SERVICIO: type,
+                                ID_USUARIO: userId,
+                                FECHA_ATENCION: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
+                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
+                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                            });
+                        }
+                    });
+                };
+                processServices(user.servicios?.consultas, 'codConsulta', 'Consulta');
+                processServices(user.servicios?.procedimientos, 'codProcedimiento', 'Procedimiento');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio');
+            });
+        });
+        setExecutionDetails(details);
         setSelectedCup(cupInfo);
         setIsCupModalOpen(true);
     };
@@ -568,7 +567,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                 cup={selectedCup}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
-                executionDataByMonth={executionDataByMonth}
+                executionDetails={executionDetails}
             />
             
              <LookedUpCupModal
@@ -592,3 +591,5 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+
+    
