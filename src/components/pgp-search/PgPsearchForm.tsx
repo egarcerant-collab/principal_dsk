@@ -640,17 +640,17 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
 
     return (
       <Card>
-        <CardHeader className="flex flex-wrap items-center justify-between gap-4">
+        <CardHeader className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <CardTitle className="flex items-center">
                   <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
                   Matriz Ejecución vs Esperado (mensual)
               </CardTitle>
-               <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
-               <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
-                 <AlertCircle className="h-3 w-3"/>
-                 Aquí se visualiza lo que se descontará.
-               </p>
+              <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
+              <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
+                <AlertCircle className="h-3 w-3"/>
+                Aquí se visualiza lo que se descontará.
+              </p>
             </div>
             <div className='flex items-center gap-2'>
                 <Select value={classificationFilter} onValueChange={setClassificationFilter}>
@@ -696,7 +696,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead>Análisis de Valor</TableHead>
                             <TableHead>Procedimientos Repetidos Mismo Día</TableHead>
-                             <TableHead>Valor a Analizar</TableHead>
+                            <TableHead>Valor a Analizar</TableHead>
                             <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
