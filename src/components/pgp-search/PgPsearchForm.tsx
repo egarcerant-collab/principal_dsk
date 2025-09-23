@@ -156,13 +156,13 @@ export const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
 
 const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null => {
   if (data.length === 0) return null;
-  
+
   const totalCostoMes = data.reduce((acc, row) => {
     const costo = getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']));
     return acc + costo;
   }, 0);
 
-  const totalPeriodo = totalCostoMes * numMonths;
+  const totalPeriodo = totalCostoMes;
 
   return {
     totalCostoMes,
@@ -974,3 +974,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
