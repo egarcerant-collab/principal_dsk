@@ -617,6 +617,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                             <TableHead className="text-center text-sm">% Ejecución</TableHead>
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead></TableHead>
+                            <TableHead>Valor a Analizar</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -641,6 +642,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                                 <TableCell className="text-center font-semibold text-sm">{row.Diferencia.toFixed(0)}</TableCell>
                                 <TableCell className="text-center font-mono text-sm">{row['%_Ejecucion']}</TableCell>
                                 <TableCell className="font-medium text-sm">{row.Clasificacion}</TableCell>
+                                <TableCell></TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
                         ))}
