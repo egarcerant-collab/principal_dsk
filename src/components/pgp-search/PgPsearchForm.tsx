@@ -146,15 +146,16 @@ const normalizeDigits = (v: unknown): string => {
 
 
 
-const calculateSummary = (data: PgpRow[], numMonths: number): SummaryData | null => {
+const calculateSummary = (data: PgpRow[]): SummaryData | null => {
   if (data.length === 0) return null;
 
   const totalCostoMes = data.reduce((acc, row) => {
     const costo = getNumericValue(findColumnValue(row, ['costo evento mes (valor mes)', 'costo evento mes']));
     return acc + costo;
   }, 0);
-
+  
   const totalPeriodo = totalCostoMes;
+
 
   return {
     totalCostoMes,
@@ -563,6 +564,19 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
             default: return "";
         }
     };
+    
+    const getValorClass = (row: MatrizEjecucionRow) => {
+        if (row.Valor_Ejecutado > row.Valor_Esperado) return "text-red-600";
+        if (row.Valor_Ejecutado < row.Valor_Esperado) return "text-blue-600";
+        return "text-green-600";
+    };
+
+    const getAnalisisValor = (row: MatrizEjecucionRow): string => {
+        if (row.Valor_Ejecutado > row.Valor_Esperado) return "Ejecución Alta";
+        if (row.Valor_Ejecutado < row.Valor_Esperado) return "Ejecución Baja";
+        return "Normal";
+    };
+
 
     return (
       <Card>
@@ -616,8 +630,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                             <TableHead className="text-center text-sm">Diferencia</TableHead>
                             <TableHead className="text-center text-sm">% Ejecución</TableHead>
                             <TableHead className="text-sm">Clasificación</TableHead>
-                            <TableHead></TableHead>
-                            <TableHead>Valor a Analizar</TableHead>
+                            <TableHead>Análisis de Valor</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -642,8 +655,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                                 <TableCell className="text-center font-semibold text-sm">{row.Diferencia.toFixed(0)}</TableCell>
                                 <TableCell className="text-center font-mono text-sm">{row['%_Ejecucion']}</TableCell>
                                 <TableCell className="font-medium text-sm">{row.Clasificacion}</TableCell>
-                                <TableCell></TableCell>
-                                <TableCell></TableCell>
+                                <TableCell className={`font-medium text-sm ${getValorClass(row)}`}>{getAnalisisValor(row)}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -690,11 +702,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   useEffect(() => {
     if (isDataLoaded) {
-      setGlobalSummary(calculateSummary(pgpData, numMonthsForSummary));
+      setGlobalSummary(calculateSummary(pgpData));
     } else {
       setGlobalSummary(null);
     }
-  }, [isDataLoaded, pgpData, numMonthsForSummary]);
+  }, [isDataLoaded, pgpData]);
 
   const comparisonSummary = useMemo(() => {
     if (!showComparison) return null;
@@ -970,3 +982,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 };
 
 export default PgPsearchForm;
+
+    
