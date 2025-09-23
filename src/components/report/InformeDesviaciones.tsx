@@ -158,34 +158,21 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, sameDayDetections, open, onOpenChange, executionDataByMonth }: { cupData: any | null, uniqueUsersCount: number, totalFrequency: number, sameDayDetections: number, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
-    if (!cupData) return null;
+const CupDetailsModal = ({ cup, open, onOpenChange, executionDataByMonth }: { cup: DeviatedCupInfo | null, open: boolean, onOpenChange: (open: boolean) => void, executionDataByMonth: ExecutionDataByMonth }) => {
+    if (!cup) return null;
 
-    const averagePerUser = uniqueUsersCount > 0 ? (totalFrequency / uniqueUsersCount) : 0;
-    const repeatedUsersAttention = totalFrequency - uniqueUsersCount;
-    
-    const filteredCupData = useMemo(() => {
-        if (!cupData) return [];
-        return Object.entries(cupData).filter(([key, value]) => {
-            const val = String(value).trim();
-            if (val === '' || val === '-' || val === '$0.00' || val === '0' || val === '$0') return false;
-            if (/^_+\d*$/.test(val)) return false; // descarta _1, _2, etc.
-            return true;
-        });
-    }, [cupData]);
+    const averagePerUser = cup.uniqueUsers > 0 ? (cup.realFrequency / cup.uniqueUsers) : 0;
     
     const handleDownloadDetails = () => {
-        const cupToFind = findColumnValue(cupData, ['cup/cum', 'cups']);
         const executionDetails: any[] = [];
 
         executionDataByMonth.forEach((monthData) => {
             monthData.rawJsonData.usuarios?.forEach((user: any) => {
                 const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-
                 const processServices = (services: any[], codeField: string, type: string) => {
                     if (!services) return;
                     services.forEach((service: any) => {
-                        if (service[codeField] === cupToFind) {
+                        if (service[codeField] === cup.cup) {
                             executionDetails.push({
                                 TIPO_SERVICIO: type,
                                 ID_USUARIO: userId,
@@ -206,43 +193,36 @@ const CupDetailsModal = ({ cupData, uniqueUsersCount, totalFrequency, sameDayDet
             });
         });
 
-        handleDownloadXls(executionDetails, `matriz_detalle_${cupToFind}.xls`);
+        handleDownloadXls(executionDetails, `matriz_detalle_${cup.cup}.xls`);
     };
 
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
+            <AlertDialogContent className="sm:max-w-4xl">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Detalles del CUPS: <span className="font-mono">{findColumnValue(cupData, ['CUP/CUM', 'cup/cum'])}</span></AlertDialogTitle>
+                    <AlertDialogTitle>Detalles del CUPS: <span className="font-mono">{cup.cup}</span></AlertDialogTitle>
                     <AlertDialogDescription>
-                        {findColumnValue(cupData, ['DESCRIPCION CUPS', 'descripcion cups']) || "Información detallada de la nota técnica."}
+                        {cup.description || "Información detallada de la nota técnica."}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                  <ScrollArea className="max-h-80 pr-6">
                     <div className="space-y-4 text-sm">
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Repeat className="h-4 w-4" />Total de Atenciones</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{totalFrequency}</dd>
+                            <dd className="text-right font-bold text-lg text-primary">{cup.realFrequency}</dd>
                         </div>
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" />Usuarios Únicos Atendidos</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{uniqueUsersCount}</dd>
+                            <dd className="text-right font-bold text-lg text-primary">{cup.uniqueUsers}</dd>
                         </div>
                          <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4 opacity-70" />Atenciones a Usuarios Repetidos</dt>
-                            <dd className="text-right font-bold text-lg text-primary">{repeatedUsersAttention}</dd>
+                            <dd className="text-right font-bold text-lg text-primary">{cup.repeatedAttentions}</dd>
                         </div>
                         <div className="grid grid-cols-2 gap-2 border-b pb-2">
                             <dt className="font-semibold text-muted-foreground flex items-center gap-2"><Target className="h-4 w-4" />Promedio por Usuario</dt>
                             <dd className="text-right font-bold text-lg text-primary">{averagePerUser.toFixed(2)}</dd>
                         </div>
-
-                        {filteredCupData.map(([key, value]) => (
-                            <div key={key} className="grid grid-cols-2 gap-2 border-b pb-2">
-                                <dt className="font-semibold text-muted-foreground">{key}</dt>
-                                <dd className="text-right">{typeof value === 'number' ? formatCurrency(value) : String(value)}</dd>
-                            </div>
-                        ))}
                     </div>
                 </ScrollArea>
                 <AlertDialogFooter>
@@ -335,16 +315,12 @@ interface InformeDesviacionesProps {
 
 
 export default function InformeDesviaciones({ comparisonSummary, pgpData, executionDataByMonth }: InformeDesviacionesProps) {
-    const [selectedCupData, setSelectedCupData] = useState<any | null>(null);
+    const [selectedCup, setSelectedCup] = useState<DeviatedCupInfo | null>(null);
     const [isCupModalOpen, setIsCupModalOpen] = useState(false);
     const [lookedUpCupInfo, setLookedUpCupInfo] = useState<CupDescription | null>(null);
     const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
     const [isLookupLoading, setIsLookupLoading] = useState(false);
     const [modalContent, setModalContent] = useState<{ title: React.ReactNode, data: any[], type: string, totals: {ejecutado: number, desviacion: number} } | null>(null);
-    const [uniqueUsersCount, setUniqueUsersCount] = useState(0);
-    const [totalFrequency, setTotalFrequency] = useState(0);
-    const [sameDayDetections, setSameDayDetections] = useState(0);
-
 
     const calculateTotals = (items: DeviatedCupInfo[]) => {
         if (!items) return { ejecutado: 0, desviacion: 0 };
@@ -377,53 +353,9 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         )
     }
 
-    const countUniqueUsersAndFrequencyForCup = (cup: string) => {
-        const userIds = new Set<string>();
-        let frequency = 0;
-        
-        executionDataByMonth.forEach(monthData => {
-            const cupExecutionData = monthData.cupCounts.get(cup);
-            if(cupExecutionData) {
-                frequency += cupExecutionData.total;
-            }
-
-            const rawJsonData = monthData.rawJsonData;
-            if (!rawJsonData || !rawJsonData.usuarios) return;
-
-            rawJsonData.usuarios.forEach((user: any) => {
-                let hasService = false;
-                const checkService = (s: any, codeField: string) => {
-                    if (s && s[codeField] === cup) hasService = true;
-                };
-
-                user.servicios?.consultas?.forEach((s:any) => checkService(s, 'codConsulta'));
-                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
-
-                user.servicios?.procedimientos?.forEach((s:any) => checkService(s, 'codProcedimiento'));
-                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
-                
-                user.servicios?.medicamentos?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
-                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
-                
-                user.servicios?.otrosServicios?.forEach((s:any) => checkService(s, 'codTecnologiaSalud'));
-                if (hasService) { userIds.add(`${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`); return; }
-            });
-        });
-        
-        return { uniqueUsers: userIds.size, totalFrequency: frequency };
-    };
-
-    const handleCupClick = (cup: string) => {
-        const cupDetails = pgpData.find(row => findColumnValue(row, ['cup/cum', 'cups']) === cup);
-        if (cupDetails) {
-            const { uniqueUsers, totalFrequency } = countUniqueUsersAndFrequencyForCup(cup);
-            setUniqueUsersCount(uniqueUsers);
-            setTotalFrequency(totalFrequency);
-            setSelectedCupData(cupDetails);
-            setIsCupModalOpen(true);
-        } else {
-            handleLookupClick(cup);
-        }
+    const handleCupClick = (cupInfo: DeviatedCupInfo) => {
+        setSelectedCup(cupInfo);
+        setIsCupModalOpen(true);
     };
     
     const handleLookupClick = async (cup: string) => {
@@ -474,7 +406,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         return (
                             <TableRow key={item.cup}>
                                 <TableCell>
-                                    <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item.cup)}>
+                                    <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(item)}>
                                         {item.cup}
                                     </Button>
                                 </TableCell>
@@ -633,10 +565,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
             </Card>
 
             <CupDetailsModal
-                cupData={selectedCupData}
-                uniqueUsersCount={uniqueUsersCount}
-                totalFrequency={totalFrequency}
-                sameDayDetections={sameDayDetections}
+                cup={selectedCup}
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
                 executionDataByMonth={executionDataByMonth}
