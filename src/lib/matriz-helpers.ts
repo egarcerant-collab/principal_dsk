@@ -1,4 +1,5 @@
 
+
 import type { ExecutionDataByMonth, CupCountsMap } from "@/app/page";
 
 interface PgpRow {
@@ -38,16 +39,14 @@ const findColumnValue = (row: PgpRow, possibleNames: string[]): any => {
 
 const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    let v = String(value).trim();
-    if (!v) return 0;
     
-    // Convertir formato es-CO (e.g., "$ 1.234,56") a estándar (1234.56)
-    v = v.replace(/\$/g, '')      // 1. Quitar el símbolo de moneda
-         .replace(/\s+/g, '')     // 2. Quitar espacios
-         .replace(/\./g, '')      // 3. Quitar separadores de miles (.)
-         .replace(',', '.');      // 4. Reemplazar coma decimal por punto decimal
-    
-    const n = parseFloat(v);
+    // Limpia la cadena de entrada para el formato es-CO: 1.234.567,89 -> 1234567.89
+    const cleanedString = String(value)
+      .replace(/[^\d,.-]/g, '') // 1. Quita todo excepto números, comas, puntos y el signo negativo
+      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
+      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
+      
+    const n = parseFloat(cleanedString);
     return isNaN(n) ? 0 : n;
 };
 

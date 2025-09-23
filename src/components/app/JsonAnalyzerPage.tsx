@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -51,9 +52,9 @@ const normalizeDigits = (v: unknown): string => {
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     
-    // Limpia la cadena de entrada para el formato es-CO: $ 1.234.567,89 -> 1234567.89
+    // Limpia la cadena de entrada para el formato es-CO: 1.234.567,89 -> 1234567.89
     const cleanedString = String(value)
-      .replace(/[^0-9,]/g, '') // 1. Quita todo excepto números y comas
+      .replace(/[^\d,.-]/g, '') // 1. Quita todo excepto números, comas, puntos y el signo negativo
       .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
       .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
       
@@ -284,12 +285,9 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   useEffect(() => {
     const dataByMonth: ExecutionDataByMonth = new Map();
     const allNits: string[] = [];
-
-    // Combine all user data from all files first
     const allUsersCombined = files.flatMap(file => file.jsonData?.usuarios || []);
-
-    // Now, calculate unique users from the combined list
     const uniqueUserIdentifiers = new Set<string>();
+
     allUsersCombined.forEach((user: any) => {
         const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
         if (id && id !== '-') {
@@ -297,21 +295,19 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         }
     });
     setUniqueUserCount(uniqueUserIdentifiers.size);
-
+    
     files.forEach(file => {
-      if (file.jsonData) {
-        const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
-        if (nit) allNits.push(nit);
-      }
+        if (file.jsonData) {
+            const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
+            if (nit) allNits.push(nit);
+        }
     });
 
     const uniqueNits = new Set(allNits);
     setShowDuplicateAlert(allNits.length > uniqueNits.size);
-
     setJsonPrestadorCode(files.length > 0 ? getCodPrestadorFromJson(files[0].jsonData) : null);
 
     filesByMonth.forEach((monthFiles, month) => {
-        // Combine data for the current month
         const combinedJsonDataForMonth = {
             usuarios: monthFiles.flatMap(f => f.jsonData?.usuarios || [])
         };
@@ -329,7 +325,10 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
             cupCounts: monthCupCounts,
             summary: combinedSummary,
             totalRealValue: monthTotalRealValue,
-            rawJsonData: combinedJsonDataForMonth, // Use the month-specific combined data
+            rawJsonData: {
+                ...combinedJsonDataForMonth,
+                usuarios: monthFiles.flatMap(f => f.jsonData?.usuarios || [])
+            }
         });
     });
 
