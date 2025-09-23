@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -607,9 +608,6 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                   usersWithRepetitions++;
               }
           });
-          if (hasRepetition) {
-              usersWithRepetitions++;
-          }
           if (usersWithRepetitions > 0) {
               map.set(cup, usersWithRepetitions);
           }
@@ -694,8 +692,8 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead>Análisis de Valor</TableHead>
                             <TableHead>Procedimientos Repetidos Mismo Día</TableHead>
-                            <TableHead></TableHead>
                              <TableHead>Valor a Analizar</TableHead>
+                            <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
