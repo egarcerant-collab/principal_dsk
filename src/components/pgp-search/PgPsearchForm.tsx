@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, FileText, Calendar, ChevronDown, Building, BrainCircuit, AlertTriangle, TableIcon, Download, Filter, Search, Users, Wallet, AlertCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { analyzePgpData } from '@/ai/flows/analyze-pgp-flow';
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +26,7 @@ import { describeCie10, Cie10Description } from '@/ai/flows/describe-cie10-flow'
 import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaciones';
 import InformePGP from '../report/InformePGP';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { getNumericValue } from '../app/JsonAnalyzerPage';
 
 
 interface AnalyzePgpDataOutput {
@@ -140,20 +141,6 @@ const normalizeDigits = (v: unknown): string => {
     if (!digitsOnly) return "";
     // Convert to number to remove leading zeros, then back to string.
     return parseInt(digitsOnly, 10).toString();
-};
-
-
-export const getNumericValue = (value: any): number => {
-    if (value === null || value === undefined || value === '') return 0;
-    
-    // Limpia la cadena de entrada para el formato es-CO: 1.234.567,89 -> 1234567.89
-    const cleanedString = String(value)
-      .replace(/[^\d,.-]/g, '') // 1. Quita todo excepto números, comas, puntos y el signo negativo
-      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
-      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
-      
-    const n = parseFloat(cleanedString);
-    return isNaN(n) ? 0 : n;
 };
 
 

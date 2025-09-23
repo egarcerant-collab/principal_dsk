@@ -52,13 +52,25 @@ const normalizeDigits = (v: unknown): string => {
 export const getNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
     
-    // Limpia la cadena de entrada para el formato es-CO: 1.234.567,89 -> 1234567.89
-    const cleanedString = String(value)
-      .replace(/[^\d,.-]/g, '') // 1. Quita todo excepto números, comas, puntos y el signo negativo
-      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
-      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
+    const cleanedString = String(value).replace(/[^\d,.-]/g, '');
+
+    const lastComma = cleanedString.lastIndexOf(',');
+    const lastDot = cleanedString.lastIndexOf('.');
+
+    let numberString: string;
+
+    if (lastComma > lastDot) {
+        // Format is likely 1.234,56 (Latin American)
+        numberString = cleanedString.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > lastComma) {
+        // Format is likely 1,234.56 (American)
+        numberString = cleanedString.replace(/,/g, '');
+    } else {
+        // No clear separator or only one type, treat as plain number
+        numberString = cleanedString;
+    }
       
-    const n = parseFloat(cleanedString);
+    const n = parseFloat(numberString);
     return isNaN(n) ? 0 : n;
 };
 
@@ -283,11 +295,11 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
   }, [providers, toast, selectedMonth, filesInCurrentMonth, loadedMonthsCount, filesByMonth]);
 
   useEffect(() => {
-    const dataByMonth: ExecutionDataByMonth = new Map();
-    const allNits: string[] = [];
+    // 1. Combine all users from all files into a single list
     const allUsersCombined = files.flatMap(file => file.jsonData?.usuarios || []);
-    const uniqueUserIdentifiers = new Set<string>();
 
+    // 2. Calculate unique user count from the combined list
+    const uniqueUserIdentifiers = new Set<string>();
     allUsersCombined.forEach((user: any) => {
         const id = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
         if (id && id !== '-') {
@@ -295,19 +307,12 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
         }
     });
     setUniqueUserCount(uniqueUserIdentifiers.size);
+
+    // 3. Process data by month
+    const dataByMonth: ExecutionDataByMonth = new Map();
     
-    files.forEach(file => {
-        if (file.jsonData) {
-            const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
-            if (nit) allNits.push(nit);
-        }
-    });
-
-    const uniqueNits = new Set(allNits);
-    setShowDuplicateAlert(allNits.length > uniqueNits.size);
-    setJsonPrestadorCode(files.length > 0 ? getCodPrestadorFromJson(files[0].jsonData) : null);
-
     filesByMonth.forEach((monthFiles, month) => {
+        // Create a combined JSON object for the entire month
         const combinedJsonDataForMonth = {
             usuarios: monthFiles.flatMap(f => f.jsonData?.usuarios || [])
         };
@@ -325,14 +330,24 @@ export default function JsonAnalyzerPage({ setExecutionData, setJsonPrestadorCod
             cupCounts: monthCupCounts,
             summary: combinedSummary,
             totalRealValue: monthTotalRealValue,
-            rawJsonData: {
-                ...combinedJsonDataForMonth,
-                usuarios: monthFiles.flatMap(f => f.jsonData?.usuarios || [])
-            }
+            rawJsonData: combinedJsonDataForMonth // Use the correctly combined data
         });
     });
 
     setExecutionData(dataByMonth);
+
+    // Check for duplicate NITs and set prestador code
+    const allNits: string[] = [];
+    files.forEach(file => {
+        if (file.jsonData) {
+            const nit = findValueByKeyCaseInsensitive(file.jsonData, 'numDocumentoIdObligado');
+            if (nit) allNits.push(nit);
+        }
+    });
+    const uniqueNits = new Set(allNits);
+    setShowDuplicateAlert(allNits.length > uniqueNits.size);
+    setJsonPrestadorCode(files.length > 0 ? getCodPrestadorFromJson(files[0].jsonData) : null);
+
 }, [files, filesByMonth, setExecutionData, setJsonPrestadorCode, setUniqueUserCount]);
 
 

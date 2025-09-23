@@ -1,5 +1,6 @@
 
 import Papa, { type ParseResult } from 'papaparse';
+import { getNumericValue } from '@/components/app/JsonAnalyzerPage';
 
 export interface PrestadorInfo {
   NIT: string;
@@ -18,18 +19,6 @@ const normalizeKey = (key: string): string => {
     return normalizeValue(key).replace(/\uFEFF/g, ''); // Remove BOM character
 }
 
-export const getNumericValue = (value: any): number => {
-    if (value === null || value === undefined || value === '') return 0;
-    
-    // Limpia la cadena de entrada para el formato es-CO: 1.234.567,89 -> 1234567.89
-    const cleanedString = String(value)
-      .replace(/[^\d,.-]/g, '') // 1. Quita todo excepto números, comas, puntos y el signo negativo
-      .replace(/\./g, '')       // 2. Quita los puntos (separadores de miles)
-      .replace(',', '.');      // 3. Reemplaza la coma decimal por un punto
-      
-    const n = parseFloat(cleanedString);
-    return isNaN(n) ? 0 : n;
-};
 
 /**
  * Fetches data from a Google Sheet URL and parses it as a CSV.
