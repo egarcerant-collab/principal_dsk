@@ -559,6 +559,9 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
       const map = new Map<string, number>();
       if (!executionDataByMonth) return map;
 
+      // Mapa para rastrear `cup -> userId -> date -> count`
+      const userAttentionMap = new Map<string, Map<string, Map<string, number>>>();
+
       executionDataByMonth.forEach(monthData => {
         const allUsers = monthData.rawJsonData?.usuarios ?? [];
         allUsers.forEach((user: any) => {
@@ -566,26 +569,50 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
             const services = user.servicios?.procedimientos;
             if (!services) return;
             
-            const attentionMap = new Map<string, number>(); // key: "cup-date", value: count
-
             services.forEach((service: any) => {
                 const cup = service['codProcedimiento'];
                 if (!cup) return;
 
                 try {
                     const date = new Date(service.fechaInicioAtencion).toISOString().split('T')[0];
-                    const key = `${cup}-${date}`;
-                    attentionMap.set(key, (attentionMap.get(key) || 0) + 1);
+                    
+                    if (!userAttentionMap.has(cup)) {
+                        userAttentionMap.set(cup, new Map());
+                    }
+                    const cupMap = userAttentionMap.get(cup)!;
+
+                    if (!cupMap.has(userId)) {
+                        cupMap.set(userId, new Map());
+                    }
+                    const userMap = cupMap.get(userId)!;
+
+                    userMap.set(date, (userMap.get(date) || 0) + 1);
+
                 } catch (e) {}
             });
-            
-            attentionMap.forEach((count, key) => {
-                if (count > 1) {
-                    const cup = key.split('-')[0];
-                    map.set(cup, (map.get(cup) || 0) + 1);
-                }
-            });
         });
+      });
+
+      // Contar usuarios únicos con repeticiones para cada CUPS
+      userAttentionMap.forEach((cupMap, cup) => {
+          let usersWithRepetitions = 0;
+          cupMap.forEach((userMap, userId) => {
+              let hasRepetition = false;
+              userMap.forEach((count, date) => {
+                  if (count > 1) {
+                      hasRepetition = true;
+                  }
+              });
+              if (hasRepetition) {
+                  usersWithRepetitions++;
+              }
+          });
+          if (hasRepetition) {
+              usersWithRepetitions++;
+          }
+          if (usersWithRepetitions > 0) {
+              map.set(cup, usersWithRepetitions);
+          }
       });
       return map;
     }, [executionDataByMonth]);
@@ -667,6 +694,8 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead>Análisis de Valor</TableHead>
                             <TableHead>Procedimientos Repetidos Mismo Día</TableHead>
+                            <TableHead></TableHead>
+                             <TableHead>Valor a Analizar</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -699,6 +728,8 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                                       </div>
                                     )}
                                 </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
