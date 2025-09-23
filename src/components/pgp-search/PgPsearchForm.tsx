@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -14,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { fetchSheetData, type PrestadorInfo } from '@/lib/sheets';
 import { type ExecutionDataByMonth } from '@/app/page';
 import FinancialMatrix, { type MonthlyFinancialSummary } from './FinancialMatrix';
-import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow, findColumnValue } from '@/lib/matriz-helpers';
+import { buildMatrizEjecucion, type MatrizRow as MatrizEjecucionRow } from '@/lib/matriz-helpers';
 import Papa from 'papaparse';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
@@ -27,6 +26,7 @@ import InformeDesviaciones, { LookedUpCupModal } from '../report/InformeDesviaci
 import InformePGP from '../report/InformePGP';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getNumericValue } from '../app/JsonAnalyzerPage';
+import { findColumnValue } from '@/lib/matriz-helpers';
 
 
 interface AnalyzePgpDataOutput {
@@ -616,6 +616,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                             <TableHead className="text-center text-sm">Diferencia</TableHead>
                             <TableHead className="text-center text-sm">% Ejecución</TableHead>
                             <TableHead className="text-sm">Clasificación</TableHead>
+                            <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -640,6 +641,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                                 <TableCell className="text-center font-semibold text-sm">{row.Diferencia.toFixed(0)}</TableCell>
                                 <TableCell className="text-center font-mono text-sm">{row['%_Ejecucion']}</TableCell>
                                 <TableCell className="font-medium text-sm">{row.Clasificacion}</TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
