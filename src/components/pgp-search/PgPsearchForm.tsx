@@ -540,7 +540,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   };
 };
 
-const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void, onCie10Click: (cie10: string) => void }) => {
+const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDataByMonth }: { matrizData: MatrizEjecucionRow[], onCupClick: (cup: string) => void, onCie10Click: (cie10: string) => void, executionDataByMonth: ExecutionDataByMonth }) => {
     const [classificationFilter, setClassificationFilter] = useState('all');
 
     const classifications = useMemo(() => {
@@ -554,6 +554,41 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
         }
         return matrizData.filter(d => d.Clasificacion === classificationFilter);
     }, [matrizData, classificationFilter]);
+
+    const sameDayDetectionsMap = useMemo(() => {
+      const map = new Map<string, number>();
+      if (!executionDataByMonth) return map;
+
+      executionDataByMonth.forEach(monthData => {
+        const allUsers = monthData.rawJsonData?.usuarios ?? [];
+        allUsers.forEach((user: any) => {
+            const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+            const services = user.servicios?.procedimientos;
+            if (!services) return;
+            
+            const attentionMap = new Map<string, number>(); // key: "cup-date", value: count
+
+            services.forEach((service: any) => {
+                const cup = service['codProcedimiento'];
+                if (!cup) return;
+
+                try {
+                    const date = new Date(service.fechaInicioAtencion).toISOString().split('T')[0];
+                    const key = `${cup}-${date}`;
+                    attentionMap.set(key, (attentionMap.get(key) || 0) + 1);
+                } catch (e) {}
+            });
+            
+            attentionMap.forEach((count, key) => {
+                if (count > 1) {
+                    const cup = key.split('-')[0];
+                    map.set(cup, (map.get(cup) || 0) + 1);
+                }
+            });
+        });
+      });
+      return map;
+    }, [executionDataByMonth]);
 
     const getRowClass = (classification: string) => {
         switch (classification) {
@@ -631,6 +666,7 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                             <TableHead className="text-center text-sm">% Ejecución</TableHead>
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead>Análisis de Valor</TableHead>
+                            <TableHead>Procedimientos Repetidos Mismo Día</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -656,6 +692,13 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click }: { matrizD
                                 <TableCell className="text-center font-mono text-sm">{row['%_Ejecucion']}</TableCell>
                                 <TableCell className="font-medium text-sm">{row.Clasificacion}</TableCell>
                                 <TableCell className={`font-medium text-sm ${getValorClass(row)}`}>{getAnalisisValor(row)}</TableCell>
+                                <TableCell className="text-center">
+                                    {sameDayDetectionsMap.has(row.CUPS) && (
+                                      <div className="w-6 h-6 bg-red-500 text-white font-bold text-xs flex items-center justify-center rounded-md mx-auto">
+                                        {sameDayDetectionsMap.get(row.CUPS)}
+                                      </div>
+                                    )}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -945,7 +988,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     pgpData={pgpData} 
                     executionDataByMonth={executionDataByMonth}
                 />
-                <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} />
+                <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} executionDataByMonth={executionDataByMonth} />
                 {reportData && <InformePGP data={reportData} />}
               </>
             )}
