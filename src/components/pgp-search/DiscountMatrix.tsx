@@ -19,6 +19,7 @@ import { ExecutionDataByMonth } from '@/app/page';
 import { CupDetailsModal } from '../report/InformeDesviaciones';
 import type { DeviatedCupInfo } from './PgPsearchForm';
 import { Textarea } from '../ui/textarea';
+import { getNumericValue } from '../app/JsonAnalyzerPage';
 
 
 export type ServiceType = "Consulta" | "Procedimiento" | "Medicamento" | "Otro Servicio" | "Desconocido";
@@ -233,9 +234,9 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                         if (service[codeField] === cupInfo.CUPS) {
                             let serviceValue = 0;
                              if (unitValueField && qtyField) {
-                                serviceValue = (service[unitValueField] || 0) * (service[qtyField] || 1);
+                                serviceValue = getNumericValue(service[unitValueField]) * getNumericValue(service[qtyField]);
                             } else {
-                                serviceValue = service[valueField] || 0;
+                                serviceValue = getNumericValue(service[valueField]);
                             }
 
                             details.push({
@@ -402,7 +403,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                 </div>
                             </TableCell>
                             <TableCell className="text-xs max-w-[150px] truncate" title={row.Descripcion}>{row.Descripcion}</TableCell>
-                            <TableCell className="text-center">{row.expectedFrequency}</TableCell>
+                            <TableCell className="text-center">{row.expectedFrequency.toFixed(0)}</TableCell>
                             <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                              <TableCell className="text-center">
                                 <Input
@@ -549,6 +550,7 @@ export default DiscountMatrix;
     
 
     
+
 
 
 

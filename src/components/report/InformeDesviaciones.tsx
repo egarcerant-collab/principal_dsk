@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ExecutionDataByMonth } from '@/app/page';
 import { findColumnValue } from '@/lib/matriz-helpers';
 import StatCard from '../shared/StatCard';
+import { getNumericValue } from '../app/JsonAnalyzerPage';
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const dataToExport = JSON.parse(JSON.stringify(data));
@@ -364,9 +365,9 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                         if (service[codeField] === cupInfo.cup) {
                             let serviceValue = 0;
                             if (unitValueField && qtyField) {
-                                serviceValue = (service[unitValueField] || 0) * (service[qtyField] || 1);
+                                serviceValue = getNumericValue(service[unitValueField]) * getNumericValue(service[qtyField]);
                             } else {
-                                serviceValue = service[valueField] || 0;
+                                serviceValue = getNumericValue(service[valueField]);
                             }
 
                             details.push({
