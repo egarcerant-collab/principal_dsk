@@ -197,7 +197,17 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         }, 0);
     }, [selectedRows, adjustedValues, filteredData]);
     
-    const valorNeto = totalEjecucion - totalDescuentoAplicado;
+    const totalReconocido = useMemo(() => {
+        // Suma el valor reconocido de TODAS las filas, no solo las filtradas/seleccionadas.
+        // Esto representa el nuevo subtotal del contrato después de la auditoría.
+        return data.reduce((sum, row) => {
+            const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
+            const recognizedValue = validatedQuantity * row.Valor_Unitario;
+            return sum + recognizedValue;
+        }, 0);
+    }, [data, adjustedQuantities]);
+    
+    const valorNeto = totalReconocido - totalDescuentoAplicado;
 
 
     const allSelected = useMemo(() => filteredData.length > 0 && filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
@@ -324,8 +334,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                         </div>
                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right w-full sm:w-auto">
                             <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
-                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Ejecutado Total</p>
-                                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEjecucion)}</p>
+                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Reconocido Total</p>
+                                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalReconocido)}</p>
                             </div>
                             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
                                 <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Aplicado</p>
