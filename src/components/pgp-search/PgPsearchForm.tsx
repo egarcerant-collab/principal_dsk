@@ -28,7 +28,7 @@ import InformePGP from '../report/InformePGP';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getNumericValue } from '../app/JsonAnalyzerPage';
 import { findColumnValue } from '@/lib/matriz-helpers';
-import DiscountMatrix, { type DiscountMatrixRow, type ServiceType } from './DiscountMatrix';
+import DiscountMatrix, { type DiscountMatrixRow, type ServiceType, type AdjustedData } from './DiscountMatrix';
 
 
 interface AnalyzePgpDataOutput {
@@ -127,6 +127,8 @@ export interface ReportData {
   underExecutedCups: DeviatedCupInfo[];
   missingCups: DeviatedCupInfo[];
   unexpectedCups: UnexpectedCupInfo[];
+  // New: Add adjusted data for PDF analysis
+  adjustedData?: AdjustedData;
 }
 
 
@@ -839,6 +841,12 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
   const [isCie10Loading, setIsCie10Loading] = useState(false);
   const [isValorizadoModalOpen, setIsValorizadoModalOpen] = useState(false);
+  const [adjustedData, setAdjustedData] = useState<AdjustedData>({
+    adjustedQuantities: {},
+    adjustedValues: {},
+    comments: {},
+  });
+
 
   useEffect(() => {
     setIsClient(true);
@@ -908,8 +916,9 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       underExecutedCups: comparisonSummary.underExecutedCups,
       missingCups: comparisonSummary.missingCups,
       unexpectedCups: comparisonSummary.unexpectedCups,
+      adjustedData,
     };
-  }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary]);
+  }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary, adjustedData]);
 
   const handleLookupClick = async (cup: string) => {
     setIsLookupLoading(true);
@@ -1098,8 +1107,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                 <DiscountMatrix
                   data={comparisonSummary.matrizDescuentos}
                   executionDataByMonth={executionDataByMonth}
-                  totalEjecucion={totalRealEjecutadoJson}
+                  pgpData={pgpData}
+                  onAdjustmentsChange={setAdjustedData}
                 />
+
                 {reportData && <InformePGP data={reportData} />}
               </>
             )}

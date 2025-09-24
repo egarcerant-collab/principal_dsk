@@ -7,16 +7,17 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe, WalletCards, TrendingDown, CheckCircle } from "lucide-react";
+import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe, WalletCards, TrendingDown, CheckCircle, MessageSquarePlus, Download } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from './PgPsearchForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ExecutionDataByMonth } from '@/app/page';
 import { CupDetailsModal } from '../report/InformeDesviaciones';
 import type { DeviatedCupInfo } from './PgPsearchForm';
+import { Textarea } from '../ui/textarea';
 
 
 export type ServiceType = "Consulta" | "Procedimiento" | "Medicamento" | "Otro Servicio" | "Desconocido";
@@ -45,11 +46,17 @@ export interface DiscountMatrixRow {
     activityDescription?: string;
 }
 
+export interface AdjustedData {
+  adjustedQuantities: Record<string, number>;
+  adjustedValues: Record<string, number>;
+  comments: Record<string, string>;
+}
+
 interface DiscountMatrixProps {
   data: DiscountMatrixRow[];
   executionDataByMonth: ExecutionDataByMonth;
   pgpData: any[]; // PgpRow[]
-  totalEjecucion: number;
+  onAdjustmentsChange: (adjustments: AdjustedData) => void;
 }
 
 const handleDownloadXls = (data: any[], filename: string) => {
@@ -82,8 +89,51 @@ const serviceTypeIcons: Record<ServiceType, React.ElementType> = {
     "Desconocido": DollarSign,
 };
 
+const CommentModal = ({ open, onOpenChange, onSave, initialComment }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (comment: string) => void;
+  initialComment: string;
+}) => {
+  const [comment, setComment] = useState(initialComment);
 
-const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMonth, pgpData, totalEjecucion }) => {
+  useEffect(() => {
+    if (open) {
+      setComment(initialComment);
+    }
+  }, [open, initialComment]);
+
+  const handleSave = () => {
+    onSave(comment);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Añadir Comentario de Glosa</DialogTitle>
+          <DialogDescription>
+            Justifica el ajuste realizado en la cantidad validada. Este comentario es obligatorio.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Escribe aquí tu justificación..."
+          className="min-h-[120px]"
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave}>Guardar Comentario</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMonth, pgpData, onAdjustmentsChange }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
@@ -93,6 +143,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
     const [selectedCupForDetail, setSelectedCupForDetail] = useState<DeviatedCupInfo | null>(null);
     const [isCupModalOpen, setIsCupModalOpen] = useState(false);
     const [executionDetails, setExecutionDetails] = useState<any[]>([]);
+    const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+    const [currentCupForComment, setCurrentCupForComment] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -117,6 +169,11 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         setComments(initialComments);
 
     }, [data]);
+    
+    useEffect(() => {
+      onAdjustmentsChange({ adjustedQuantities, adjustedValues, comments });
+    }, [adjustedQuantities, adjustedValues, comments, onAdjustmentsChange]);
+
 
     const filteredData = useMemo(() => {
         if (serviceTypeFilter === 'all') return data;
@@ -183,10 +240,11 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         }
     };
     
-    const handleCommentChange = (cup: string, comment: string) => {
-        setComments(prev => ({ ...prev, [cup]: comment }));
+    const handleSaveComment = (comment: string) => {
+      if (currentCupForComment) {
+        setComments(prev => ({ ...prev, [currentCupForComment]: comment }));
+      }
     };
-
 
     const totalDescuentoAplicado = useMemo(() => {
         return filteredData.reduce((sum, row) => {
@@ -198,8 +256,6 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
     }, [selectedRows, adjustedValues, filteredData]);
     
     const totalReconocido = useMemo(() => {
-        // Suma el valor reconocido de TODAS las filas, no solo las filtradas/seleccionadas.
-        // Esto representa el nuevo subtotal del contrato después de la auditoría.
         return data.reduce((sum, row) => {
             const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
             const recognizedValue = validatedQuantity * row.Valor_Unitario;
@@ -225,6 +281,23 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         }
     };
     
+    const generateDownloadData = () => {
+        return filteredData.map(r => ({
+            CUPS: r.CUPS,
+            Descripcion: r.Descripcion,
+            Tipo_Servicio: r.Tipo_Servicio,
+            Clasificacion: r.Clasificacion,
+            Cantidad_Ejecutada: r.Cantidad_Ejecutada,
+            Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
+            Valor_Unitario: r.Valor_Unitario,
+            Valor_Ejecutado: r.Valor_Ejecutado,
+            Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
+            Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0,
+            Seleccionado_Para_Descuento: selectedRows[r.CUPS] || false,
+            Comentario_Glosa: comments[r.CUPS] || '',
+        }));
+    };
+    
     const renderTable = (tableData: DiscountMatrixRow[]) => (
         <Table>
             <TableHeader>
@@ -244,7 +317,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                     <TableHead className="text-right">Valor Ejecutado</TableHead>
                     <TableHead className="text-right">Valor a Reconocer</TableHead>
                     <TableHead className="text-right text-red-500 font-bold w-48">Valor a Descontar</TableHead>
-                    <TableHead className="w-64">Comentario de la Glosa</TableHead>
+                    <TableHead className="w-24 text-center">Glosa</TableHead>
 
                 </TableRow>
             </TableHeader>
@@ -295,18 +368,18 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                     className="h-8 text-right border-red-200 focus:border-red-500 focus:ring-red-500"
                                 />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-center">
                                 {commentIsRequired && (
-                                    <Input
-                                        type="text"
-                                        value={comment}
-                                        onChange={(e) => handleCommentChange(row.CUPS, e.target.value)}
-                                        placeholder="Justificación requerida..."
-                                        className={cn(
-                                            "h-8 text-xs",
-                                            commentIsRequired && !comment ? "border-red-500 ring-red-500" : ""
-                                        )}
-                                    />
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => {
+                                        setCurrentCupForComment(row.CUPS);
+                                        setIsCommentModalOpen(true);
+                                      }}
+                                    >
+                                        <MessageSquarePlus className={cn("h-5 w-5", comment ? "text-blue-500" : "text-muted-foreground")} />
+                                    </Button>
                                 )}
                             </TableCell>
                         </TableRow>
@@ -320,7 +393,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 
     return (
         <>
-            <Card onDoubleClick={() => setIsModalOpen(true)} className="cursor-pointer hover:bg-muted/50 transition-colors">
+            <Card>
                 <CardHeader>
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -332,19 +405,25 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                Análisis financiero interactivo para calcular los descuentos por sobre-ejecución e imprevistos.
                             </CardDescription>
                         </div>
-                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right w-full sm:w-auto">
-                            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
-                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Reconocido Total</p>
-                                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalReconocido)}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
-                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Aplicado</p>
-                                <p className="text-lg font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200">
-                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><CheckCircle className="h-4 w-4"/> Valor Neto Final</p>
-                                <p className="text-lg font-bold text-green-600">{formatCurrency(valorNeto)}</p>
-                            </div>
+                        <div className="flex-shrink-0">
+                            <Button onClick={() => handleDownloadXls(generateDownloadData(), 'matriz_descuentos_ajustada.xls')} variant="outline" size="sm">
+                                <Download className="mr-2 h-4 w-4" />
+                                Descargar XLS
+                            </Button>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right w-full mt-4">
+                        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
+                            <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Reconocido Total</p>
+                            <p className="text-lg font-bold text-blue-600">{formatCurrency(totalReconocido)}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
+                            <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Aplicado</p>
+                            <p className="text-lg font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200">
+                            <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><CheckCircle className="h-4 w-4"/> Valor Neto Final</p>
+                            <p className="text-lg font-bold text-green-600">{formatCurrency(valorNeto)}</p>
                         </div>
                     </div>
                      <div className="flex flex-wrap items-center gap-2 pt-4">
@@ -388,21 +467,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                 </div>
                                 <Button 
                                     variant="secondary"
-                                     onClick={() => handleDownloadXls(data.map(r => ({
-                                        ...r, 
-                                        CUPS: r.CUPS,
-                                        Descripcion: r.Descripcion,
-                                        Cantidad_Ejecutada: r.Cantidad_Ejecutada,
-                                        Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
-                                        Valor_Unitario: r.Valor_Unitario,
-                                        Valor_Ejecutado: r.Valor_Ejecutado,
-                                        Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
-                                        Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
-                                        Seleccionado: selectedRows[r.CUPS] || false,
-                                        Comentario_Glosa: comments[r.CUPS] || '',
-                                        Clasificacion: r.Clasificacion,
-                                        Tipo_Servicio: r.Tipo_Servicio
-                                    })), 'matriz_descuentos_ajustada.xls')}
+                                     onClick={() => handleDownloadXls(generateDownloadData(), 'matriz_descuentos_ajustada.xls')}
                                 >
                                     <FileDown className="mr-2 h-4 w-4" />
                                     Descargar
@@ -427,6 +492,13 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                 onOpenChange={setIsCupModalOpen}
                 executionDetails={executionDetails}
                 pgpData={pgpData}
+            />
+
+            <CommentModal
+              open={isCommentModalOpen}
+              onOpenChange={setIsCommentModalOpen}
+              initialComment={currentCupForComment ? comments[currentCupForComment] || '' : ''}
+              onSave={handleSaveComment}
             />
         </>
     );

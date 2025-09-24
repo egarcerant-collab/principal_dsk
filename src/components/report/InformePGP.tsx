@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState, useRef } from "react";
@@ -21,7 +22,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/lib/pdf-definitions";
-import type { DeviatedCupInfo, ComparisonSummary, UnexpectedCupInfo } from "@/components/pgp-search/PgPsearchForm";
+import type { DeviatedCupInfo, ComparisonSummary, UnexpectedCupInfo, AdjustedData } from "@/components/pgp-search/PgPsearchForm";
 import { generateReportAnalysis } from "@/ai/flows/generate-report-analysis-flow";
 import { useToast } from "@/hooks/use-toast";
 
@@ -64,6 +65,7 @@ export interface ReportData {
   underExecutedCups?: DeviatedCupInfo[];
   missingCups?: DeviatedCupInfo[];
   unexpectedCups?: UnexpectedCupInfo[];
+  adjustedData?: AdjustedData;
 }
 
 interface ReportAnalysisInput {
