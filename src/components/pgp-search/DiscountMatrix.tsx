@@ -189,14 +189,13 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 
 
     const totalDescuentoAplicado = useMemo(() => {
-        return Object.entries(selectedRows).reduce((sum, [cup, isSelected]) => {
-            const rowData = data.find(r => r.CUPS === cup);
-            if (isSelected && rowData && (serviceTypeFilter === 'all' || rowData.Tipo_Servicio === serviceTypeFilter)) {
-                return sum + (adjustedValues[cup] || 0);
+        return filteredData.reduce((sum, row) => {
+            if (selectedRows[row.CUPS]) {
+                return sum + (adjustedValues[row.CUPS] || 0);
             }
             return sum;
         }, 0);
-    }, [selectedRows, adjustedValues, data, serviceTypeFilter]);
+    }, [selectedRows, adjustedValues, filteredData]);
     
     const valorNeto = totalEjecucion - totalDescuentoAplicado;
 
@@ -420,5 +419,3 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 };
 
 export default DiscountMatrix;
-
-    
