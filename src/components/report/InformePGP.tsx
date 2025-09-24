@@ -211,8 +211,8 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   
   const valorNetoFinalAuditoria = useMemo(() => {
      if (!data) return 0;
-     const valorEjecutadoTotal = data.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0;
-     return valorEjecutadoTotal - descuentoAplicadoTotal;
+     const valorEjecutadoTotalBruto = data.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0;
+     return valorEjecutadoTotalBruto - descuentoAplicadoTotal;
   }, [data, descuentoAplicadoTotal]);
 
 
@@ -319,11 +319,6 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
               title: 'Análisis del Comportamiento Epidemiológico y de Servicios (CUPS)', 
               chartImage: charts.cups,
               text: analysisTexts.epidemiologicalAnalysis,
-            },
-             {
-              title: 'Análisis de Costo Unitario (Complejidad Promedio)',
-              chartImage: charts.unit,
-              text: 'El análisis del costo unitario (COP/CUPS) nos ofrece una visión sobre la complejidad promedio de los servicios prestados. Un costo unitario estable sugiere una mezcla de servicios consistente, mientras que fluctuaciones pueden indicar cambios en el perfil de complejidad de los pacientes o en las prácticas de tratamiento. En este periodo, el costo unitario ha mostrado una tendencia estable, lo que refuerza la conclusión de una operación predecible.'
             },
             {
               title: 'Análisis de Desviaciones: CUPS Sobre-ejecutados e Inesperados',
@@ -499,29 +494,13 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             <h3 className="text-center font-semibold text-sm mb-2">Volumen de CUPS Mensual</h3>
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={cupsData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <BarChart data={cupsData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => `${(value as number).toLocaleString('es-CO')} CUPS`} />
-                  <Line type="monotone" dataKey="CUPS" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-          <section ref={unitChartRef}>
-           <h3 className="text-center font-semibold text-sm mb-2">Costo Unitario Promedio</h3>
-            <div className="h-60">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={unitData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="Mes" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis domain={['dataMin - 1000', 'dataMax + 1000']} fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => formatCOP(v as number)} />
-                  <Tooltip formatter={(value) => formatCOP(value as number)} />
-                  <Legend verticalAlign="top" height={36} />
-                  <Line type="monotone" dataKey="Unit" name="Costo Unitario" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
-                  <ReferenceLine y={unitAvg} name="Promedio" stroke="hsl(var(--foreground))" strokeDasharray="4 4" />
-                </LineChart>
+                  <Bar dataKey="CUPS" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
