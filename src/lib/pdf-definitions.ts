@@ -25,7 +25,7 @@ export interface InformeDatos {
     subtitulo: string;
     referencia: string;
     objetivos: string[];
-    kpis: { label: string; value: string; }[];
+    kpis: { label: string; value: string; color?: string; bold?: boolean; }[];
     analisis: { 
         title: string; 
         text: string;
@@ -75,7 +75,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
             p: { fontSize: 10, margin: [0, 0, 0, 8], alignment: 'justify', lineHeight: 1.25 },
             ref: { fontSize: 9, italic: true, margin: [0, 0, 0, 20], color: '#6B7280' },
             kpiLabel: { fontSize: 10, color: '#374151' },
-            kpiValue: { fontSize: 10, bold: true, color: '#111827', alignment: 'right' },
+            kpiValue: { fontSize: 10, bold: false, color: '#111827', alignment: 'right' },
             firmaNombre: { fontSize: 10, bold: true, margin: [0, 5, 0, 0] },
             firmaCargo: { fontSize: 9, color: '#6B7280' },
             tableHeader: { bold: true, fontSize: 9, color: 'black', fillColor: '#E5E7EB', margin: [0, 5, 0, 5] },
@@ -98,7 +98,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                     widths: ['*', 'auto'],
                     body: data.kpis.map(kpi => [
                         { text: kpi.label, style: 'kpiLabel', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                        { text: kpi.value, style: 'kpiValue', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
+                        { text: kpi.value, style: 'kpiValue', color: kpi.color || '#111827', bold: kpi.bold || false, border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
                     ])
                 },
                 layout: 'noBorders'

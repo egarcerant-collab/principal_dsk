@@ -23,6 +23,8 @@ const ReportAnalysisInputSchema = z.object({
     missingCups: z.array(z.any()).describe("Lista de CUPS planificados que no se ejecutaron."),
     unexpectedCups: z.array(z.any()).describe("Lista de CUPS ejecutados no planificados."),
     adjustedOverExecutedCupsWithComments: z.array(z.any()).optional().describe("Una lista de CUPS sobre-ejecutados que han sido ajustados manualmente y tienen comentarios de glosa. La IA debe usar estos comentarios para enriquecer el análisis clínico."),
+    valorNetoFinal: z.number().describe("El valor final a pagar al prestador después de aplicar todos los descuentos y ajustes de la auditoría. Este es el número más importante."),
+    descuentoAplicado: z.number().describe("El monto total descontado durante el proceso de auditoría."),
 });
 
 const ReportAnalysisOutputSchema = z.object({
@@ -47,13 +49,14 @@ const prompt = ai.definePrompt({
   Tu tarea es redactar los textos de análisis para un informe ejecutivo basado en los siguientes KPIs y datos clínicos.
   Usa un lenguaje profesional, claro, y directo, enfocado en la toma de decisiones gerenciales.
 
-  KPIs Financieros y Operativos del Periodo:
-  - Valor Total Ejecutado (costo real del JSON): {{sumaMensual}}
+  KPIs Financieros y Operativos del Periodo (POST-AUDITORÍA):
   - Presupuesto (Nota Técnica): {{valorNotaTecnica}}
+  - Valor Total a Pagar (Post-Auditoría): {{valorNetoFinal}}
+  - Descuento Total Aplicado (Auditoría): {{descuentoAplicado}}
   - Diferencia vs Presupuesto: {{diffVsNota}}
-  - Porcentaje de Ejecución: {{porcentajeEjecucion}}%
+  - Porcentaje de Ejecución Final: {{porcentajeEjecucion}}%
   - Total CUPS Ejecutados: {{totalCups}}
-  - Costo Unitario Promedio (COP/CUPS): {{unitAvg}}
+  - Costo Unitario Promedio (Post-Auditoría): {{unitAvg}}
   - Cantidad de CUPS Sobre-ejecutados (>111%): {{overExecutedCount}}
   - Cantidad de CUPS Inesperados (No en NT): {{unexpectedCount}}
 
@@ -67,14 +70,14 @@ const prompt = ai.definePrompt({
   Genera los siguientes cuatro bloques de texto en el formato JSON especificado:
 
   1.  **financialAnalysis** (entre 1200 y 1500 caracteres): Análisis de Ejecución Financiera y Presupuestal.
-      - Compara la ejecución (basada en el costo real del JSON) con el presupuesto y las bandas de control (90%-110%).
-      - Evalúa la estabilidad, predictibilidad y disciplina del gasto.
-      - Analiza la desviación absoluta y relativa y su impacto en la sostenibilidad.
-      - Proyecta el comportamiento anualizado si la tendencia se mantiene.
+      - **PUNTO CRÍTICO:** Tu análisis DEBE centrarse en el **'Valor Total a Pagar (Post-Auditoría)' ({{valorNetoFinal}})**. Explica claramente que este es el resultado final después de la conciliación.
+      - Compara este valor final con el presupuesto ({{valorNotaTecnica}}).
+      - Explica cómo se llegó a este valor, mencionando el **'Descuento Total Aplicado' ({{descuentoAplicado}})** como resultado de la auditoría de sobre-ejecución e imprevistos.
+      - Concluye sobre la liquidación del contrato. ¿El valor final a pagar está dentro de las bandas esperadas? ¿Cuál es la implicación financiera para el prestador y el asegurador?
 
   2.  **epidemiologicalAnalysis** (entre 1200 y 1500 caracteres): Análisis del Comportamiento Epidemiológico y de Servicios (CUPS).
       - Analiza el volumen total de CUPS y su consistencia mensual.
-      - Interpreta el costo unitario promedio como un indicador de complejidad.
+      - Interpreta el costo unitario promedio (post-auditoría) como un indicador de complejidad.
       - Relaciona la estabilidad de la demanda con el acceso a servicios y la capacidad de la red.
       - Proyecta las necesidades de recursos futuros (financieros, humanos, etc.) basado en la operación.
 
