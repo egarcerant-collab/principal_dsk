@@ -33,6 +33,14 @@ export interface InformeDatos {
     }[];
     topOverExecuted: DeviatedCupInfo[];
     topUnexpected: { cup: string, realFrequency: number, description?: string }[];
+    ajustesGlosas?: {
+        cup: string;
+        description: string;
+        originalQty: number;
+        validatedQty: number;
+        adjustmentValue: number;
+        comment: string;
+    }[];
     ciudad: string;
     fecha: string;
     firmas: { nombre: string; cargo: string; }[];
@@ -72,6 +80,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
             firmaCargo: { fontSize: 9, color: '#6B7280' },
             tableHeader: { bold: true, fontSize: 9, color: 'black', fillColor: '#E5E7EB', margin: [0, 5, 0, 5] },
             tableCell: { fontSize: 8, margin: [0, 5, 0, 5] },
+            tableCellComment: { fontSize: 8, margin: [0, 5, 0, 5], italics: true, color: '#374151' },
         },
 
         // Contenido del documento
@@ -181,6 +190,41 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
                         { text: c.cup, style: 'tableCell' },
                         { text: c.description || 'N/A', style: 'tableCell' },
                         { text: c.realFrequency, style: 'tableCell', alignment: 'center', bold: true },
+                    ]),
+                ]
+            },
+            layout: 'lightHorizontalLines'
+        });
+    }
+
+    // TABLA DE GLOSAS Y AJUSTES
+    if (data.ajustesGlosas && data.ajustesGlosas.length > 0) {
+        (docDefinition.content as Content[]).push({
+            text: 'Resumen de Glosas y Ajustes Clave',
+            style: 'h2',
+            margin: [0, 15, 0, 5],
+            pageBreak: 'before',
+        });
+        (docDefinition.content as Content[]).push({
+            table: {
+                headerRows: 1,
+                widths: ['auto', '*', 'auto', 'auto', 'auto', '*'],
+                body: [
+                     [
+                        { text: 'CUPS', style: 'tableHeader' },
+                        { text: 'Descripción', style: 'tableHeader' },
+                        { text: 'Cant. Original', style: 'tableHeader', alignment: 'center' },
+                        { text: 'Cant. Validada', style: 'tableHeader', alignment: 'center' },
+                        { text: 'Valor Ajuste', style: 'tableHeader', alignment: 'right' },
+                        { text: 'Comentario de Glosa', style: 'tableHeader' },
+                    ],
+                    ...data.ajustesGlosas.map(item => [
+                        { text: item.cup, style: 'tableCell' },
+                        { text: item.description, style: 'tableCell' },
+                        { text: item.originalQty, style: 'tableCell', alignment: 'center' },
+                        { text: item.validatedQty, style: 'tableCell', alignment: 'center', bold: true, color: 'blue' },
+                        { text: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(item.adjustmentValue), style: 'tableCell', alignment: 'right', bold: true, color: 'red' },
+                        { text: item.comment, style: 'tableCellComment' },
                     ]),
                 ]
             },

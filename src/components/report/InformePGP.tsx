@@ -81,6 +81,7 @@ interface ReportAnalysisInput {
     underExecutedCups: DeviatedCupInfo[];
     missingCups: DeviatedCupInfo[];
     unexpectedCups: UnexpectedCupInfo[];
+    adjustedOverExecutedCupsWithComments?: any[];
 }
 
 interface ReportAnalysisOutput {
@@ -178,6 +179,26 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     const topUnexpected = (reportData.unexpectedCups ?? [])
         .sort((a, b) => b.realFrequency - a.realFrequency)
         .slice(0, 5);
+    
+    const adjustmentsForPdf = Object.entries(reportData.adjustedData?.comments || {})
+      .map(([cup, comment]) => {
+        const overExecutedCup = reportData.overExecutedCups?.find(c => c.cup === cup);
+        if (!overExecutedCup || !comment) return null;
+
+        const validatedQty = reportData.adjustedData?.adjustedQuantities[cup] ?? overExecutedCup.realFrequency;
+        const adjustmentValue = (overExecutedCup.realFrequency - validatedQty) * overExecutedCup.valorReconocer / overExecutedCup.realFrequency; // A rough estimation of value
+
+        return {
+          cup: cup,
+          description: overExecutedCup.description || 'N/A',
+          originalQty: overExecutedCup.realFrequency,
+          validatedQty: validatedQty,
+          adjustmentValue: reportData.adjustedData?.adjustedValues[cup] || 0,
+          comment: comment,
+        };
+      })
+      .filter(Boolean) as InformeDatos['ajustesGlosas'];
+
 
     return {
         titulo: `INFORME PGP: ${reportData.header.empresa}`,
@@ -217,6 +238,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         ],
         topOverExecuted,
         topUnexpected,
+        ajustesGlosas: adjustmentsForPdf,
         ciudad: reportData.header.ciudad ?? '',
         fecha: reportData.header.fecha ?? '',
         firmas: [
@@ -239,6 +261,23 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
         const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
 
+        // Prepare data for AI, including comments
+        const adjustedOverExecutedCupsWithComments = data.overExecutedCups
+            ?.map(cup => {
+                const comment = data.adjustedData?.comments[cup.cup];
+                if (comment) {
+                    return {
+                        cup: cup.cup,
+                        description: cup.description,
+                        comment: comment,
+                        realFrequency: cup.realFrequency,
+                        validatedQuantity: data.adjustedData?.adjustedQuantities[cup.cup]
+                    };
+                }
+                return null;
+            })
+            .filter(Boolean);
+
         const analysisInput: ReportAnalysisInput = {
             sumaMensual,
             valorNotaTecnica,
@@ -252,6 +291,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             underExecutedCups: data.underExecutedCups ?? [],
             missingCups: data.missingCups ?? [],
             unexpectedCups: data.unexpectedCups ?? [],
+            adjustedOverExecutedCupsWithComments: adjustedOverExecutedCupsWithComments,
         };
 
         const analysisTexts = await generateReportAnalysis(analysisInput);
