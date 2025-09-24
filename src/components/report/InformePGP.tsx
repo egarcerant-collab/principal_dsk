@@ -211,22 +211,11 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     return Object.values(data.adjustedData.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
   }, [data]);
   
-  const valorReconocidoTotal = useMemo(() => {
-      if (!data || !data.adjustedData) return sumaMensual;
-      
-      const totalEjecutadoOriginal = data.overExecutedCups?.reduce((sum, cup) => sum + cup.totalValue, 0) || 0;
-      const totalDescuentoSobreEjecucion = Object.values(data.adjustedData?.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
-      
-      return totalEjecutadoOriginal - totalDescuentoSobreEjecucion;
-
-  }, [data, sumaMensual]);
-
   const valorNetoFinalAuditoria = useMemo(() => {
      if (!data) return 0;
      const valorEjecutadoTotal = data.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0;
-     const descuentoTotal = Object.values(data.adjustedData?.adjustedValues ?? {}).reduce((sum, val) => sum + val, 0);
-     return valorEjecutadoTotal - descuentoTotal;
-  }, [data]);
+     return valorEjecutadoTotal - descuentoAplicadoTotal;
+  }, [data, descuentoAplicadoTotal]);
 
 
   const diffVsNota = useMemo(() => valorNetoFinalAuditoria - (data?.notaTecnica?.valor3m || 0), [data?.notaTecnica?.valor3m, valorNetoFinalAuditoria]);
@@ -236,6 +225,11 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     const mean = valorNetoFinalAuditoria / totalCups;
     return Number.isFinite(mean) ? mean : 0;
   }, [data?.months, valorNetoFinalAuditoria, totalCups]);
+
+  const valorNotaTecnica = useMemo(() => data?.notaTecnica?.valor3m || 0, [data]);
+
+  const porcentajeEjecucion = useMemo(() => (valorNotaTecnica > 0 ? (valorNetoFinalAuditoria / valorNotaTecnica) * 100 : 0), [valorNetoFinalAuditoria, valorNotaTecnica]);
+
 
     const reportTitle = useMemo(() => {
     if (!data || !data.months || data.months.length === 0) {
@@ -264,8 +258,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
   const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput, auditorConclusions: string, auditorRecommendations: string): InformeDatos => {
-    const valorNotaTecnica = reportData.notaTecnica?.valor3m || 0;
-    const porcentajeEjecucion = valorNotaTecnica > 0 ? (valorNetoFinalAuditoria / valorNotaTecnica) * 100 : 0;
+    
     const periodoAnalizado = reportTitle.split('–')[1]?.trim() || 'Periodo Analizado';
 
 
@@ -367,9 +360,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     toast({ title: 'Generando informe...', description: 'La IA está redactando el análisis. Esto puede tardar un momento.' });
 
     try {
-        const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
-        const porcentajeEjecucion = valorNotaTecnica > 0 ? (valorNetoFinalAuditoria / valorNotaTecnica) * 100 : 0;
-
+        
         // Prepare data for AI, including comments
         const adjustedOverExecutedCupsWithComments = data.overExecutedCups
             ?.map(cup => {
