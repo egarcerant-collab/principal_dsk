@@ -126,17 +126,17 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const totalCups = useMemo(() => data?.months.reduce((a, m) => a + m.cups, 0) ?? 0, [data?.months]);
   
   const valorReconocidoTotal = useMemo(() => {
-    if (!data?.overExecutedCups || !data.adjustedData) return sumaMensual;
+    if (!data || !data.adjustedData) return sumaMensual;
 
-    return (data.overExecutedCups ?? []).reduce((sum, row) => {
-      const validatedQuantity = data.adjustedData?.adjustedQuantities[row.cup] ?? row.realFrequency;
-      const recognizedValue = validatedQuantity * (row.totalValue / row.realFrequency); // unit value = totalValue / realFreq
-      return sum + recognizedValue;
-    }, 0);
+    const totalOverExecutedOriginal = (data.overExecutedCups || []).reduce((sum, cup) => sum + cup.totalValue, 0);
+    const totalDescuentoAjustado = Object.values(data.adjustedData.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
+    const totalOtrosCups = sumaMensual - totalOverExecutedOriginal;
+
+    return totalOverExecutedOriginal - totalDescuentoAjustado + totalOtrosCups;
 
   }, [data, sumaMensual]);
 
-  const diffVsNota = useMemo(() => (data?.notaTecnica?.valor3m || 0) - valorReconocidoTotal, [data?.notaTecnica?.valor3m, valorReconocidoTotal]);
+  const diffVsNota = useMemo(() => valorReconocidoTotal - (data?.notaTecnica?.valor3m || 0), [data?.notaTecnica?.valor3m, valorReconocidoTotal]);
   
   const unitAvg = useMemo(() => {
     if (!data || !data.months || data.months.length === 0 || totalCups === 0) return 0;
@@ -199,8 +199,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         if (!overExecutedCup || !comment) return null;
 
         const validatedQty = reportData.adjustedData?.adjustedQuantities[cup] ?? overExecutedCup.realFrequency;
-        const adjustmentValue = (overExecutedCup.realFrequency - validatedQty) * overExecutedCup.valorReconocer / overExecutedCup.realFrequency; // A rough estimation of value
-
+        
         return {
           cup: cup,
           description: overExecutedCup.description || 'N/A',
@@ -214,8 +213,8 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
 
     return {
-        titulo: `INFORME PGP: ${reportData.header.empresa}`,
-        subtitulo: `Auditoría a IPS: ${reportData.header.ipsNombre} | NIT: ${reportData.header.ipsNit}`,
+        titulo: `INFORME PGP: ${reportData.header.ipsNombre}`,
+        subtitulo: `Auditoría para: ${reportData.header.empresa}`,
         referencia: `Contrato: ${reportData.header.contrato} | Vigencia: ${reportData.header.vigencia} | Período Analizado: ${periodoAnalizado}`,
         objetivos: [
             'Evaluar la eficiencia en la ejecución de los recursos asignados bajo el modelo de Pago Global Prospectivo (PGP), contrastando el gasto real con la proyección actuarial de la nota técnica, para garantizar la sostenibilidad financiera y la disciplina presupuestal del acuerdo.',
@@ -345,9 +344,10 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     }
   };
 
-  if (!data) {
-    return null
+  if (!data || barData.length === 0) {
+    return null;
   }
+
 
   return (
     <div className="space-y-6">
