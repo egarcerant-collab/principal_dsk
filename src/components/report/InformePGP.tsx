@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useMemo, useState, useRef, useEffect } from "react";
@@ -79,12 +78,10 @@ interface ReportAnalysisInput {
     unitAvg: number;
     overExecutedCount: number;
     unexpectedCount: number;
-    overExecutedCups: DeviatedCupInfo[];
+    overExecutedCups: (DeviatedCupInfo & { comment?: string })[];
     underExecutedCups: DeviatedCupInfo[];
     missingCups: DeviatedCupInfo[];
     unexpectedCups: UnexpectedCupInfo[];
-    adjustedOverExecutedCupsWithComments?: any[];
-    // Nuevos campos para un análisis más preciso
     valorNetoFinal: number; 
     descuentoAplicado: number;
     additionalConclusions?: string;
@@ -361,22 +358,10 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
     try {
         
-        // Prepare data for AI, including comments
-        const adjustedOverExecutedCupsWithComments = data.overExecutedCups
-            ?.map(cup => {
-                const comment = data.adjustedData?.comments[cup.cup];
-                if (comment) {
-                    return {
-                        cup: cup.cup,
-                        description: cup.description,
-                        comment: comment,
-                        realFrequency: cup.realFrequency,
-                        validatedQuantity: data.adjustedData?.adjustedQuantities[cup.cup]
-                    };
-                }
-                return null;
-            })
-            .filter(Boolean);
+        const overExecutedCupsWithComments = (data.overExecutedCups ?? []).map(cup => ({
+            ...cup,
+            comment: data.adjustedData?.comments[cup.cup] || undefined,
+        }));
 
         const analysisInput: ReportAnalysisInput = {
             sumaMensual,
@@ -387,11 +372,10 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             unitAvg,
             overExecutedCount: data.overExecutedCups?.length ?? 0,
             unexpectedCount: data.unexpectedCups?.length ?? 0,
-            overExecutedCups: data.overExecutedCups ?? [],
+            overExecutedCups: overExecutedCupsWithComments,
             underExecutedCups: data.underExecutedCups ?? [],
             missingCups: data.missingCups ?? [],
             unexpectedCups: data.unexpectedCups ?? [],
-            adjustedOverExecutedCupsWithComments: adjustedOverExecutedCupsWithComments,
             valorNetoFinal: valorNetoFinalAuditoria,
             descuentoAplicado: descuentoAplicadoTotal,
             additionalConclusions: conclusions,
@@ -545,3 +529,5 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     </div>
   );
 }
+
+    

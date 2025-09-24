@@ -9,6 +9,25 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { DeviatedCupInfo, UnexpectedCupInfo } from '@/components/pgp-search/PgPsearchForm';
 
+const DeviatedCupWithCommentsSchema = z.object({
+    cup: z.string(),
+    description: z.string().optional(),
+    activityDescription: z.string().optional(),
+    expectedFrequency: z.number(),
+    realFrequency: z.number(),
+    uniqueUsers: z.number(),
+    repeatedAttentions: z.number(),
+    sameDayDetections: z.number(),
+    sameDayDetectionsCost: z.number(),
+    deviation: z.number(),
+    deviationValue: z.number(),
+    totalValue: z.number(),
+    valorReconocer: z.number(),
+    unitValueFromNote: z.number().optional(),
+    comment: z.string().optional().describe("Comentario de glosa del auditor si existe."),
+});
+
+
 const ReportAnalysisInputSchema = z.object({
     sumaMensual: z.number().describe("El valor total ejecutado en el periodo, basado en los vrServicio del JSON."),
     valorNotaTecnica: z.number().describe("El valor presupuestado en la nota técnica para el periodo."),
@@ -18,11 +37,10 @@ const ReportAnalysisInputSchema = z.object({
     unitAvg: z.number().describe("El costo unitario promedio (valor total ejecutado (JSON) / cantidad de CUPS)."),
     overExecutedCount: z.number().describe("La cantidad de CUPS que fueron sobre-ejecutados."),
     unexpectedCount: z.number().describe("La cantidad de CUPS ejecutados que no estaban en la nota técnica."),
-    overExecutedCups: z.array(z.any()).describe("Lista de CUPS sobre-ejecutados."),
+    overExecutedCups: z.array(DeviatedCupWithCommentsSchema).describe("Lista de CUPS sobre-ejecutados, que puede incluir comentarios de glosa."),
     underExecutedCups: z.array(z.any()).describe("Lista de CUPS sub-ejecutados."),
     missingCups: z.array(z.any()).describe("Lista de CUPS planificados que no se ejecutaron."),
     unexpectedCups: z.array(z.any()).describe("Lista de CUPS ejecutados no planificados."),
-    adjustedOverExecutedCupsWithComments: z.array(z.any()).optional().describe("Una lista de CUPS sobre-ejecutados que han sido ajustados manualmente y tienen comentarios de glosa. La IA debe usar estos comentarios para enriquecer el análisis clínico."),
     valorNetoFinal: z.number().describe("El valor final a pagar al prestador después de aplicar todos los descuentos y ajustes de la auditoría. Este es el número más importante."),
     descuentoAplicado: z.number().describe("El monto total descontado durante el proceso de auditoría."),
     additionalConclusions: z.string().optional().describe("Conclusiones adicionales escritas por el auditor para ser incluidas o consideradas en el informe."),
@@ -63,11 +81,10 @@ const prompt = ai.definePrompt({
   - Cantidad de CUPS Inesperados (No en NT): {{unexpectedCount}}
 
   Datos Clínicos para Análisis Detallado:
-  - CUPS Sobre-ejecutados: {{{json overExecutedCups}}}
+  - CUPS Sobre-ejecutados (incluye comentarios de glosa si existen): {{{json overExecutedCups}}}
   - CUPS Sub-ejecutados: {{{json underExecutedCups}}}
   - CUPS Faltantes (No ejecutados): {{{json missingCups}}}
   - CUPS Inesperados: {{{json unexpectedCups}}}
-  - Glosas y Ajustes Manuales en CUPS sobre-ejecutados: {{{json adjustedOverExecutedCupsWithComments}}}
   
   {{#if additionalConclusions}}
   Conclusiones Adicionales del Auditor (Considerar para el tono y enfoque del análisis):
@@ -105,7 +122,7 @@ const prompt = ai.definePrompt({
   4.  **clinicalAnalysis** (mínimo 3000 caracteres): Análisis Clínico y de Pertinencia Médica.
       - Cambia tu rol a un MÉDICO AUDITOR. Olvida el costo por un momento.
       - Analiza los CUPS sobre-ejecutados desde una perspectiva clínica. ¿Qué patologías o condiciones podrían explicar este aumento? ¿Hay procedimientos que son 'puerta de entrada' a otros? ¿Sugiere un aumento en la cronicidad o agudización de enfermedades específicas?
-      - **UTILIZA LAS GLOSAS:** Revisa los datos en 'adjustedOverExecutedCupsWithComments'. Los comentarios de glosa son justificaciones de un auditor. Úsalos para enriquecer tu análisis. Por ejemplo, si una glosa menciona "error de facturación", incorpóralo. Si varias glosas apuntan a un mismo problema, señálalo como un patrón.
+      - **UTILIZA LAS GLOSAS:** Revisa los datos en 'overExecutedCups'. Si un CUPS tiene un campo 'comment', ese es un comentario de glosa de un auditor. Úsalo para enriquecer tu análisis. Por ejemplo, si una glosa menciona "error de facturación", incorpóralo. Si varias glosas apuntan a un mismo problema, señálalo como un patrón.
       - Analiza los CUPS sub-ejecutados y faltantes. ¿Qué implicaciones clínicas tiene la no realización de estos procedimientos? ¿Podría indicar barreras de acceso? ¿Riesgos de salud a futuro por falta de controles o diagnósticos? ¿Interrupción de tratamientos?
       - Cruza información. ¿La sobre-ejecución de un procedimiento (ej. una biopsia) se correlaciona con la sub-ejecución de otro (ej. una consulta de control pre-quirúrgico)?
       - Evalúa la pertinencia médica. ¿Los CUPS inesperados son coherentes con los diagnósticos de la población? ¿La combinación de CUPS ejecutados sigue una lógica clínica esperada?
