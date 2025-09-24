@@ -198,7 +198,6 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
   const financialChartRef = useRef<HTMLDivElement>(null);
   const cupsChartRef = useRef<HTMLDivElement>(null);
-  const unitChartRef = useRef<HTMLDivElement>(null);
   
   // Derivados y KPIs
   const sumaMensual = useMemo(() => data?.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0, [data?.months]);
@@ -209,12 +208,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
     return Object.values(data.adjustedData.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
   }, [data]);
   
-  const valorNetoFinalAuditoria = useMemo(() => {
-     if (!data) return 0;
-     const valorEjecutadoTotalBruto = data.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0;
-     return valorEjecutadoTotalBruto - descuentoAplicadoTotal;
-  }, [data, descuentoAplicadoTotal]);
-
+  const valorNetoFinalAuditoria = useMemo(() => data?.notaTecnica?.totalPagar ?? 0, [data]);
 
   const diffVsNota = useMemo(() => valorNetoFinalAuditoria - (data?.notaTecnica?.valor3m || 0), [data?.notaTecnica?.valor3m, valorNetoFinalAuditoria]);
   
@@ -253,7 +247,6 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   // Series para gráficas
   const barData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Valor: m.valueCOP })) ?? [], [data?.months]);
   const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
-  const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
   const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput, auditorConclusions: string, auditorRecommendations: string): InformeDatos => {
     
@@ -395,7 +388,6 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         const chartImages = {
             financial: await getChartImage(financialChartRef),
             cups: await getChartImage(cupsChartRef),
-            unit: await getChartImage(unitChartRef),
         };
 
         const informeData = getInformeData(data, chartImages, analysisTexts, conclusions, recommendations);
@@ -511,3 +503,4 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 }
 
     
+
