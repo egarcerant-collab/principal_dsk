@@ -65,6 +65,7 @@ export interface DeviatedCupInfo {
     deviationValue: number;
     totalValue: number;
     valorReconocer: number;
+    unitValueFromNote?: number; // Valor Unitario de la Nota Técnica
 }
 
 export interface UnexpectedCupInfo {
@@ -537,7 +538,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           deviation: deviation,
           deviationValue: deviation * unitValue,
           totalValue: totalValue, 
-          valorReconocer: valorReconocer
+          valorReconocer: valorReconocer,
+          unitValueFromNote: unitValue
         };
 
         if (totalRealFrequency > 0) {
@@ -1161,4 +1163,3 @@ export default PgPsearchForm;
     
 
     
-

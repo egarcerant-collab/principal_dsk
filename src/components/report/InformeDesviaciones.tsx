@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -6,7 +7,7 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users, Repeat, AlertCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Search, Target, Download, Loader2, X, Users, Repeat, AlertCircle, DollarSign } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -183,9 +184,10 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                 </AlertDialogHeader>
                 
                 {/* Panel de Resumen Estadístico */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 p-4 bg-muted/50 rounded-lg">
-                    <SummaryStat label="Frecuencia Esperada" value={cup.expectedFrequency.toFixed(0)} />
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 p-4 bg-muted/50 rounded-lg">
+                    <SummaryStat label="Valor Unitario (NT)" value={formatCurrency(cup.unitValueFromNote ?? 0)} className="text-purple-600" />
                     <SummaryStat label="Frecuencia Real" value={cup.realFrequency} className="text-blue-600" />
+                    <SummaryStat label="Frecuencia Esperada" value={cup.expectedFrequency.toFixed(0)} />
                     <SummaryStat label="Usuarios Únicos" value={cup.uniqueUsers} />
                     <SummaryStat label="Atenciones Repetidas" value={cup.repeatedAttentions} className="text-orange-600" />
                     <SummaryStat label="Desviación (Cantidad)" value={cup.deviation.toFixed(0)} className={cup.deviation > 0 ? "text-red-600" : "text-green-600"} />
@@ -356,24 +358,31 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         executionDataByMonth.forEach((monthData) => {
             monthData.rawJsonData.usuarios?.forEach((user: any) => {
                 const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-                const processServices = (services: any[], codeField: string, type: string) => {
+                const processServices = (services: any[], codeField: string, type: string, valueField: string = 'vrServicio', unitValueField?: string, qtyField?: string) => {
                     if (!services) return;
                     services.forEach((service: any) => {
                         if (service[codeField] === cupInfo.cup) {
+                            let serviceValue = 0;
+                            if (unitValueField && qtyField) {
+                                serviceValue = (service[unitValueField] || 0) * (service[qtyField] || 1);
+                            } else {
+                                serviceValue = service[valueField] || 0;
+                            }
+
                             details.push({
                                 tipoServicio: type,
                                 idUsuario: userId,
                                 fechaAtencion: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
                                 diagnosticoPrincipal: service.codDiagnosticoPrincipal,
-                                valorServicio: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                                valorServicio: serviceValue,
                             });
                         }
                     });
                 };
                 processServices(user.servicios?.consultas, 'codConsulta', 'Consulta');
                 processServices(user.servicios?.procedimientos, 'codProcedimiento', 'Procedimiento');
-                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento');
-                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento', undefined, 'vrUnitarioMedicamento', 'cantidadMedicamento');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio', 'vrServicio', undefined, 'cantidadOS');
             });
         });
         setExecutionDetails(details);

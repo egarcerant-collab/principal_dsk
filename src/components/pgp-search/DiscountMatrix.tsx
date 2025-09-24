@@ -45,6 +45,7 @@ export interface DiscountMatrixRow {
     totalValue: number;
     valorReconocer: number;
     activityDescription?: string;
+    unitValueFromNote?: number;
 }
 
 export interface AdjustedData {
@@ -226,24 +227,31 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         executionDataByMonth.forEach((monthData) => {
             monthData.rawJsonData.usuarios?.forEach((user: any) => {
                 const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
-                const processServices = (services: any[], codeField: string, type: string) => {
+                const processServices = (services: any[], codeField: string, type: string, valueField: string = 'vrServicio', unitValueField?: string, qtyField?: string) => {
                     if (!services) return;
                     services.forEach((service: any) => {
                         if (service[codeField] === cupInfo.CUPS) {
+                            let serviceValue = 0;
+                             if (unitValueField && qtyField) {
+                                serviceValue = (service[unitValueField] || 0) * (service[qtyField] || 1);
+                            } else {
+                                serviceValue = service[valueField] || 0;
+                            }
+
                             details.push({
-                                TIPO_SERVICIO: type,
-                                ID_USUARIO: userId,
-                                FECHA_ATENCION: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
-                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
-                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                                tipoServicio: type,
+                                idUsuario: userId,
+                                fechaAtencion: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
+                                diagnosticoPrincipal: service.codDiagnosticoPrincipal,
+                                valorServicio: serviceValue,
                             });
                         }
                     });
                 };
                 processServices(user.servicios?.consultas, 'codConsulta', 'Consulta');
                 processServices(user.servicios?.procedimientos, 'codProcedimiento', 'Procedimiento');
-                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento');
-                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento', undefined, 'vrUnitarioMedicamento', 'cantidadMedicamento');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio', 'vrServicio', undefined, 'cantidadOS');
             });
         });
         setExecutionDetails(details);
@@ -541,5 +549,6 @@ export default DiscountMatrix;
     
 
     
+
 
 
