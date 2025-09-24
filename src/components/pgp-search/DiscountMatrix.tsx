@@ -369,10 +369,35 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Matriz de Descuentos (Análisis de Valor)</DialogTitle>
-                         <div className="text-right text-lg">
-                            <span className="text-muted-foreground">Descuento Total APLICADO: </span> 
-                            <span className="font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</span>
+                        <div className="flex justify-between items-center">
+                            <DialogTitle>Matriz de Descuentos (Análisis de Valor)</DialogTitle>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right text-lg">
+                                    <span className="text-muted-foreground">Descuento Aplicado: </span> 
+                                    <span className="font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</span>
+                                </div>
+                                <Button 
+                                    variant="secondary"
+                                     onClick={() => handleDownloadXls(data.map(r => ({
+                                        ...r, 
+                                        CUPS: r.CUPS,
+                                        Descripcion: r.Descripcion,
+                                        Cantidad_Ejecutada: r.Cantidad_Ejecutada,
+                                        Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
+                                        Valor_Unitario: r.Valor_Unitario,
+                                        Valor_Ejecutado: r.Valor_Ejecutado,
+                                        Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
+                                        Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
+                                        Seleccionado: selectedRows[r.CUPS] || false,
+                                        Comentario_Glosa: comments[r.CUPS] || '',
+                                        Clasificacion: r.Clasificacion,
+                                        Tipo_Servicio: r.Tipo_Servicio
+                                    })), 'matriz_descuentos_ajustada.xls')}
+                                >
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Descargar
+                                </Button>
+                            </div>
                         </div>
                     </DialogHeader>
                     <div className="flex-grow overflow-hidden">
@@ -381,27 +406,6 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                         </ScrollArea>
                     </div>
                     <DialogFooter>
-                        <Button 
-                            variant="secondary"
-                             onClick={() => handleDownloadXls(data.map(r => ({
-                                ...r, 
-                                CUPS: r.CUPS,
-                                Descripcion: r.Descripcion,
-                                Cantidad_Ejecutada: r.Cantidad_Ejecutada,
-                                Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
-                                Valor_Unitario: r.Valor_Unitario,
-                                Valor_Ejecutado: r.Valor_Ejecutado,
-                                Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
-                                Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
-                                Seleccionado: selectedRows[r.CUPS] || false,
-                                Comentario_Glosa: comments[r.CUPS] || '',
-                                Clasificacion: r.Clasificacion,
-                                Tipo_Servicio: r.Tipo_Servicio
-                            })), 'matriz_descuentos_ajustada.xls')}
-                        >
-                            <FileDown className="mr-2 h-4 w-4" />
-                            Descargar
-                        </Button>
                         <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cerrar</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -419,3 +423,5 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 };
 
 export default DiscountMatrix;
+
+    
