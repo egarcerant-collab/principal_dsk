@@ -522,21 +522,6 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             clasificacion = totalRealFrequency > 0 ? "Sub-ejecutado" : "Faltante";
         }
 
-        if (totalRealFrequency > 0) {
-           matrizDescuentos.push({
-                CUPS: cup,
-                Descripcion: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
-                Cantidad_Ejecutada: totalRealFrequency,
-                Valor_Unitario: unitValue,
-                Valor_Ejecutado: totalValue,
-                Valor_a_Reconocer: valorReconocer,
-                Valor_a_Descontar: totalValue - valorReconocer,
-                Clasificacion: clasificacion,
-                Tipo_Servicio: serviceType
-            });
-        }
-
-
         const cupInfo: DeviatedCupInfo = {
           cup,
           description: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
@@ -552,6 +537,22 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           totalValue: totalValue, 
           valorReconocer: valorReconocer
         };
+
+        if (totalRealFrequency > 0) {
+           matrizDescuentos.push({
+                CUPS: cup,
+                Descripcion: cupInfo.description,
+                Cantidad_Ejecutada: totalRealFrequency,
+                Valor_Unitario: unitValue,
+                Valor_Ejecutado: totalValue,
+                Valor_a_Reconocer: valorReconocer,
+                Valor_a_Descontar: totalValue - valorReconocer,
+                Clasificacion: clasificacion,
+                Tipo_Servicio: serviceType,
+                // Add deviated cup info for the modal
+                ...cupInfo
+            });
+        }
         
         if (clasificacion === "Sobre-ejecutado") {
             overExecutedCups.push(cupInfo);
@@ -566,12 +567,13 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         }
       }
     } else if (totalRealFrequency > 0) {
-      unexpectedCups.push({
-        cup,
-        realFrequency: totalRealFrequency,
-        totalValue: totalRealValueFromJSON,
-        serviceType: serviceType
-      });
+        const unexpectedInfo = {
+            cup,
+            realFrequency: totalRealFrequency,
+            totalValue: totalRealValueFromJSON,
+            serviceType: serviceType
+        };
+      unexpectedCups.push(unexpectedInfo);
 
        matrizDescuentos.push({
             CUPS: cup,
@@ -582,7 +584,18 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Valor_a_Reconocer: 0,
             Valor_a_Descontar: totalRealValueFromJSON,
             Clasificacion: "Inesperado",
-            Tipo_Servicio: serviceType
+            Tipo_Servicio: serviceType,
+             // Dummy data for DeviatedCupInfo part of the type
+            expectedFrequency: 0,
+            realFrequency: totalRealFrequency,
+            uniqueUsers: totalUniqueUsers,
+            repeatedAttentions: totalRealFrequency - totalUniqueUsers,
+            sameDayDetections: 0,
+            sameDayDetectionsCost: 0,
+            deviation: totalRealFrequency,
+            deviationValue: totalRealValueFromJSON,
+            totalValue: totalRealValueFromJSON,
+            valorReconocer: 0,
         });
 
     }
@@ -822,7 +835,6 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
-  const [isDiscountMatrixModalOpen, setIsDiscountMatrixModalOpen] = useState(false);
   const [cie10Info, setCie10Info] = useState<Cie10Description | null>(null);
   const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
   const [isCie10Loading, setIsCie10Loading] = useState(false);
@@ -1083,7 +1095,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     executionDataByMonth={executionDataByMonth}
                 />
                 <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} executionDataByMonth={executionDataByMonth} />
-                <DiscountMatrix data={comparisonSummary.matrizDescuentos} />
+                <DiscountMatrix data={comparisonSummary.matrizDescuentos} executionDataByMonth={executionDataByMonth} />
                 {reportData && <InformePGP data={reportData} />}
               </>
             )}
@@ -1121,3 +1133,5 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
 export default PgPsearchForm;
 
+
+    

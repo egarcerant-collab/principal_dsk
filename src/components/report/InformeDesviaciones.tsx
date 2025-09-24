@@ -159,7 +159,7 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 };
 
 
-const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: { open: boolean, onOpenChange: (open: boolean) => void, cup: DeviatedCupInfo | null, executionDetails: any[] }) => {
+export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: { open: boolean, onOpenChange: (open: boolean) => void, cup: DeviatedCupInfo | null, executionDetails: any[] }) => {
     if (!cup) return null;
 
     const handleDownloadDetails = () => {
@@ -616,7 +616,5 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
-
-    
 
     

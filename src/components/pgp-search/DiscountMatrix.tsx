@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from './PgPsearchForm';
+import { formatCurrency, type DeviatedCupInfo } from './PgPsearchForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { ExecutionDataByMonth } from '@/app/page';
+import { CupDetailsModal } from '../report/InformeDesviaciones';
 
 
 export type ServiceType = "Consulta" | "Procedimiento" | "Medicamento" | "Otro Servicio" | "Desconocido";
@@ -27,10 +29,23 @@ export interface DiscountMatrixRow {
     Valor_a_Descontar: number;
     Clasificacion: string;
     Tipo_Servicio: ServiceType;
+    // Add all properties from DeviatedCupInfo to allow passing it to the modal
+    expectedFrequency: number;
+    realFrequency: number;
+    uniqueUsers: number;
+    repeatedAttentions: number;
+    sameDayDetections: number;
+    sameDayDetectionsCost: number;
+    deviation: number;
+    deviationValue: number;
+    totalValue: number;
+    valorReconocer: number;
+    activityDescription?: string;
 }
 
 interface DiscountMatrixProps {
   data: DiscountMatrixRow[];
+  executionDataByMonth: ExecutionDataByMonth;
 }
 
 const handleDownloadXls = (data: any[], filename: string) => {
@@ -64,13 +79,16 @@ const serviceTypeIcons: Record<ServiceType, React.ElementType> = {
 };
 
 
-const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
+const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMonth }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
     const [adjustedQuantities, setAdjustedQuantities] = useState<Record<string, number>>({});
     const [comments, setComments] = useState<Record<string, string>>({});
     const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType | 'all'>('all');
+    const [selectedCupForDetail, setSelectedCupForDetail] = useState<DeviatedCupInfo | null>(null);
+    const [isCupModalOpen, setIsCupModalOpen] = useState(false);
+    const [executionDetails, setExecutionDetails] = useState<any[]>([]);
 
 
     useEffect(() => {
@@ -85,9 +103,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
 
             initialSelections[row.CUPS] = true;
             initialQuantities[row.CUPS] = row.Cantidad_Ejecutada;
-            initialValues[row.CUPS] = valorDescontarInicial;
+            initialValues[row.CUPS] = valorDescontarInicial > 0 ? valorDescontarInicial : 0;
             initialComments[row.CUPS] = '';
-
         });
 
         setSelectedRows(initialSelections);
@@ -101,6 +118,36 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
         if (serviceTypeFilter === 'all') return data;
         return data.filter(row => row.Tipo_Servicio === serviceTypeFilter);
     }, [data, serviceTypeFilter]);
+    
+    const handleCupClick = (cupInfo: DiscountMatrixRow) => {
+        const details: any[] = [];
+        executionDataByMonth.forEach((monthData) => {
+            monthData.rawJsonData.usuarios?.forEach((user: any) => {
+                const userId = `${user.tipoDocumentoIdentificacion}-${user.numDocumentoIdentificacion}`;
+                const processServices = (services: any[], codeField: string, type: string) => {
+                    if (!services) return;
+                    services.forEach((service: any) => {
+                        if (service[codeField] === cupInfo.CUPS) {
+                            details.push({
+                                TIPO_SERVICIO: type,
+                                ID_USUARIO: userId,
+                                FECHA_ATENCION: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
+                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
+                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                            });
+                        }
+                    });
+                };
+                processServices(user.servicios?.consultas, 'codConsulta', 'Consulta');
+                processServices(user.servicios?.procedimientos, 'codProcedimiento', 'Procedimiento');
+                processServices(user.servicios?.medicamentos, 'codTecnologiaSalud', 'Medicamento');
+                processServices(user.servicios?.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio');
+            });
+        });
+        setExecutionDetails(details);
+        setSelectedCupForDetail(cupInfo as DeviatedCupInfo);
+        setIsCupModalOpen(true);
+    };
 
 
     const handleSelectAll = (checked: boolean) => {
@@ -128,7 +175,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
         if (rowData) {
             const nuevoValorReconocer = numericValue * rowData.Valor_Unitario;
             const nuevoValorADescontar = rowData.Valor_Ejecutado - nuevoValorReconocer;
-            setAdjustedValues(prev => ({...prev, [cup]: nuevoValorADescontar}));
+            setAdjustedValues(prev => ({...prev, [cup]: nuevoValorADescontar > 0 ? nuevoValorADescontar : 0}));
         }
     };
     
@@ -202,7 +249,11 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                                     onCheckedChange={(checked) => handleSelectRow(row.CUPS, Boolean(checked))}
                                />
                             </TableCell>
-                            <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                            <TableCell>
+                                <Button variant="link" className="p-0 h-auto font-mono text-sm" onClick={() => handleCupClick(row)}>
+                                    {row.CUPS}
+                                </Button>
+                            </TableCell>
                             <TableCell className="text-xs">
                                 <div className="flex items-center gap-2">
                                     <Icon className="h-4 w-4 text-muted-foreground" />
@@ -319,11 +370,18 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                             variant="secondary"
                              onClick={() => handleDownloadXls(data.map(r => ({
                                 ...r, 
+                                CUPS: r.CUPS,
+                                Descripcion: r.Descripcion,
+                                Cantidad_Ejecutada: r.Cantidad_Ejecutada,
                                 Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
+                                Valor_Unitario: r.Valor_Unitario,
+                                Valor_Ejecutado: r.Valor_Ejecutado,
                                 Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
                                 Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
                                 Seleccionado: selectedRows[r.CUPS] || false,
-                                Comentario_Glosa: comments[r.CUPS] || ''
+                                Comentario_Glosa: comments[r.CUPS] || '',
+                                Clasificacion: r.Clasificacion,
+                                Tipo_Servicio: r.Tipo_Servicio
                             })), 'matriz_descuentos_ajustada.xls')}
                         >
                             <FileDown className="mr-2 h-4 w-4" />
@@ -333,8 +391,17 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <CupDetailsModal
+                cup={selectedCupForDetail}
+                open={isCupModalOpen}
+                onOpenChange={setIsCupModalOpen}
+                executionDetails={executionDetails}
+            />
         </>
     );
 };
 
 export default DiscountMatrix;
+
+    
