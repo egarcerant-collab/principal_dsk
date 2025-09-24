@@ -198,9 +198,10 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                     </div>
 
                     {/* Tabla de Detalle de Ejecuciones */}
-                    <div className="mt-4">
+                    <div className="mt-4 relative">
+                      <ScrollArea className="h-[45vh]">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
                                 <TableRow>
                                     <TableHead>Tipo Servicio</TableHead>
                                     <TableHead>ID Usuario</TableHead>
@@ -221,6 +222,7 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                                 ))}
                             </TableBody>
                         </Table>
+                      </ScrollArea>
                     </div>
                 </div>
                 <AlertDialogFooter className="pt-4 flex-shrink-0">
@@ -624,3 +626,4 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+

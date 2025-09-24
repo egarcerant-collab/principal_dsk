@@ -65,7 +65,7 @@ export interface DeviatedCupInfo {
     deviationValue: number;
     totalValue: number;
     valorReconocer: number;
-    unitValueFromNote?: number; // Valor Unitario de la Nota Técnica
+    unitValueFromNote?: number;
 }
 
 export interface UnexpectedCupInfo {
@@ -130,7 +130,6 @@ export interface ReportData {
   underExecutedCups: DeviatedCupInfo[];
   missingCups: DeviatedCupInfo[];
   unexpectedCups: UnexpectedCupInfo[];
-  // New: Add adjusted data for PDF analysis
   adjustedData?: AdjustedData;
 }
 
@@ -927,7 +926,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         min90: globalSummary.costoMinimoPeriodo,
         valor3m: globalSummary.totalPeriodo,
         max110: globalSummary.costoMaximoPeriodo,
-        anticipos: valorNetoFinal * 0.8, // Example calculation
+        anticipos: valorNetoFinal * 0.8,
         totalPagar: valorNetoFinal,
         totalFinal: valorNetoFinal,
         descuentoAplicado: descuentoAplicadoTotal,
@@ -1173,4 +1172,5 @@ export default PgPsearchForm;
     
 
     
+
 
