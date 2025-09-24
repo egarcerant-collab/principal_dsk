@@ -124,12 +124,25 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   // Derivados y KPIs
   const sumaMensual = useMemo(() => data?.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0, [data?.months]);
   const totalCups = useMemo(() => data?.months.reduce((a, m) => a + m.cups, 0) ?? 0, [data?.months]);
-  const diffVsNota = useMemo(() => (data?.notaTecnica?.valor3m || 0) - sumaMensual, [data?.notaTecnica?.valor3m, sumaMensual]);
+  
+  const valorReconocidoTotal = useMemo(() => {
+    if (!data?.overExecutedCups || !data.adjustedData) return sumaMensual;
+
+    return (data.overExecutedCups ?? []).reduce((sum, row) => {
+      const validatedQuantity = data.adjustedData?.adjustedQuantities[row.cup] ?? row.realFrequency;
+      const recognizedValue = validatedQuantity * (row.totalValue / row.realFrequency); // unit value = totalValue / realFreq
+      return sum + recognizedValue;
+    }, 0);
+
+  }, [data, sumaMensual]);
+
+  const diffVsNota = useMemo(() => (data?.notaTecnica?.valor3m || 0) - valorReconocidoTotal, [data?.notaTecnica?.valor3m, valorReconocidoTotal]);
+  
   const unitAvg = useMemo(() => {
     if (!data || !data.months || data.months.length === 0 || totalCups === 0) return 0;
-    const mean = sumaMensual / totalCups;
+    const mean = valorReconocidoTotal / totalCups;
     return Number.isFinite(mean) ? mean : 0;
-  }, [data?.months, sumaMensual, totalCups]);
+  }, [data?.months, valorReconocidoTotal, totalCups]);
 
     const reportTitle = useMemo(() => {
     if (!data || !data.months || data.months.length === 0) {
@@ -159,12 +172,12 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
   const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput): InformeDatos => {
     const valorNotaTecnica = reportData.notaTecnica?.valor3m || 0;
-    const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
+    const porcentajeEjecucion = valorNotaTecnica > 0 ? (valorReconocidoTotal / valorNotaTecnica) * 100 : 0;
      const periodoAnalizado = reportTitle.split('–')[1]?.trim() || 'Periodo Analizado';
 
 
     const kpis = [
-        { label: `Suma Ejecución (${periodoAnalizado})`, value: formatCOP(sumaMensual) },
+        { label: `Ejecución Final (Post-Auditoría)`, value: formatCOP(valorReconocidoTotal) },
         { label: 'Nota Técnica (Presupuesto)', value: formatCOP(valorNotaTecnica) },
         { label: 'Diferencia vs. Presupuesto', value: formatCOP(diffVsNota) },
         { label: 'Porcentaje de Ejecución', value: `${porcentajeEjecucion.toFixed(2)}%` },
@@ -259,7 +272,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
     try {
         const valorNotaTecnica = data.notaTecnica?.valor3m || 0;
-        const porcentajeEjecucion = valorNotaTecnica > 0 ? (sumaMensual / valorNotaTecnica) * 100 : 0;
+        const porcentajeEjecucion = valorNotaTecnica > 0 ? (valorReconocidoTotal / valorNotaTecnica) * 100 : 0;
 
         // Prepare data for AI, including comments
         const adjustedOverExecutedCupsWithComments = data.overExecutedCups
@@ -279,12 +292,12 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             .filter(Boolean);
 
         const analysisInput: ReportAnalysisInput = {
-            sumaMensual,
+            sumaMensual: valorReconocidoTotal, // Use post-audit value
             valorNotaTecnica,
-            diffVsNota,
-            porcentajeEjecucion,
+            diffVsNota, // Use post-audit difference
+            porcentajeEjecucion, // Use post-audit percentage
             totalCups,
-            unitAvg,
+            unitAvg, // Use post-audit unit average
             overExecutedCount: data.overExecutedCups?.length ?? 0,
             unexpectedCount: data.unexpectedCups?.length ?? 0,
             overExecutedCups: data.overExecutedCups ?? [],
