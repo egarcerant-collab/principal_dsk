@@ -12,6 +12,8 @@ import { formatCurrency } from './PgPsearchForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+
 
 export interface DiscountMatrixRow {
     CUPS: string;
@@ -55,11 +57,14 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
     const [adjustedQuantities, setAdjustedQuantities] = useState<Record<string, number>>({});
+    const [comments, setComments] = useState<Record<string, string>>({});
+
 
     useEffect(() => {
         const initialSelections: Record<string, boolean> = {};
         const initialValues: Record<string, number> = {};
         const initialQuantities: Record<string, number> = {};
+        const initialComments: Record<string, string> = {};
         
         data.forEach(row => {
             const valorReconocerInicial = row.Clasificacion === 'Sobre-ejecutado' ? row.Valor_a_Reconocer : row.Valor_Ejecutado;
@@ -68,11 +73,15 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
             initialSelections[row.CUPS] = true;
             initialQuantities[row.CUPS] = row.Cantidad_Ejecutada;
             initialValues[row.CUPS] = valorDescontarInicial;
+            initialComments[row.CUPS] = '';
+
         });
 
         setSelectedRows(initialSelections);
         setAdjustedQuantities(initialQuantities);
         setAdjustedValues(initialValues);
+        setComments(initialComments);
+
     }, [data]);
 
     const handleSelectAll = (checked: boolean) => {
@@ -103,6 +112,10 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
             const nuevoValorADescontar = rowData.Valor_Ejecutado - nuevoValorReconocer;
             setAdjustedValues(prev => ({...prev, [cup]: nuevoValorADescontar}));
         }
+    };
+    
+    const handleCommentChange = (cup: string, comment: string) => {
+        setComments(prev => ({ ...prev, [cup]: comment }));
     };
 
 
@@ -149,12 +162,17 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     <TableHead className="text-right">Valor Ejecutado</TableHead>
                     <TableHead className="text-right">Valor a Reconocer</TableHead>
                     <TableHead className="text-right text-red-500 font-bold w-48">Valor a Descontar</TableHead>
+                    <TableHead className="w-64">Comentario de la Glosa</TableHead>
+
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {tableData.map((row, index) => {
                     const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
                     const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
+                    const commentIsRequired = validatedQuantity !== row.Cantidad_Ejecutada;
+                    const comment = comments[row.CUPS] || '';
+
                     
                     return (
                         <TableRow key={index} className={getRowClass(row.Clasificacion)}>
@@ -184,6 +202,20 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                                     onChange={(e) => handleDiscountValueChange(row.CUPS, e.target.value)}
                                     className="h-8 text-right border-red-200 focus:border-red-500 focus:ring-red-500"
                                 />
+                            </TableCell>
+                            <TableCell>
+                                {commentIsRequired && (
+                                    <Input
+                                        type="text"
+                                        value={comment}
+                                        onChange={(e) => handleCommentChange(row.CUPS, e.target.value)}
+                                        placeholder="Justificación requerida..."
+                                        className={cn(
+                                            "h-8 text-xs",
+                                            commentIsRequired && !comment ? "border-red-500 ring-red-500" : ""
+                                        )}
+                                    />
+                                )}
                             </TableCell>
                         </TableRow>
                     )
@@ -236,12 +268,13 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     <DialogFooter>
                         <Button 
                             variant="secondary"
-                            onClick={() => handleDownloadXls(data.map(r => ({
+                             onClick={() => handleDownloadXls(data.map(r => ({
                                 ...r, 
                                 Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
                                 Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
                                 Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
-                                Seleccionado: selectedRows[r.CUPS] || false 
+                                Seleccionado: selectedRows[r.CUPS] || false,
+                                Comentario_Glosa: comments[r.CUPS] || ''
                             })), 'matriz_descuentos_ajustada.xls')}
                         >
                             <FileDown className="mr-2 h-4 w-4" />
