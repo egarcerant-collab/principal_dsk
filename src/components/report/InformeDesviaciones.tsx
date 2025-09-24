@@ -18,6 +18,7 @@ import { describeCup } from '@/ai/flows/describe-cup-flow';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ExecutionDataByMonth } from '@/app/page';
 import { findColumnValue } from '@/lib/matriz-helpers';
+import StatCard from '../shared/StatCard';
 
 const handleDownloadXls = (data: any[], filename: string) => {
     const dataToExport = JSON.parse(JSON.stringify(data));
@@ -160,44 +161,67 @@ const DiscrepancyCard = ({ title, icon, data, badgeVariant, onLookupClick, onDow
 
 const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: { open: boolean, onOpenChange: (open: boolean) => void, cup: DeviatedCupInfo | null, executionDetails: any[] }) => {
     if (!cup) return null;
-    
+
     const handleDownloadDetails = () => {
         handleDownloadXls(executionDetails, `matriz_detalle_${cup.cup}.xls`);
     };
 
+    const SummaryStat = ({ label, value, className }: { label: string; value: string | number; className?: string }) => (
+        <div className="flex justify-between items-center text-sm py-1 border-b border-dashed">
+            <span className="text-muted-foreground">{label}:</span>
+            <span className={`font-semibold ${className}`}>{value}</span>
+        </div>
+    );
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent className="sm:max-w-4xl">
+            <AlertDialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Ejecuciones Detalladas del CUPS: <span className="font-mono">{cup.cup}</span></AlertDialogTitle>
                     <AlertDialogDescription>
-                        {cup.description || "Cada fila representa una atención encontrada en los archivos JSON para este CUPS."}
+                        {cup.activityDescription || cup.description}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                 <ScrollArea className="max-h-[60vh] pr-6">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Tipo Servicio</TableHead>
-                                <TableHead>ID Usuario</TableHead>
-                                <TableHead>Fecha Atención</TableHead>
-                                <TableHead>Diagnóstico</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {executionDetails.map((detail, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{detail.TIPO_SERVICIO}</TableCell>
-                                    <TableCell>{detail.ID_USUARIO}</TableCell>
-                                    <TableCell>{detail.FECHA_ATENCION}</TableCell>
-                                    <TableCell>{detail.DIAGNOSTICO_PRINCIPAL}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(detail.VALOR_SERVICIO)}</TableCell>
+                
+                {/* Panel de Resumen Estadístico */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 p-4 bg-muted/50 rounded-lg">
+                    <SummaryStat label="Frecuencia Esperada" value={cup.expectedFrequency.toFixed(0)} />
+                    <SummaryStat label="Frecuencia Real" value={cup.realFrequency} className="text-blue-600" />
+                    <SummaryStat label="Usuarios Únicos" value={cup.uniqueUsers} />
+                    <SummaryStat label="Atenciones Repetidas" value={cup.repeatedAttentions} className="text-orange-600" />
+                    <SummaryStat label="Desviación (Cantidad)" value={cup.deviation.toFixed(0)} className={cup.deviation > 0 ? "text-red-600" : "text-green-600"} />
+                    <SummaryStat label="Desviación (Valor)" value={formatCurrency(cup.deviationValue)} className={cup.deviationValue > 0 ? "text-red-600" : "text-green-600"} />
+                    <SummaryStat label=">1 Atención Mismo Día (Usuarios)" value={cup.sameDayDetections} className="text-red-600" />
+                    <SummaryStat label="Costo Repetición Mismo Día" value={formatCurrency(cup.sameDayDetectionsCost)} className="text-red-600 font-bold" />
+                </div>
+
+                {/* Tabla de Detalle de Ejecuciones */}
+                <div className="flex-grow overflow-hidden">
+                    <ScrollArea className="h-full pr-6">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background/95">
+                                <TableRow>
+                                    <TableHead>Tipo Servicio</TableHead>
+                                    <TableHead>ID Usuario</TableHead>
+                                    <TableHead>Fecha Atención</TableHead>
+                                    <TableHead>Diagnóstico</TableHead>
+                                    <TableHead className="text-right">Valor</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
+                            </TableHeader>
+                            <TableBody>
+                                {executionDetails.map((detail, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>{detail.TIPO_SERVICIO}</TableCell>
+                                        <TableCell>{detail.ID_USUARIO}</TableCell>
+                                        <TableCell>{detail.FECHA_ATENCION}</TableCell>
+                                        <TableCell>{detail.DIAGNOSTICO_PRINCIPAL}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(detail.VALOR_SERVICIO)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </div>
                 <AlertDialogFooter>
                     <Button variant="secondary" onClick={handleDownloadDetails}>
                         <Download className="mr-2 h-4 w-4" />
@@ -209,6 +233,7 @@ const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: { open: 
         </AlertDialog>
     );
 };
+
 
 export const LookedUpCupModal = ({ cupInfo, open, onOpenChange, isLoading }: { cupInfo: CupDescription | null, open: boolean, onOpenChange: (open: boolean) => void, isLoading: boolean }) => {
   return (
