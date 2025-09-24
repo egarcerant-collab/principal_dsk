@@ -322,7 +322,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                Análisis financiero interactivo para calcular los descuentos por sobre-ejecución e imprevistos.
                             </CardDescription>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right">
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right">
                              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
                                 <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Ejecutado Total (JSON)</p>
                                 <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEjecucion)}</p>
@@ -419,3 +419,5 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 };
 
 export default DiscountMatrix;
+
+    
