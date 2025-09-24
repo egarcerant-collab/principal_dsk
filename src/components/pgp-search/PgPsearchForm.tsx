@@ -580,6 +580,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
        matrizDescuentos.push({
             CUPS: cup,
             Descripcion: "CUPS Inesperado",
+            expectedFrequency: 0,
             Cantidad_Ejecutada: totalRealFrequency,
             Valor_Unitario: 0,
             Valor_Ejecutado: totalRealValueFromJSON,
@@ -588,7 +589,6 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Clasificacion: "Inesperado",
             Tipo_Servicio: serviceType,
              // Dummy data for DeviatedCupInfo part of the type
-            expectedFrequency: 0,
             realFrequency: totalRealFrequency,
             uniqueUsers: totalUniqueUsers,
             repeatedAttentions: totalRealFrequency - totalUniqueUsers,
@@ -1161,3 +1161,4 @@ export default PgPsearchForm;
     
 
     
+

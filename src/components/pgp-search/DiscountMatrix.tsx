@@ -326,6 +326,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                 Descripcion: r.Descripcion,
                 Tipo_Servicio: r.Tipo_Servicio,
                 Clasificacion: r.Clasificacion,
+                Cantidad_Esperada: r.expectedFrequency,
                 Cantidad_Ejecutada: r.Cantidad_Ejecutada,
                 Cantidad_Validada: validatedQuantity,
                 Valor_Unitario: r.Valor_Unitario,
@@ -352,6 +353,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                     <TableHead>CUPS</TableHead>
                     <TableHead>Tipo Servicio</TableHead>
                     <TableHead>Descripción</TableHead>
+                    <TableHead className="text-center">Cant. Esperada</TableHead>
                     <TableHead className="text-center">Cant. Ejecutada</TableHead>
                     <TableHead className="text-center w-32">Cant. Validada</TableHead>
                     <TableHead className="text-right">Valor Ejecutado</TableHead>
@@ -392,6 +394,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                 </div>
                             </TableCell>
                             <TableCell className="text-xs max-w-[200px] truncate">{row.Descripcion}</TableCell>
+                            <TableCell className="text-center">{row.expectedFrequency}</TableCell>
                             <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                              <TableCell className="text-center">
                                 <Input
@@ -538,3 +541,4 @@ export default DiscountMatrix;
     
 
     
+
