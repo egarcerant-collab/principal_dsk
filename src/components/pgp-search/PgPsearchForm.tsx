@@ -855,6 +855,14 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
   const showComparison = isDataLoaded && executionDataByMonth.size > 0;
   const numMonthsForSummary = useMemo(() => executionDataByMonth.size > 0 ? executionDataByMonth.size : 1, [executionDataByMonth.size]);
+  
+  // Create a stable, unique key for the current analysis session
+  const localStorageKey = useMemo(() => {
+    if (!selectedPrestador || executionDataByMonth.size === 0) return '';
+    const prestadorId = selectedPrestador['ID DE ZONA'] || selectedPrestador.NIT;
+    const monthKeys = Array.from(executionDataByMonth.keys()).sort().join('-');
+    return `pgp-adjustments-${prestadorId}-${monthKeys}`;
+  }, [selectedPrestador, executionDataByMonth]);
 
 
   useEffect(() => {
@@ -1109,6 +1117,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                   executionDataByMonth={executionDataByMonth}
                   pgpData={pgpData}
                   onAdjustmentsChange={setAdjustedData}
+                  storageKey={localStorageKey}
                 />
 
                 {reportData && <InformePGP data={reportData} />}
