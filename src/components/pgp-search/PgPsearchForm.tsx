@@ -28,6 +28,7 @@ import InformePGP from '../report/InformePGP';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getNumericValue } from '../app/JsonAnalyzerPage';
 import { findColumnValue } from '@/lib/matriz-helpers';
+import DiscountMatrix, { type DiscountMatrixRow } from './DiscountMatrix';
 
 
 interface AnalyzePgpDataOutput {
@@ -97,6 +98,7 @@ export interface ComparisonSummary {
     unexpectedCups: UnexpectedCupInfo[];
     Matriz_Ejecucion_vs_Esperado: MatrizEjecucionRow[];
     monthlyFinancials: MonthlyFinancialSummary[];
+    matrizDescuentos: DiscountMatrixRow[];
 }
 
 export interface ReportData {
@@ -439,6 +441,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
   const allRelevantCups = new Set([...pgpCupsMap.keys(), ...executedCupsSet]);
   
   const matrizData = buildMatrizEjecucion({ executionDataByMonth, pgpData });
+  const matrizDescuentos: DiscountMatrixRow[] = [];
 
   const monthlyFinancialsMap = new Map<string, { totalValorEsperado: number, totalValorEjecutado: number }>();
 
@@ -482,10 +485,29 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         const percentage = totalExpectedFrequency > 0 ? (totalRealFrequency / totalExpectedFrequency) : Infinity;
         const totalValue = totalRealFrequency * unitValue;
         
-        let valorReconocer = totalValue; // Por defecto
+        let valorReconocer = totalValue;
+        let clasificacion = "Ejecución Normal";
+
         if (percentage > 1.11) {
             valorReconocer = totalExpectedFrequency * unitValue * 1.11;
+            clasificacion = "Sobre-ejecutado";
+        } else if (percentage < 0.90) {
+            clasificacion = totalRealFrequency > 0 ? "Sub-ejecutado" : "Faltante";
         }
+
+        if (totalRealFrequency > 0) {
+           matrizDescuentos.push({
+                CUPS: cup,
+                Descripcion: findColumnValue(pgpRow, ['descripcion cups', 'descripcion']),
+                Cantidad_Ejecutada: totalRealFrequency,
+                Valor_Unitario: unitValue,
+                Valor_Ejecutado: totalValue,
+                Valor_a_Reconocer: valorReconocer,
+                Valor_a_Descontar: totalValue - valorReconocer,
+                Clasificacion: clasificacion
+            });
+        }
+
 
         const cupInfo: DeviatedCupInfo = {
           cup,
@@ -503,17 +525,15 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
           valorReconocer: valorReconocer
         };
         
-        if (percentage > 1.11) {
+        if (clasificacion === "Sobre-ejecutado") {
             overExecutedCups.push(cupInfo);
-        } else if (percentage < 0.90) {
-             if (totalRealFrequency > 0) {
-                underExecutedCups.push(cupInfo);
-            } else {
-                missingCups.push(cupInfo);
-            }
-        } else {
-             if (totalExpectedFrequency > 0) {
-                normalExecutionCups.push(cupInfo);
+        } else if (clasificacion === "Sub-ejecutado") {
+            underExecutedCups.push(cupInfo);
+        } else if (clasificacion === "Faltante") {
+            missingCups.push(cupInfo);
+        } else if (clasificacion === "Ejecución Normal") {
+            if (totalExpectedFrequency > 0) {
+              normalExecutionCups.push(cupInfo);
             }
         }
       }
@@ -523,11 +543,24 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         realFrequency: totalRealFrequency,
         totalValue: totalRealValueFromJSON,
       });
+
+       matrizDescuentos.push({
+            CUPS: cup,
+            Descripcion: "CUPS Inesperado",
+            Cantidad_Ejecutada: totalRealFrequency,
+            Valor_Unitario: 0,
+            Valor_Ejecutado: totalRealValueFromJSON,
+            Valor_a_Reconocer: 0,
+            Valor_a_Descontar: totalRealValueFromJSON,
+            Clasificacion: "Inesperado"
+        });
+
     }
   });
   
   overExecutedCups.sort((a, b) => b.deviationValue - a.deviationValue);
   underExecutedCups.sort((a, b) => a.deviationValue - b.deviationValue);
+  matrizDescuentos.sort((a,b) => b.Valor_a_Descontar - a.Valor_a_Descontar);
 
 
   return {
@@ -538,6 +571,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     unexpectedCups,
     Matriz_Ejecucion_vs_Esperado: matrizData,
     monthlyFinancials,
+    matrizDescuentos
   };
 };
 
@@ -560,7 +594,6 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
       const map = new Map<string, number>();
       if (!executionDataByMonth) return map;
 
-      // Mapa para rastrear `cup -> userId -> date -> count`
       const userAttentionMap = new Map<string, Map<string, Map<string, number>>>();
 
       executionDataByMonth.forEach(monthData => {
@@ -594,12 +627,11 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
         });
       });
 
-      // Contar usuarios únicos con repeticiones para cada CUPS
       userAttentionMap.forEach((cupMap, cup) => {
           let usersWithRepetitions = 0;
-          cupMap.forEach((userMap, userId) => {
+          cupMap.forEach((userMap) => {
               let hasRepetition = false;
-              userMap.forEach((count, date) => {
+              userMap.forEach((count) => {
                   if (count > 1) {
                       hasRepetition = true;
                   }
@@ -641,16 +673,16 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
     return (
       <Card>
         <CardHeader className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center">
-                  <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
-                  Matriz Ejecución vs Esperado (mensual)
-              </CardTitle>
-              <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
-              <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
-                <AlertCircle className="h-3 w-3"/>
-                Aquí se visualiza lo que se descontará.
-              </p>
+             <div>
+                <CardTitle className="flex items-center">
+                    <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
+                    Matriz Ejecución vs Esperado (mensual)
+                </CardTitle>
+                <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
+                <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
+                    <AlertCircle className="h-3 w-3"/>
+                    Aquí se visualiza lo que se descontará.
+                </p>
             </div>
             <div className='flex items-center gap-2'>
                 <Select value={classificationFilter} onValueChange={setClassificationFilter}>
@@ -696,8 +728,6 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                             <TableHead className="text-sm">Clasificación</TableHead>
                             <TableHead>Análisis de Valor</TableHead>
                             <TableHead>Procedimientos Repetidos Mismo Día</TableHead>
-                            <TableHead>Valor a Analizar</TableHead>
-                            <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -730,8 +760,6 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
                                       </div>
                                     )}
                                 </TableCell>
-                                <TableCell></TableCell>
-                                <TableCell></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -762,6 +790,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
   const [isLookupModalOpen, setIsLookupModalOpen] = useState(false);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [isDiscountMatrixModalOpen, setIsDiscountMatrixModalOpen] = useState(false);
   const [cie10Info, setCie10Info] = useState<Cie10Description | null>(null);
   const [isCie10ModalOpen, setIsCie10ModalOpen] = useState(false);
   const [isCie10Loading, setIsCie10Loading] = useState(false);
@@ -1022,6 +1051,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     executionDataByMonth={executionDataByMonth}
                 />
                 <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} executionDataByMonth={executionDataByMonth} />
+                <DiscountMatrix data={comparisonSummary.matrizDescuentos} />
                 {reportData && <InformePGP data={reportData} />}
               </>
             )}
