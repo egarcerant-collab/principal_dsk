@@ -9,25 +9,6 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import type { DeviatedCupInfo, UnexpectedCupInfo } from '@/components/pgp-search/PgPsearchForm';
 
-const DeviatedCupWithCommentsSchema = z.object({
-    cup: z.string(),
-    description: z.string().optional(),
-    activityDescription: z.string().optional(),
-    expectedFrequency: z.number(),
-    realFrequency: z.number(),
-    uniqueUsers: z.number(),
-    repeatedAttentions: z.number(),
-    sameDayDetections: z.number(),
-    sameDayDetectionsCost: z.number(),
-    deviation: z.number(),
-    deviationValue: z.number(),
-    totalValue: z.number(),
-    valorReconocer: z.number(),
-    unitValueFromNote: z.number().optional(),
-    comment: z.string().optional().describe("Comentario de glosa del auditor si existe."),
-});
-
-
 const ReportAnalysisInputSchema = z.object({
     sumaMensual: z.number().describe("El valor total ejecutado en el periodo, basado en los vrServicio del JSON."),
     valorNotaTecnica: z.number().describe("El valor presupuestado en la nota técnica para el periodo."),
@@ -37,7 +18,7 @@ const ReportAnalysisInputSchema = z.object({
     unitAvg: z.number().describe("El costo unitario promedio (valor total ejecutado (JSON) / cantidad de CUPS)."),
     overExecutedCount: z.number().describe("La cantidad de CUPS que fueron sobre-ejecutados."),
     unexpectedCount: z.number().describe("La cantidad de CUPS ejecutados que no estaban en la nota técnica."),
-    overExecutedCups: z.array(DeviatedCupWithCommentsSchema).describe("Lista de CUPS sobre-ejecutados, que puede incluir comentarios de glosa."),
+    overExecutedCups: z.array(z.any()).describe("Lista de CUPS sobre-ejecutados, que puede incluir comentarios de glosa. Cada objeto tiene claves como 'cup', 'description', 'realFrequency', 'deviationValue', y opcionalmente 'comment'."),
     underExecutedCups: z.array(z.any()).describe("Lista de CUPS sub-ejecutados."),
     missingCups: z.array(z.any()).describe("Lista de CUPS planificados que no se ejecutaron."),
     unexpectedCups: z.array(z.any()).describe("Lista de CUPS ejecutados no planificados."),
@@ -151,7 +132,5 @@ const generateReportAnalysisFlow = ai.defineFlow(
     }
   }
 );
-
-    
 
     
