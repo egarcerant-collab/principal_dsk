@@ -109,6 +109,7 @@ export interface ReportData {
     nit: string;
     ipsNombre: string;
     ipsNit: string;
+
     municipio: string;
     contrato: string;
     vigencia: string;
@@ -123,6 +124,7 @@ export interface ReportData {
     anticipos: number;
     totalPagar: number;
     totalFinal: number;
+    descuentoAplicado: number;
   };
   overExecutedCups: DeviatedCupInfo[];
   underExecutedCups: DeviatedCupInfo[];
@@ -894,20 +896,25 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
     return total;
   }, [executionDataByMonth]);
 
+  const descuentoAplicadoTotal = useMemo(() => {
+    if (!adjustedData?.adjustedValues) return 0;
+    return Object.values(adjustedData.adjustedValues).reduce((sum, val) => sum + val, 0);
+  }, [adjustedData]);
+
+  const valorNetoFinal = useMemo(() => {
+      return totalRealEjecutadoJson - descuentoAplicadoTotal;
+  }, [totalRealEjecutadoJson, descuentoAplicadoTotal]);
+
+
   const reportData = useMemo((): ReportData | null => {
     if (!showComparison || !selectedPrestador || !globalSummary || !comparisonSummary) return null;
-    const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => {
-      let monthValue = 0;
-      data.cupCounts.forEach(cupInfo => monthValue += cupInfo.totalValue);
 
-      return {
-          month: getMonthName(month),
-          cups: data.summary.numConsultas + data.summary.numProcedimientos,
-          valueCOP: monthValue,
-      };
-    });
-    const totalExecution = monthsData.reduce((acc, m) => acc + m.valueCOP, 0);
-
+    const monthsData = Array.from(executionDataByMonth.entries()).map(([month, data]) => ({
+        month: getMonthName(month),
+        cups: data.summary.numConsultas + data.summary.numProcedimientos,
+        valueCOP: data.totalRealValue,
+    }));
+    
     return {
       header: {
         empresa: "Dusakawi EPSI", nit: "8240001398",
@@ -920,7 +927,10 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
         min90: globalSummary.costoMinimoPeriodo,
         valor3m: globalSummary.totalPeriodo,
         max110: globalSummary.costoMaximoPeriodo,
-        anticipos: totalExecution * 0.8, totalPagar: totalExecution * 0.2, totalFinal: totalExecution,
+        anticipos: valorNetoFinal * 0.8, // Example calculation
+        totalPagar: valorNetoFinal,
+        totalFinal: valorNetoFinal,
+        descuentoAplicado: descuentoAplicadoTotal,
       },
       overExecutedCups: comparisonSummary.overExecutedCups,
       underExecutedCups: comparisonSummary.underExecutedCups,
@@ -928,7 +938,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
       unexpectedCups: comparisonSummary.unexpectedCups,
       adjustedData,
     };
-  }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary, adjustedData]);
+  }, [showComparison, selectedPrestador, executionDataByMonth, globalSummary, comparisonSummary, adjustedData, valorNetoFinal, descuentoAplicadoTotal]);
 
   const handleLookupClick = async (cup: string) => {
     setIsLookupLoading(true);
@@ -1163,3 +1173,4 @@ export default PgPsearchForm;
     
 
     
+
