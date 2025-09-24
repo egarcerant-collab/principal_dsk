@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -211,11 +210,11 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                             <TableBody>
                                 {executionDetails.map((detail, index) => (
                                     <TableRow key={index}>
-                                        <TableCell>{detail.TIPO_SERVICIO}</TableCell>
-                                        <TableCell>{detail.ID_USUARIO}</TableCell>
-                                        <TableCell>{detail.FECHA_ATENCION}</TableCell>
-                                        <TableCell>{detail.DIAGNOSTICO_PRINCIPAL}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(detail.VALOR_SERVICIO)}</TableCell>
+                                        <TableCell>{detail.tipoServicio}</TableCell>
+                                        <TableCell>{detail.idUsuario}</TableCell>
+                                        <TableCell>{detail.fechaAtencion}</TableCell>
+                                        <TableCell>{detail.diagnosticoPrincipal}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(detail.valorServicio)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -362,11 +361,11 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
                     services.forEach((service: any) => {
                         if (service[codeField] === cupInfo.cup) {
                             details.push({
-                                TIPO_SERVICIO: type,
-                                ID_USUARIO: userId,
-                                FECHA_ATENCION: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
-                                DIAGNOSTICO_PRINCIPAL: service.codDiagnosticoPrincipal,
-                                VALOR_SERVICIO: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
+                                tipoServicio: type,
+                                idUsuario: userId,
+                                fechaAtencion: service.fechaInicioAtencion ? new Date(service.fechaInicioAtencion).toLocaleDateString() : 'N/A',
+                                diagnosticoPrincipal: service.codDiagnosticoPrincipal,
+                                valorServicio: service.vrServicio || (service.vrUnitarioMedicamento * (service.cantidadMedicamento || 1)),
                             });
                         }
                     });
@@ -616,5 +615,7 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
+
+    
 
     
