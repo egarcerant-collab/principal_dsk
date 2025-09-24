@@ -6,7 +6,7 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, DollarSign } from "lucide-react";
+import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from './PgPsearchForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+
+export type ServiceType = "Consulta" | "Procedimiento" | "Medicamento" | "Otro Servicio" | "Desconocido";
 
 export interface DiscountMatrixRow {
     CUPS: string;
@@ -24,6 +26,7 @@ export interface DiscountMatrixRow {
     Valor_a_Reconocer: number;
     Valor_a_Descontar: number;
     Clasificacion: string;
+    Tipo_Servicio: ServiceType;
 }
 
 interface DiscountMatrixProps {
@@ -52,12 +55,22 @@ const handleDownloadXls = (data: any[], filename: string) => {
     document.body.removeChild(link);
 };
 
+const serviceTypeIcons: Record<ServiceType, React.ElementType> = {
+    "Consulta": Stethoscope,
+    "Procedimiento": Microscope,
+    "Medicamento": Pill,
+    "Otro Servicio": Syringe,
+    "Desconocido": DollarSign,
+};
+
+
 const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
     const [adjustedQuantities, setAdjustedQuantities] = useState<Record<string, number>>({});
     const [comments, setComments] = useState<Record<string, string>>({});
+    const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType | 'all'>('all');
 
 
     useEffect(() => {
@@ -84,12 +97,18 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
 
     }, [data]);
 
+    const filteredData = useMemo(() => {
+        if (serviceTypeFilter === 'all') return data;
+        return data.filter(row => row.Tipo_Servicio === serviceTypeFilter);
+    }, [data, serviceTypeFilter]);
+
+
     const handleSelectAll = (checked: boolean) => {
         const newSelections: Record<string, boolean> = {};
-        data.forEach(row => {
+        filteredData.forEach(row => {
             newSelections[row.CUPS] = checked;
         });
-        setSelectedRows(newSelections);
+        setSelectedRows(prev => ({...prev, ...newSelections}));
     };
 
     const handleSelectRow = (cup: string, checked: boolean) => {
@@ -105,7 +124,6 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
         const numericValue = parseInt(value.replace(/[^0-9]+/g,""), 10) || 0;
         setAdjustedQuantities(prev => ({ ...prev, [cup]: numericValue }));
 
-        // Recalculate 'Valor a Descontar' when quantity changes
         const rowData = data.find(r => r.CUPS === cup);
         if (rowData) {
             const nuevoValorReconocer = numericValue * rowData.Valor_Unitario;
@@ -121,15 +139,16 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
 
     const totalDescuentoAplicado = useMemo(() => {
         return Object.entries(selectedRows).reduce((sum, [cup, isSelected]) => {
-            if (isSelected) {
+            const rowData = data.find(r => r.CUPS === cup);
+            if (isSelected && rowData && (serviceTypeFilter === 'all' || rowData.Tipo_Servicio === serviceTypeFilter)) {
                 return sum + (adjustedValues[cup] || 0);
             }
             return sum;
         }, 0);
-    }, [selectedRows, adjustedValues]);
+    }, [selectedRows, adjustedValues, data, serviceTypeFilter]);
 
 
-    const allSelected = useMemo(() => data.every(row => selectedRows[row.CUPS]), [data, selectedRows]);
+    const allSelected = useMemo(() => filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
     
     if (!data || data.length === 0) {
         return null;
@@ -156,6 +175,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                         />
                     </TableHead>
                     <TableHead>CUPS</TableHead>
+                    <TableHead>Tipo Servicio</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead className="text-center">Cant. Ejecutada</TableHead>
                     <TableHead className="text-center w-32">Cant. Validada</TableHead>
@@ -172,7 +192,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
                     const commentIsRequired = validatedQuantity !== row.Cantidad_Ejecutada;
                     const comment = comments[row.CUPS] || '';
-
+                    const Icon = serviceTypeIcons[row.Tipo_Servicio] || DollarSign;
                     
                     return (
                         <TableRow key={index} className={getRowClass(row.Clasificacion)}>
@@ -183,6 +203,12 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                                />
                             </TableCell>
                             <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                            <TableCell className="text-xs">
+                                <div className="flex items-center gap-2">
+                                    <Icon className="h-4 w-4 text-muted-foreground" />
+                                    <span>{row.Tipo_Servicio}</span>
+                                </div>
+                            </TableCell>
                             <TableCell className="text-xs max-w-[200px] truncate">{row.Descripcion}</TableCell>
                             <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                              <TableCell className="text-center">
@@ -223,6 +249,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
             </TableBody>
         </Table>
     );
+    
+    const serviceTypes: ServiceType[] = ["Consulta", "Procedimiento", "Medicamento", "Otro Servicio"];
 
     return (
         <>
@@ -243,10 +271,31 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                             <p className="text-2xl font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
                         </div>
                     </div>
+                     <div className="flex flex-wrap items-center gap-2 pt-4">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
+                        <Button 
+                            variant={serviceTypeFilter === 'all' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setServiceTypeFilter('all')}
+                        >
+                            Todos
+                        </Button>
+                        {serviceTypes.map(type => (
+                             <Button 
+                                key={type}
+                                variant={serviceTypeFilter === type ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setServiceTypeFilter(type)}
+                            >
+                                {React.createElement(serviceTypeIcons[type], { className: "mr-2 h-4 w-4"})}
+                                {type}s
+                            </Button>
+                        ))}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-72">
-                        {renderTable(data)}
+                        {renderTable(filteredData)}
                     </ScrollArea>
                 </CardContent>
             </Card>
@@ -262,7 +311,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     </DialogHeader>
                     <div className="flex-grow overflow-hidden">
                         <ScrollArea className="h-full">
-                           {renderTable(data)}
+                           {renderTable(filteredData)}
                         </ScrollArea>
                     </div>
                     <DialogFooter>

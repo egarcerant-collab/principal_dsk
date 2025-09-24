@@ -28,7 +28,7 @@ import InformePGP from '../report/InformePGP';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { getNumericValue } from '../app/JsonAnalyzerPage';
 import { findColumnValue } from '@/lib/matriz-helpers';
-import DiscountMatrix, { type DiscountMatrixRow } from './DiscountMatrix';
+import DiscountMatrix, { type DiscountMatrixRow, type ServiceType } from './DiscountMatrix';
 
 
 interface AnalyzePgpDataOutput {
@@ -71,6 +71,7 @@ export interface UnexpectedCupInfo {
     cup: string;
     realFrequency: number;
     totalValue: number;
+    serviceType: ServiceType;
 }
 
 
@@ -421,12 +422,37 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
       const cup = findColumnValue(row, ['cup/cum', 'cups']);
       if(cup) pgpCupsMap.set(cup, row);
   });
+  
+  const cupServiceTypeMap = new Map<string, ServiceType>();
 
   const executedCupsSet = new Set<string>();
   const allExecutionData = new Map<string, { total: number, totalValue: number, uniqueUsers: Set<string> }>();
 
   executionDataByMonth.forEach(monthData => {
-    monthData.cupCounts.forEach((cupData, cup) => {
+    const { cupCounts, rawJsonData } = monthData;
+    
+    const assignServiceType = (services: any[], codeField: string, type: ServiceType) => {
+        if (!services) return;
+        services.forEach(service => {
+            const code = service[codeField];
+            if (code && !cupServiceTypeMap.has(code)) {
+                cupServiceTypeMap.set(code, type);
+            }
+        });
+    };
+
+    if (rawJsonData && rawJsonData.usuarios) {
+        rawJsonData.usuarios.forEach((user: any) => {
+            if (user.servicios) {
+                assignServiceType(user.servicios.consultas, 'codConsulta', 'Consulta');
+                assignServiceType(user.servicios.procedimientos, 'codProcedimiento', 'Procedimiento');
+                assignServiceType(user.servicios.medicamentos, 'codTecnologiaSalud', 'Medicamento');
+                assignServiceType(user.servicios.otrosServicios, 'codTecnologiaSalud', 'Otro Servicio');
+            }
+        });
+    }
+
+    cupCounts.forEach((cupData, cup) => {
         executedCupsSet.add(cup);
         if (!allExecutionData.has(cup)) {
             allExecutionData.set(cup, { total: 0, totalValue: 0, uniqueUsers: new Set<string>() });
@@ -472,6 +498,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
     const totalRealFrequency = execData?.total || 0;
     const totalRealValueFromJSON = execData?.totalValue || 0;
     const totalUniqueUsers = execData?.uniqueUsers.size || 0;
+    const serviceType = cupServiceTypeMap.get(cup) || 'Desconocido';
 
 
     if (pgpRow) {
@@ -504,7 +531,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
                 Valor_Ejecutado: totalValue,
                 Valor_a_Reconocer: valorReconocer,
                 Valor_a_Descontar: totalValue - valorReconocer,
-                Clasificacion: clasificacion
+                Clasificacion: clasificacion,
+                Tipo_Servicio: serviceType
             });
         }
 
@@ -542,6 +570,7 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
         cup,
         realFrequency: totalRealFrequency,
         totalValue: totalRealValueFromJSON,
+        serviceType: serviceType
       });
 
        matrizDescuentos.push({
@@ -552,7 +581,8 @@ const calculateComparison = (pgpData: PgpRow[], executionDataByMonth: ExecutionD
             Valor_Ejecutado: totalRealValueFromJSON,
             Valor_a_Reconocer: 0,
             Valor_a_Descontar: totalRealValueFromJSON,
-            Clasificacion: "Inesperado"
+            Clasificacion: "Inesperado",
+            Tipo_Servicio: serviceType
         });
 
     }
@@ -672,44 +702,46 @@ const MatrizEjecucionCard = ({ matrizData, onCupClick, onCie10Click, executionDa
 
     return (
       <Card>
-        <CardHeader className="flex flex-wrap items-start justify-between gap-4">
-             <div>
-                <CardTitle className="flex items-center">
-                    <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
-                    Matriz Ejecución vs Esperado (mensual)
-                </CardTitle>
-                <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
-                <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
-                    <AlertCircle className="h-3 w-3"/>
-                    Aquí se visualiza lo que se descontará.
-                </p>
-            </div>
-            <div className='flex items-center gap-2'>
-                <Select value={classificationFilter} onValueChange={setClassificationFilter}>
-                    <SelectTrigger className="w-[200px] h-8 text-xs">
-                        <Filter className="h-3 w-3 mr-2" />
-                        <SelectValue placeholder="Filtrar por clasificación..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {classifications.map(c => (
-                            <SelectItem key={c} value={c} className="text-xs">
-                                {c === 'all' ? 'Ver Todos' : c}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadXls(filteredData, `matriz_ejecucion_mensual_${classificationFilter}.xls`);
-                    }}
-                    className="h-8 w-8"
-                    aria-label="Descargar Matriz Mensual"
-                >
-                    <Download className="h-4 w-4" />
-                </Button>
+        <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <CardTitle className="flex items-center">
+                        <TableIcon className="h-6 w-6 mr-3 text-purple-600" />
+                        Matriz Ejecución vs Esperado (mensual)
+                    </CardTitle>
+                    <CardDescription>Análisis mensual detallado por CUPS.</CardDescription>
+                     <p className="text-xs text-yellow-600 flex items-center gap-1 mt-1">
+                        <AlertCircle className="h-3 w-3"/>
+                        Aquí se visualiza lo que se descontará.
+                    </p>
+                </div>
+                <div className='flex items-center gap-2'>
+                    <Select value={classificationFilter} onValueChange={setClassificationFilter}>
+                        <SelectTrigger className="w-[200px] h-8 text-xs">
+                            <Filter className="h-3 w-3 mr-2" />
+                            <SelectValue placeholder="Filtrar por clasificación..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {classifications.map(c => (
+                                <SelectItem key={c} value={c} className="text-xs">
+                                    {c === 'all' ? 'Ver Todos' : c}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadXls(filteredData, `matriz_ejecucion_mensual_${classificationFilter}.xls`);
+                        }}
+                        className="h-8 w-8"
+                        aria-label="Descargar Matriz Mensual"
+                    >
+                        <Download className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -1089,4 +1121,3 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
 export default PgPsearchForm;
 
-  
