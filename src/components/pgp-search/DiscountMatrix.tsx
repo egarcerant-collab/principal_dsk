@@ -54,16 +54,24 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
+    const [adjustedQuantities, setAdjustedQuantities] = useState<Record<string, number>>({});
 
     useEffect(() => {
-        // Inicializar todas las filas como seleccionadas y sus valores ajustados con el valor original a descontar
         const initialSelections: Record<string, boolean> = {};
         const initialValues: Record<string, number> = {};
+        const initialQuantities: Record<string, number> = {};
+        
         data.forEach(row => {
+            const valorReconocerInicial = row.Clasificacion === 'Sobre-ejecutado' ? row.Valor_a_Reconocer : row.Valor_Ejecutado;
+            const valorDescontarInicial = row.Valor_Ejecutado - valorReconocerInicial;
+
             initialSelections[row.CUPS] = true;
-            initialValues[row.CUPS] = row.Valor_a_Descontar;
+            initialQuantities[row.CUPS] = row.Cantidad_Ejecutada;
+            initialValues[row.CUPS] = valorDescontarInicial;
         });
+
         setSelectedRows(initialSelections);
+        setAdjustedQuantities(initialQuantities);
         setAdjustedValues(initialValues);
     }, [data]);
 
@@ -79,9 +87,22 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
         setSelectedRows(prev => ({ ...prev, [cup]: checked }));
     };
     
-    const handleValueChange = (cup: string, value: string) => {
+    const handleDiscountValueChange = (cup: string, value: string) => {
         const numericValue = parseFloat(value.replace(/[^0-9.-]+/g,"")) || 0;
         setAdjustedValues(prev => ({...prev, [cup]: numericValue }));
+    };
+
+    const handleQuantityChange = (cup: string, value: string) => {
+        const numericValue = parseInt(value.replace(/[^0-9]+/g,""), 10) || 0;
+        setAdjustedQuantities(prev => ({ ...prev, [cup]: numericValue }));
+
+        // Recalculate 'Valor a Descontar' when quantity changes
+        const rowData = data.find(r => r.CUPS === cup);
+        if (rowData) {
+            const nuevoValorReconocer = numericValue * rowData.Valor_Unitario;
+            const nuevoValorADescontar = rowData.Valor_Ejecutado - nuevoValorReconocer;
+            setAdjustedValues(prev => ({...prev, [cup]: nuevoValorADescontar}));
+        }
     };
 
 
@@ -96,9 +117,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
 
 
     const allSelected = useMemo(() => data.every(row => selectedRows[row.CUPS]), [data, selectedRows]);
-    const someSelected = useMemo(() => data.some(row => selectedRows[row.CUPS]), [data, selectedRows]);
-
-
+    
     if (!data || data.length === 0) {
         return null;
     }
@@ -112,7 +131,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
         }
     };
     
-    const renderTable = (tableData: DiscountMatrixRow[], inModal: boolean = false) => (
+    const renderTable = (tableData: DiscountMatrixRow[]) => (
         <Table>
             <TableHeader>
                 <TableRow>
@@ -126,35 +145,49 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     <TableHead>CUPS</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead className="text-center">Cant. Ejecutada</TableHead>
+                    <TableHead className="text-center w-32">Cant. Validada</TableHead>
                     <TableHead className="text-right">Valor Ejecutado</TableHead>
                     <TableHead className="text-right">Valor a Reconocer</TableHead>
                     <TableHead className="text-right text-red-500 font-bold w-48">Valor a Descontar</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {tableData.map((row, index) => (
-                    <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                        <TableCell>
-                           <Checkbox 
-                                checked={selectedRows[row.CUPS] || false}
-                                onCheckedChange={(checked) => handleSelectRow(row.CUPS, Boolean(checked))}
-                           />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
-                        <TableCell className="text-xs max-w-[200px] truncate">{row.Descripcion}</TableCell>
-                        <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.Valor_Ejecutado)}</TableCell>
-                        <TableCell className="text-right text-green-600">{formatCurrency(row.Valor_a_Reconocer)}</TableCell>
-                        <TableCell className="text-right font-bold text-red-600">
-                             <Input
-                                type="text"
-                                value={new Intl.NumberFormat('es-CO').format(adjustedValues[row.CUPS] || 0)}
-                                onChange={(e) => handleValueChange(row.CUPS, e.target.value)}
-                                className="h-8 text-right border-red-200 focus:border-red-500 focus:ring-red-500"
-                            />
-                        </TableCell>
-                    </TableRow>
-                ))}
+                {tableData.map((row, index) => {
+                    const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
+                    const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
+                    
+                    return (
+                        <TableRow key={index} className={getRowClass(row.Clasificacion)}>
+                            <TableCell>
+                               <Checkbox 
+                                    checked={selectedRows[row.CUPS] || false}
+                                    onCheckedChange={(checked) => handleSelectRow(row.CUPS, Boolean(checked))}
+                               />
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{row.CUPS}</TableCell>
+                            <TableCell className="text-xs max-w-[200px] truncate">{row.Descripcion}</TableCell>
+                            <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
+                             <TableCell className="text-center">
+                                <Input
+                                    type="text"
+                                    value={new Intl.NumberFormat('es-CO').format(validatedQuantity)}
+                                    onChange={(e) => handleQuantityChange(row.CUPS, e.target.value)}
+                                    className="h-8 text-center border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.Valor_Ejecutado)}</TableCell>
+                            <TableCell className="text-right text-green-600">{formatCurrency(recalculatedValorReconocer)}</TableCell>
+                            <TableCell className="text-right font-bold text-red-600">
+                                 <Input
+                                    type="text"
+                                    value={new Intl.NumberFormat('es-CO').format(adjustedValues[row.CUPS] || 0)}
+                                    onChange={(e) => handleDiscountValueChange(row.CUPS, e.target.value)}
+                                    className="h-8 text-right border-red-200 focus:border-red-500 focus:ring-red-500"
+                                />
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
             </TableBody>
         </Table>
     );
@@ -197,13 +230,19 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
                     </DialogHeader>
                     <div className="flex-grow overflow-hidden">
                         <ScrollArea className="h-full">
-                           {renderTable(data, true)}
+                           {renderTable(data)}
                         </ScrollArea>
                     </div>
                     <DialogFooter>
                         <Button 
                             variant="secondary"
-                            onClick={() => handleDownloadXls(data.map(r => ({...r, Valor_a_Descontar: adjustedValues[r.CUPS] || 0, Seleccionado: selectedRows[r.CUPS] || false })), 'matriz_descuentos_ajustada.xls')}
+                            onClick={() => handleDownloadXls(data.map(r => ({
+                                ...r, 
+                                Cantidad_Validada: adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada,
+                                Valor_a_Reconocer_Ajustado: (adjustedQuantities[r.CUPS] ?? r.Cantidad_Ejecutada) * r.Valor_Unitario,
+                                Valor_a_Descontar_Ajustado: adjustedValues[r.CUPS] || 0, 
+                                Seleccionado: selectedRows[r.CUPS] || false 
+                            })), 'matriz_descuentos_ajustada.xls')}
                         >
                             <FileDown className="mr-2 h-4 w-4" />
                             Descargar
@@ -217,5 +256,3 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data }) => {
 };
 
 export default DiscountMatrix;
-
-    
