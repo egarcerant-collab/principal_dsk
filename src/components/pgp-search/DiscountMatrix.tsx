@@ -200,7 +200,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
     const valorNeto = totalEjecucion - totalDescuentoAplicado;
 
 
-    const allSelected = useMemo(() => filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
+    const allSelected = useMemo(() => filteredData.length > 0 && filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
     
     if (!data || data.length === 0) {
         return null;
@@ -419,5 +419,3 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
 };
 
 export default DiscountMatrix;
-
-    
