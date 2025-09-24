@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -201,7 +200,7 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                 <div className="flex-grow overflow-hidden">
                     <ScrollArea className="h-full pr-6">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background/95">
+                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
                                 <TableRow>
                                     <TableHead>Tipo Servicio</TableHead>
                                     <TableHead>ID Usuario</TableHead>
@@ -630,3 +629,6 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
 
     
 
+
+
+    
