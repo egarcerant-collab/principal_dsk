@@ -1095,7 +1095,11 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
                     executionDataByMonth={executionDataByMonth}
                 />
                 <MatrizEjecucionCard matrizData={comparisonSummary.Matriz_Ejecucion_vs_Esperado} onCupClick={handleLookupClick} onCie10Click={handleCie10Lookup} executionDataByMonth={executionDataByMonth} />
-                <DiscountMatrix data={comparisonSummary.matrizDescuentos} executionDataByMonth={executionDataByMonth} />
+                <DiscountMatrix
+                  data={comparisonSummary.matrizDescuentos}
+                  executionDataByMonth={executionDataByMonth}
+                  totalEjecucion={totalRealEjecutadoJson}
+                />
                 {reportData && <InformePGP data={reportData} />}
               </>
             )}
@@ -1133,5 +1137,7 @@ const PgPsearchForm: React.FC<PgPsearchFormProps> = ({ executionDataByMonth, jso
 
 export default PgPsearchForm;
 
+
+    
 
     

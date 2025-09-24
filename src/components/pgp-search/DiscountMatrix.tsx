@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -6,15 +7,16 @@ import Papa from 'papaparse';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe } from "lucide-react";
+import { FileDown, DollarSign, Filter, Stethoscope, Microscope, Pill, Syringe, WalletCards, TrendingDown, CheckCircle } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { formatCurrency, type DeviatedCupInfo } from './PgPsearchForm';
+import { formatCurrency } from './PgPsearchForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ExecutionDataByMonth } from '@/app/page';
 import { CupDetailsModal } from '../report/InformeDesviaciones';
+import type { DeviatedCupInfo } from './PgPsearchForm';
 
 
 export type ServiceType = "Consulta" | "Procedimiento" | "Medicamento" | "Otro Servicio" | "Desconocido";
@@ -46,6 +48,8 @@ export interface DiscountMatrixRow {
 interface DiscountMatrixProps {
   data: DiscountMatrixRow[];
   executionDataByMonth: ExecutionDataByMonth;
+  pgpData: any[]; // PgpRow[]
+  totalEjecucion: number;
 }
 
 const handleDownloadXls = (data: any[], filename: string) => {
@@ -79,7 +83,7 @@ const serviceTypeIcons: Record<ServiceType, React.ElementType> = {
 };
 
 
-const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMonth }) => {
+const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMonth, pgpData, totalEjecucion }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
     const [adjustedValues, setAdjustedValues] = useState<Record<string, number>>({});
@@ -193,6 +197,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
             return sum;
         }, 0);
     }, [selectedRows, adjustedValues, data, serviceTypeFilter]);
+    
+    const valorNeto = totalEjecucion - totalDescuentoAplicado;
 
 
     const allSelected = useMemo(() => filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
@@ -317,9 +323,19 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                Análisis financiero interactivo para calcular los descuentos por sobre-ejecución e imprevistos.
                             </CardDescription>
                         </div>
-                        <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Descuento Total APLICADO</p>
-                            <p className="text-2xl font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right">
+                             <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
+                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Ejecutado Total (JSON)</p>
+                                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEjecucion)}</p>
+                            </div>
+                             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
+                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Total APLICADO</p>
+                                <p className="text-lg font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
+                            </div>
+                             <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200">
+                                <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><CheckCircle className="h-4 w-4"/> Valor Neto POST-Descuento</p>
+                                <p className="text-lg font-bold text-green-600">{formatCurrency(valorNeto)}</p>
+                            </div>
                         </div>
                     </div>
                      <div className="flex flex-wrap items-center gap-2 pt-4">
@@ -356,7 +372,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                     <DialogHeader>
                         <DialogTitle>Matriz de Descuentos (Análisis de Valor)</DialogTitle>
                          <div className="text-right text-lg">
-                            <span className="text-muted-foreground">Descuento Total APLICADO: </span>
+                            <span className="text-muted-foreground">Descuento Total APLICADO: </span> 
                             <span className="font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</span>
                         </div>
                     </DialogHeader>
@@ -397,6 +413,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                 open={isCupModalOpen}
                 onOpenChange={setIsCupModalOpen}
                 executionDetails={executionDetails}
+                pgpData={pgpData}
             />
         </>
     );
