@@ -175,7 +175,7 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
 
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
-            <AlertDialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+            <AlertDialogContent className="sm:max-w-4xl h-[90vh] flex flex-col">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Ejecuciones Detalladas del CUPS: <span className="font-mono">{cup.cup}</span></AlertDialogTitle>
                     <AlertDialogDescription>
@@ -183,24 +183,24 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 
-                {/* Panel de Resumen Estadístico */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 p-4 bg-muted/50 rounded-lg">
-                    <SummaryStat label="Valor Unitario (NT)" value={formatCurrency(cup.unitValueFromNote ?? 0)} className="text-purple-600" />
-                    <SummaryStat label="Frecuencia Real" value={cup.realFrequency} className="text-blue-600" />
-                    <SummaryStat label="Frecuencia Esperada" value={cup.expectedFrequency.toFixed(0)} />
-                    <SummaryStat label="Usuarios Únicos" value={cup.uniqueUsers} />
-                    <SummaryStat label="Atenciones Repetidas" value={cup.repeatedAttentions} className="text-orange-600" />
-                    <SummaryStat label="Desviación (Cantidad)" value={cup.deviation.toFixed(0)} className={cup.deviation > 0 ? "text-red-600" : "text-green-600"} />
-                    <SummaryStat label="Desviación (Valor)" value={formatCurrency(cup.deviationValue)} className={cup.deviationValue > 0 ? "text-red-600" : "text-green-600"} />
-                    <SummaryStat label=">1 Atención Mismo Día (Usuarios)" value={cup.sameDayDetections} className="text-red-600" />
-                    <SummaryStat label="Costo Repetición Mismo Día" value={formatCurrency(cup.sameDayDetectionsCost)} className="text-red-600 font-bold" />
-                </div>
+                <div className="flex-grow overflow-y-auto pr-6">
+                    {/* Panel de Resumen Estadístico */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 p-4 bg-muted/50 rounded-lg">
+                        <SummaryStat label="Valor Unitario (NT)" value={formatCurrency(cup.unitValueFromNote ?? 0)} className="text-purple-600" />
+                        <SummaryStat label="Frecuencia Real" value={cup.realFrequency} className="text-blue-600" />
+                        <SummaryStat label="Frecuencia Esperada" value={cup.expectedFrequency.toFixed(0)} />
+                        <SummaryStat label="Usuarios Únicos" value={cup.uniqueUsers} />
+                        <SummaryStat label="Atenciones Repetidas" value={cup.repeatedAttentions} className="text-orange-600" />
+                        <SummaryStat label="Desviación (Cantidad)" value={cup.deviation.toFixed(0)} className={cup.deviation > 0 ? "text-red-600" : "text-green-600"} />
+                        <SummaryStat label="Desviación (Valor)" value={formatCurrency(cup.deviationValue)} className={cup.deviationValue > 0 ? "text-red-600" : "text-green-600"} />
+                        <SummaryStat label=">1 Atención Mismo Día (Usuarios)" value={cup.sameDayDetections} className="text-red-600" />
+                        <SummaryStat label="Costo Repetición Mismo Día" value={formatCurrency(cup.sameDayDetectionsCost)} className="text-red-600 font-bold" />
+                    </div>
 
-                {/* Tabla de Detalle de Ejecuciones */}
-                <div className="flex-grow overflow-hidden">
-                    <ScrollArea className="h-full pr-6">
+                    {/* Tabla de Detalle de Ejecuciones */}
+                    <div className="mt-4">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                            <TableHeader>
                                 <TableRow>
                                     <TableHead>Tipo Servicio</TableHead>
                                     <TableHead>ID Usuario</TableHead>
@@ -221,9 +221,9 @@ export const CupDetailsModal = ({ open, onOpenChange, cup, executionDetails }: {
                                 ))}
                             </TableBody>
                         </Table>
-                    </ScrollArea>
+                    </div>
                 </div>
-                <AlertDialogFooter>
+                <AlertDialogFooter className="pt-4 flex-shrink-0">
                     <Button variant="secondary" onClick={handleDownloadDetails}>
                         <Download className="mr-2 h-4 w-4" />
                         Descargar Detalle
@@ -624,11 +624,3 @@ export default function InformeDesviaciones({ comparisonSummary, pgpData, execut
         </div>
     );
 }
-
-    
-
-    
-
-
-
-    
