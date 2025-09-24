@@ -282,22 +282,22 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
     };
 
     const totalEjecutado = useMemo(() => {
-      return data.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
+        return data.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
     }, [data]);
     
-    const totalDescuentoAplicado = useMemo(() => {
-        return filteredData.reduce((sum, row) => {
+    const descuentoAplicado = useMemo(() => {
+        return data.reduce((sum, row) => {
             if (selectedRows[row.CUPS]) {
-                 const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
-                 const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
-                 const discountValue = row.Valor_Ejecutado - recalculatedValorReconocer;
-                 return sum + (discountValue > 0 ? discountValue : 0);
+                const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
+                const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
+                const discountValue = row.Valor_Ejecutado - recalculatedValorReconocer;
+                return sum + (discountValue > 0 ? discountValue : 0);
             }
             return sum;
         }, 0);
-    }, [selectedRows, adjustedQuantities, filteredData]);
-    
-    const valorNeto = totalEjecutado - totalDescuentoAplicado;
+    }, [data, selectedRows, adjustedQuantities]);
+
+    const valorNetoFinal = useMemo(() => totalEjecutado - descuentoAplicado, [totalEjecutado, descuentoAplicado]);
 
 
     const allSelected = useMemo(() => filteredData.length > 0 && filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
@@ -343,22 +343,22 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead className="w-12">
+                    <TableHead className="w-12 px-2">
                         <Checkbox 
                             checked={allSelected} 
                             onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
                             aria-label="Seleccionar todo"
                         />
                     </TableHead>
-                    <TableHead>CUPS</TableHead>
+                    <TableHead className="w-28">CUPS</TableHead>
                     <TableHead>Tipo Servicio</TableHead>
-                    <TableHead>Descripción</TableHead>
+                    <TableHead className="max-w-[150px]">Descripción</TableHead>
                     <TableHead className="text-center">Cant. Esperada</TableHead>
                     <TableHead className="text-center">Cant. Ejecutada</TableHead>
                     <TableHead className="text-center w-32">Cant. Validada</TableHead>
                     <TableHead className="text-right">Valor Ejecutado</TableHead>
                     <TableHead className="text-right">Valor a Reconocer</TableHead>
-                    <TableHead className="text-right text-red-500 font-bold w-48">Valor a Descontar</TableHead>
+                    <TableHead className="text-right text-red-500 font-bold w-40">Valor a Descontar</TableHead>
                     <TableHead className="w-24 text-center">Glosa</TableHead>
 
                 </TableRow>
@@ -376,7 +376,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                     
                     return (
                         <TableRow key={index} className={getRowClass(row.Clasificacion)}>
-                            <TableCell>
+                            <TableCell className="px-2">
                                <Checkbox 
                                     checked={selectedRows[row.CUPS] || false}
                                     onCheckedChange={(checked) => handleSelectRow(row.CUPS, Boolean(checked))}
@@ -393,7 +393,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                                     <span>{row.Tipo_Servicio}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="text-xs max-w-[200px] truncate">{row.Descripcion}</TableCell>
+                            <TableCell className="text-xs max-w-[150px] truncate" title={row.Descripcion}>{row.Descripcion}</TableCell>
                             <TableCell className="text-center">{row.expectedFrequency}</TableCell>
                             <TableCell className="text-center">{row.Cantidad_Ejecutada}</TableCell>
                              <TableCell className="text-center">
@@ -481,11 +481,11 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                         </div>
                         <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
                             <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Aplicado</p>
-                            <p className="text-lg font-bold text-red-500">{formatCurrency(totalDescuentoAplicado)}</p>
+                            <p className="text-lg font-bold text-red-500">{formatCurrency(descuentoAplicado)}</p>
                         </div>
                         <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200">
                             <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><CheckCircle className="h-4 w-4"/> Valor Neto Final</p>
-                            <p className="text-lg font-bold text-green-600">{formatCurrency(valorNeto)}</p>
+                            <p className="text-lg font-bold text-green-600">{formatCurrency(valorNetoFinal)}</p>
                         </div>
                     </div>
                      <div className="flex flex-wrap items-center gap-2 pt-4">
@@ -541,4 +541,5 @@ export default DiscountMatrix;
     
 
     
+
 
