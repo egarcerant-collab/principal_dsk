@@ -2,12 +2,12 @@
 
 "use client";
 
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import html2canvas from "html2canvas";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud, X, BarChart2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { FileText, TrendingUp, Info, Activity, Stamp, Loader2, DownloadCloud, X, BarChart2, Edit } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import {
   BarChart,
   Bar,
@@ -25,6 +25,8 @@ import { descargarInformePDF, type InformeDatos, generarURLInformePDF } from "@/
 import type { DeviatedCupInfo, ComparisonSummary, UnexpectedCupInfo, AdjustedData } from "@/components/pgp-search/PgPsearchForm";
 import { generateReportAnalysis } from "@/ai/flows/generate-report-analysis-flow";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
 
 // ======= Tipos =======
 export interface MonthExecution {
@@ -85,6 +87,8 @@ interface ReportAnalysisInput {
     // Nuevos campos para un análisis más preciso
     valorNetoFinal: number; 
     descuentoAplicado: number;
+    additionalConclusions?: string;
+    additionalRecommendations?: string;
 }
 
 interface ReportAnalysisOutput {
@@ -93,6 +97,77 @@ interface ReportAnalysisOutput {
   deviationAnalysis: string;
   clinicalAnalysis: string;
 }
+
+const EditableTextsModal = ({
+    open,
+    onOpenChange,
+    onSave,
+    initialConclusions,
+    initialRecommendations,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSave: (conclusions: string, recommendations: string) => void;
+    initialConclusions: string;
+    initialRecommendations: string;
+}) => {
+    const [conclusions, setConclusions] = useState(initialConclusions);
+    const [recommendations, setRecommendations] = useState(initialRecommendations);
+
+    useEffect(() => {
+        if(open) {
+            setConclusions(initialConclusions);
+            setRecommendations(initialRecommendations);
+        }
+    }, [open, initialConclusions, initialRecommendations]);
+
+    const handleSave = () => {
+        onSave(conclusions, recommendations);
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Editar Conclusiones y Recomendaciones</DialogTitle>
+                    <DialogDescription>
+                        Añade o modifica el análisis final que aparecerá en el informe PDF.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="conclusions-text">Conclusiones Adicionales</Label>
+                        <Textarea
+                            id="conclusions-text"
+                            value={conclusions}
+                            onChange={(e) => setConclusions(e.target.value)}
+                            placeholder="Escribe tus conclusiones finales aquí..."
+                            className="min-h-[150px]"
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="recommendations-text">Recomendaciones Adicionales</Label>
+                        <Textarea
+                            id="recommendations-text"
+                            value={recommendations}
+                            onChange={(e) => setRecommendations(e.target.value)}
+                            placeholder="Escribe tus recomendaciones finales aquí..."
+                            className="min-h-[150px]"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={handleSave}>Guardar Textos</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 // ======= Utilidades =======
 const formatCOP = (n: number) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
@@ -119,6 +194,9 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
+  const [conclusions, setConclusions] = useState("");
+  const [recommendations, setRecommendations] = useState("");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const financialChartRef = useRef<HTMLDivElement>(null);
   const cupsChartRef = useRef<HTMLDivElement>(null);
@@ -128,37 +206,28 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const sumaMensual = useMemo(() => data?.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0, [data?.months]);
   const totalCups = useMemo(() => data?.months.reduce((a, m) => a + m.cups, 0) ?? 0, [data?.months]);
   
-  const valorReconocidoTotal = useMemo(() => {
-    if (!data || !data.adjustedData || !data.overExecutedCups) return sumaMensual;
-    
-    // Suma el valor original de todos los CUPS que NO están en sobre-ejecución
-    const allOverExecutedCups = new Set(data.overExecutedCups.map(c => c.cup));
-    const unexpectedCupsValue = (data.unexpectedCups || []).reduce((sum, cup) => sum + cup.totalValue, 0);
-
-    let totalOtrosCups = 0;
-    if (data.months) {
-        // This is tricky. We need to sum values from JSON for cups not in over-execution.
-        // A simpler way is to take the grand total and subtract the over-executed and unexpected ones.
-        totalOtrosCups = sumaMensual - (data.overExecutedCups.reduce((s, c) => s + c.totalValue, 0)) - unexpectedCupsValue;
-    }
-
-    // Suma el valor RECONOCIDO (ajustado) solo para los CUPS sobre-ejecutados
-    const valorReconocidoOverExecuted = data.overExecutedCups.reduce((sum, cup) => {
-        const validatedQuantity = data.adjustedData?.adjustedQuantities[cup.cup] ?? cup.realFrequency;
-        const unitValue = cup.totalValue / cup.realFrequency; // Approximate unit value
-        return sum + (validatedQuantity * (isFinite(unitValue) ? unitValue : 0));
-    }, 0);
-
-    return totalOtrosCups + valorReconocidoOverExecuted;
-
-  }, [data, sumaMensual]);
-  
   const descuentoAplicadoTotal = useMemo(() => {
     if (!data || !data.adjustedData) return 0;
     return Object.values(data.adjustedData.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
   }, [data]);
+  
+  const valorReconocidoTotal = useMemo(() => {
+      if (!data || !data.adjustedData) return sumaMensual;
+      
+      const totalEjecutadoOriginal = data.overExecutedCups?.reduce((sum, cup) => sum + cup.totalValue, 0) || 0;
+      const totalDescuentoSobreEjecucion = Object.values(data.adjustedData?.adjustedValues || {}).reduce((sum, val) => sum + val, 0);
+      
+      return totalEjecutadoOriginal - totalDescuentoSobreEjecucion;
 
-  const valorNetoFinalAuditoria = valorReconocidoTotal - descuentoAplicadoTotal;
+  }, [data, sumaMensual]);
+
+  const valorNetoFinalAuditoria = useMemo(() => {
+     if (!data) return 0;
+     const valorEjecutadoTotal = data.months.reduce((acc, m) => acc + m.valueCOP, 0) ?? 0;
+     const descuentoTotal = Object.values(data.adjustedData?.adjustedValues ?? {}).reduce((sum, val) => sum + val, 0);
+     return valorEjecutadoTotal - descuentoTotal;
+  }, [data]);
+
 
   const diffVsNota = useMemo(() => valorNetoFinalAuditoria - (data?.notaTecnica?.valor3m || 0), [data?.notaTecnica?.valor3m, valorNetoFinalAuditoria]);
   
@@ -194,7 +263,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
   const cupsData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, CUPS: m.cups })) ?? [], [data?.months]);
   const unitData = useMemo(() => data?.months.map((m) => ({ Mes: m.month, Unit: m.cups > 0 ? m.valueCOP / m.cups : 0, Promedio: unitAvg })) ?? [], [data?.months, unitAvg]);
 
-  const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput): InformeDatos => {
+  const getInformeData = (reportData: ReportData, charts: { [key: string]: string }, analysisTexts: ReportAnalysisOutput, auditorConclusions: string, auditorRecommendations: string): InformeDatos => {
     const valorNotaTecnica = reportData.notaTecnica?.valor3m || 0;
     const porcentajeEjecucion = valorNotaTecnica > 0 ? (valorNetoFinalAuditoria / valorNotaTecnica) * 100 : 0;
     const periodoAnalizado = reportTitle.split('–')[1]?.trim() || 'Periodo Analizado';
@@ -202,7 +271,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
     const kpis = [
         { label: 'Nota Técnica (Presupuesto)', value: formatCOP(valorNotaTecnica) },
-        { label: 'Valor Reconocido Total (Auditoría)', value: formatCOP(valorReconocidoTotal) },
+        { label: 'Valor Ejecutado (Bruto)', value: formatCOP(sumaMensual) },
         { label: 'Descuento Aplicado (Auditoría)', value: formatCOP(descuentoAplicadoTotal), color: 'red' },
         { label: 'Valor Final a Pagar (Post-Auditoría)', value: formatCOP(valorNetoFinalAuditoria), bold: true },
         { label: 'Diferencia vs. Presupuesto', value: formatCOP(diffVsNota) },
@@ -277,6 +346,8 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         topOverExecuted,
         topUnexpected,
         ajustesGlosas: adjustmentsForPdf,
+        auditorConclusions: auditorConclusions,
+        auditorRecommendations: auditorRecommendations,
         ciudad: reportData.header.ciudad ?? '',
         fecha: reportData.header.fecha ?? '',
         firmas: [
@@ -317,7 +388,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             .filter(Boolean);
 
         const analysisInput: ReportAnalysisInput = {
-            sumaMensual: sumaMensual, // Valor bruto antes de ajustes
+            sumaMensual,
             valorNotaTecnica,
             diffVsNota,
             porcentajeEjecucion,
@@ -330,9 +401,10 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             missingCups: data.missingCups ?? [],
             unexpectedCups: data.unexpectedCups ?? [],
             adjustedOverExecutedCupsWithComments: adjustedOverExecutedCupsWithComments,
-            // Valores finales para el análisis de IA
             valorNetoFinal: valorNetoFinalAuditoria,
             descuentoAplicado: descuentoAplicadoTotal,
+            additionalConclusions: conclusions,
+            additionalRecommendations: recommendations,
         };
 
         const analysisTexts = await generateReportAnalysis(analysisInput);
@@ -343,7 +415,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
 
         const getChartImage = async (ref: React.RefObject<HTMLDivElement>) => {
             if (ref.current) {
-                const canvas = await html2canvas(ref.current, { backgroundColor: null, scale: 2 });
+                const canvas = await html2canvas(ref.current, { backgroundColor: '#FFFFFF', scale: 2 });
                 return canvas.toDataURL('image/png');
             }
             return '';
@@ -355,7 +427,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             unit: await getChartImage(unitChartRef),
         };
 
-        const informeData = getInformeData(data, chartImages, analysisTexts);
+        const informeData = getInformeData(data, chartImages, analysisTexts, conclusions, recommendations);
         
         if(action === 'preview') {
             const url = await generarURLInformePDF(informeData, backgroundImage);
@@ -383,8 +455,15 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
       <Card>
         <CardHeader>
           <CardTitle>Generación de Informe Ejecutivo PDF</CardTitle>
+           <CardDescription>
+                Genera un informe PDF completo con análisis de IA y tus conclusiones personalizadas.
+            </CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center">
+        <CardContent className="flex flex-col items-center gap-4">
+             <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar Conclusiones y Recomendaciones
+            </Button>
             <Button variant="default" onClick={() => handleGeneratePdf('preview')} disabled={isGeneratingPdf}>
                 {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin"/> : <DownloadCloud className="h-4 w-4 mr-1"/>}
                 Generar Informe PDF
@@ -413,9 +492,21 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
         </DialogContent>
       </Dialog>
       
+      <EditableTextsModal
+            open={isEditModalOpen}
+            onOpenChange={setIsEditModalOpen}
+            initialConclusions={conclusions}
+            initialRecommendations={recommendations}
+            onSave={(newConclusions, newRecommendations) => {
+                setConclusions(newConclusions);
+                setRecommendations(newRecommendations);
+            }}
+        />
+      
       {/* Hidden container for rendering charts for PDF */}
-      <div className="absolute -left-[9999px] top-0 w-[600px] space-y-8 bg-background p-4">
+      <div className="absolute -left-[9999px] top-0 w-[600px] space-y-8 bg-white p-4">
           <section ref={financialChartRef}>
+             <h3 className="text-center font-semibold text-sm mb-2">Ejecución Financiera Mensual</h3>
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -429,6 +520,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             </div>
           </section>
            <section ref={cupsChartRef}>
+            <h3 className="text-center font-semibold text-sm mb-2">Volumen de CUPS Mensual</h3>
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={cupsData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -442,6 +534,7 @@ export default function InformePGP({ data }: { data?: ReportData | null }) {
             </div>
           </section>
           <section ref={unitChartRef}>
+           <h3 className="text-center font-semibold text-sm mb-2">Costo Unitario Promedio</h3>
             <div className="h-60">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={unitData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>

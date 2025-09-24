@@ -41,6 +41,8 @@ export interface InformeDatos {
         adjustmentValue: number;
         comment: string;
     }[];
+    auditorConclusions?: string;
+    auditorRecommendations?: string;
     ciudad: string;
     fecha: string;
     firmas: { nombre: string; cargo: string; }[];
@@ -92,7 +94,7 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
             { text: 'OBJETIVOS', style: 'h2' },
             { ul: data.objetivos.map(o => ({ text: o, style: 'p' })) },
 
-            { text: 'INDICADORES CLAVE (KPIs)', style: 'h2' },
+            { text: 'INDICADORES CLAVE (KPIs) POST-AUDITORÍA', style: 'h2' },
             {
                 table: {
                     widths: ['*', 'auto'],
@@ -230,6 +232,23 @@ function buildDocDefinition(data: InformeDatos, backgroundImageBase64: string): 
             },
             layout: 'lightHorizontalLines'
         });
+    }
+
+    // CONCLUSIONES Y RECOMENDACIONES DEL AUDITOR
+    if (data.auditorConclusions || data.auditorRecommendations) {
+        (docDefinition.content as Content[]).push({
+            text: 'CONCLUSIONES Y RECOMENDACIONES DE LA AUDITORÍA',
+            style: 'h2',
+            pageBreak: 'before',
+        });
+        if (data.auditorConclusions) {
+            (docDefinition.content as Content[]).push({ text: 'Conclusiones', style: 'h2', fontSize: 11, margin: [0, 5, 0, 5] });
+            (docDefinition.content as Content[]).push({ text: data.auditorConclusions, style: 'p' });
+        }
+        if (data.auditorRecommendations) {
+            (docDefinition.content as Content[]).push({ text: 'Recomendaciones', style: 'h2', fontSize: 11, margin: [0, 10, 0, 5] });
+            (docDefinition.content as Content[]).push({ text: data.auditorRecommendations, style: 'p' });
+        }
     }
 
 
