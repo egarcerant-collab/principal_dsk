@@ -25,6 +25,8 @@ const ReportAnalysisInputSchema = z.object({
     adjustedOverExecutedCupsWithComments: z.array(z.any()).optional().describe("Una lista de CUPS sobre-ejecutados que han sido ajustados manualmente y tienen comentarios de glosa. La IA debe usar estos comentarios para enriquecer el análisis clínico."),
     valorNetoFinal: z.number().describe("El valor final a pagar al prestador después de aplicar todos los descuentos y ajustes de la auditoría. Este es el número más importante."),
     descuentoAplicado: z.number().describe("El monto total descontado durante el proceso de auditoría."),
+    additionalConclusions: z.string().optional().describe("Conclusiones adicionales escritas por el auditor para ser incluidas o consideradas en el informe."),
+    additionalRecommendations: z.string().optional().describe("Recomendaciones adicionales escritas por el auditor para ser incluidas o consideradas en el informe."),
 });
 
 const ReportAnalysisOutputSchema = z.object({
@@ -66,6 +68,17 @@ const prompt = ai.definePrompt({
   - CUPS Faltantes (No ejecutados): {{{json missingCups}}}
   - CUPS Inesperados: {{{json unexpectedCups}}}
   - Glosas y Ajustes Manuales en CUPS sobre-ejecutados: {{{json adjustedOverExecutedCupsWithComments}}}
+  
+  {{#if additionalConclusions}}
+  Conclusiones Adicionales del Auditor (Considerar para el tono y enfoque del análisis):
+  {{{additionalConclusions}}}
+  {{/if}}
+
+  {{#if additionalRecommendations}}
+  Recomendaciones Adicionales del Auditor (Considerar para el tono y enfoque del análisis):
+  {{{additionalRecommendations}}}
+  {{/if}}
+
 
   Genera los siguientes cuatro bloques de texto en el formato JSON especificado:
 
@@ -121,6 +134,3 @@ const generateReportAnalysisFlow = ai.defineFlow(
     }
   }
 );
-
-
-
