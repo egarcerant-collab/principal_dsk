@@ -290,23 +290,31 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
       }
     };
 
-    const totalEjecutado = useMemo(() => {
-        return data.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
-    }, [data]);
+    const totalEjecutadoBruto = useMemo(() => {
+        return filteredData.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
+    }, [filteredData]);
     
-    const descuentoAplicado = useMemo(() => {
-        return data.reduce((sum, row) => {
-            if (selectedRows[row.CUPS]) {
-                const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
-                const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
-                const discountValue = row.Valor_Ejecutado - recalculatedValorReconocer;
-                return sum + (discountValue > 0 ? discountValue : 0);
-            }
-            return sum;
-        }, 0);
-    }, [data, selectedRows, adjustedQuantities]);
+    const totalEjecutadoAjustado = useMemo(() => {
+      return filteredData.reduce((sum, row) => {
+        const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
+        return sum + validatedQuantity * row.Valor_Unitario;
+      }, 0);
+    }, [filteredData, adjustedQuantities]);
 
-    const valorNetoFinal = useMemo(() => totalEjecutado - descuentoAplicado, [totalEjecutado, descuentoAplicado]);
+    const descuentoAplicado = useMemo(() => {
+      const totalDiscount = filteredData.reduce((sum, row) => {
+        if (selectedRows[row.CUPS]) {
+          const validatedQuantity = adjustedQuantities[row.CUPS] ?? row.Cantidad_Ejecutada;
+          const recalculatedValorReconocer = validatedQuantity * row.Valor_Unitario;
+          const discountValue = row.Valor_Ejecutado - recalculatedValorReconocer;
+          return sum + (discountValue > 0 ? discountValue : 0);
+        }
+        return sum;
+      }, 0);
+      return totalDiscount;
+    }, [filteredData, selectedRows, adjustedQuantities]);
+
+    const valorNetoFinal = useMemo(() => totalEjecutadoAjustado, [totalEjecutadoAjustado]);
 
 
     const allSelected = useMemo(() => filteredData.length > 0 && filteredData.every(row => selectedRows[row.CUPS]), [filteredData, selectedRows]);
@@ -486,7 +494,7 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-right w-full mt-4">
                         <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200">
                             <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><WalletCards className="h-4 w-4"/> Valor Ejecutado Total</p>
-                            <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEjecutado)}</p>
+                            <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEjecutadoAjustado)}</p>
                         </div>
                         <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200">
                             <p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><TrendingDown className="h-4 w-4"/> Descuento Aplicado</p>
@@ -550,6 +558,7 @@ export default DiscountMatrix;
     
 
     
+
 
 
 
