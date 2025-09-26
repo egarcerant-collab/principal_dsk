@@ -291,8 +291,8 @@ const DiscountMatrix: React.FC<DiscountMatrixProps> = ({ data, executionDataByMo
     };
 
     const totalEjecutadoBruto = useMemo(() => {
-        return filteredData.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
-    }, [filteredData]);
+        return data.reduce((sum, row) => sum + row.Valor_Ejecutado, 0);
+    }, [data]);
     
     const totalEjecutadoAjustado = useMemo(() => {
       return filteredData.reduce((sum, row) => {
@@ -558,6 +558,7 @@ export default DiscountMatrix;
     
 
     
+
 
 
 
